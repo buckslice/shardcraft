@@ -10,27 +10,19 @@ public class World : MonoBehaviour {
 
     public Dictionary<Vector3i, Chunk> chunks = new Dictionary<Vector3i, Chunk>();
 
+    public bool loadPlayerSave = false;
+
     // Use this for initialization
     void Start() {
-        for (int x = -4; x < 4; x++) {
-            for (int y = -1; y < 3; y++) {
-                for (int z = -4; z < 4; z++) {
-                    CreateChunk(x * 16, y * 16, z * 16);
-                }
-            }
+
+        if (loadPlayerSave) {
+            Serialization.LoadPlayer();
         }
-
-        Serialization.LoadPlayer();
-    }
-
-    // Update is called once per frame
-    void Update() {
-
     }
 
     public void OnApplicationQuit() {
         // save all chunks
-        foreach(KeyValuePair<Vector3i, Chunk> entry in chunks) {
+        foreach (KeyValuePair<Vector3i, Chunk> entry in chunks) {
             Serialization.SaveChunk(entry.Value);
         }
 
@@ -39,11 +31,13 @@ public class World : MonoBehaviour {
     }
 
     public void CreateChunk(int x, int y, int z) {
+        Debug.Assert(x % Chunk.SIZE == 0 && y % Chunk.SIZE == 0 && z % Chunk.SIZE == 0);
+
         Vector3i worldPos = new Vector3i(x, y, z);
 
         //Instantiate the chunk at the coordinates using the chunk prefab
         GameObject newChunkObject = Instantiate(chunkPrefab, new Vector3(x, y, z), Quaternion.Euler(Vector3.zero)) as GameObject;
-
+        newChunkObject.name = "Chunk " + (worldPos / Chunk.SIZE).ToString();
         Chunk newChunk = newChunkObject.GetComponent<Chunk>();
 
         newChunk.pos = worldPos;
@@ -65,20 +59,18 @@ public class World : MonoBehaviour {
         Chunk chunk = null;
         if (chunks.TryGetValue(new Vector3i(x, y, z), out chunk)) {
             Serialization.SaveChunk(chunk);
-            Object.Destroy(chunk.gameObject);
+            Destroy(chunk.gameObject);
             chunks.Remove(new Vector3i(x, y, z));
         }
     }
 
+    // gets chunk using world coordinates
     public Chunk GetChunk(int x, int y, int z) {
-        Vector3i pos = new Vector3i();
-        float fSIZE = Chunk.SIZE;
-        pos.x = Mathf.FloorToInt(x / fSIZE) * Chunk.SIZE;
-        pos.y = Mathf.FloorToInt(y / fSIZE) * Chunk.SIZE;
-        pos.z = Mathf.FloorToInt(z / fSIZE) * Chunk.SIZE;
-
-        chunks.TryGetValue(pos, out Chunk containerChunk);
-
+        chunks.TryGetValue(Chunk.GetChunkPosition(new Vector3(x, y, z)), out Chunk containerChunk);
+        return containerChunk;
+    }
+    public Chunk GetChunk(Vector3i p) {
+        chunks.TryGetValue(Chunk.GetChunkPosition(p.ToVector3()), out Chunk containerChunk);
         return containerChunk;
     }
 

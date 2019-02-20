@@ -11,17 +11,20 @@ public class Chunk : MonoBehaviour {
     public Block[,,] blocks = new Block[SIZE, SIZE, SIZE];
 
     public World world;
-    public Vector3i pos;
+    public Vector3i pos; // maybe switch to not be world space and in chunk space
 
     public const int SIZE = 16;
 
-    public bool update = true;
+    public bool update { get; set; }
+    public bool rendered { get; set; }
 
     MeshFilter filter;
     MeshCollider coll;
 
     // Use this for initialization
     void Start() {
+        update = false;
+        rendered = false;
 
         filter = gameObject.GetComponent<MeshFilter>();
         coll = gameObject.GetComponent<MeshCollider>();
@@ -33,11 +36,25 @@ public class Chunk : MonoBehaviour {
         if (update) {
             update = false;
             UpdateChunk();
+            //Debug.Log("updated " + pos.ToString());
         }
     }
 
     // Updates the chunk based on its contents
     void UpdateChunk() {
+        for (int x = -1; x <= 1; ++x) {
+            for (int y = -1; y <= 1; ++y) {
+                for (int z = -1; z <= 1; ++z) {
+                    if (x == 0 && y == 0 && z == 0) {
+                        continue;
+                    }
+
+                    Debug.Assert(world.GetChunk(pos + new Vector3i(x, y, z) * SIZE) != null);
+                }
+            }
+        }
+
+
         MeshData meshData = new MeshData();
 
         for (int x = 0; x < SIZE; x++) {
@@ -49,6 +66,8 @@ public class Chunk : MonoBehaviour {
         }
 
         UpdateMesh(meshData);
+
+        rendered = true;
     }
 
     // Sends the calculated mesh information
@@ -69,6 +88,8 @@ public class Chunk : MonoBehaviour {
         mesh.RecalculateNormals();
 
         coll.sharedMesh = mesh;
+
+        Debug.Log("updated: " + pos.ToString());
     }
 
     public Block GetBlock(int x, int y, int z) {
@@ -79,13 +100,7 @@ public class Chunk : MonoBehaviour {
         return world.GetBlock(pos.x + x, pos.y + y, pos.z + z);
     }
 
-    public void SetBlock(int x, int y, int z, Block block, bool worldSpace=false) {
-        if (worldSpace) {
-            x -= pos.x;
-            y -= pos.y;
-            z -= pos.z;
-        }
-
+    public void SetBlock(int x, int y, int z, Block block) {
         if (InRange(x, y, z)) {
             blocks[x, y, z] = block;
         } else {
@@ -93,8 +108,18 @@ public class Chunk : MonoBehaviour {
         }
     }
 
+
     public static bool InRange(int x, int y, int z) {
         return x >= 0 && x < SIZE && y >= 0 && y < SIZE && z >= 0 && z < SIZE;
+    }
+
+    // returns the chunk coord that pos is in
+    public static Vector3i GetChunkPosition(Vector3 pos) {
+        return new Vector3i(
+            Mathf.FloorToInt(pos.x / SIZE) * SIZE,
+            Mathf.FloorToInt(pos.y / SIZE) * SIZE,
+            Mathf.FloorToInt(pos.z / SIZE) * SIZE
+        );
     }
 
     public void SetBlocksUnmodified() {

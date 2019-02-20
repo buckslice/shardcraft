@@ -27,13 +27,23 @@ public class CamModify : MonoBehaviour {
         yaw += Input.GetAxis("Mouse X") * sensitivity;
         pitch += Input.GetAxis("Mouse Y") * sensitivity;
 
-        pitch = Mathf.Clamp(pitch, -90, 90);
+        pitch = Mathf.Clamp(pitch, -89, 89);
 
         transform.localRotation = Quaternion.AngleAxis(yaw, Vector3.up);
         transform.localRotation *= Quaternion.AngleAxis(pitch, Vector3.left);
 
-        Vector3 move = transform.forward * Input.GetAxisRaw("Vertical") + transform.right * Input.GetAxisRaw("Horizontal");
-        move = move.normalized * moveSpeed;
+        Vector3 forward = transform.forward;
+        forward.y = 0.0f;
+        forward.Normalize();
+
+        Vector3 move = forward * Input.GetAxisRaw("Vertical") + transform.right * Input.GetAxisRaw("Horizontal");
+
+        float speed = moveSpeed;
+        if (Input.GetKey(KeyCode.LeftControl)) {
+            speed *= 3;
+        }
+
+        move = move.normalized * speed;
 
         float upDir = 0.0f;
         if (Input.GetKey(KeyCode.Space)) {
@@ -42,7 +52,7 @@ public class CamModify : MonoBehaviour {
         if (Input.GetKey(KeyCode.LeftShift)) {
             upDir -= 1.0f;
         }
-        move += upDir * Vector3.up * moveSpeed;
+        move += upDir * Vector3.up * speed;
 
         transform.position += move * Time.deltaTime;
     }

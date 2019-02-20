@@ -7,16 +7,36 @@ public static class WorldGenerator {
 
     public static void Generate(Chunk chunk) {
 
-        for (int x = chunk.pos.x; x < chunk.pos.x + Chunk.SIZE; ++x) {
-            for (int y = chunk.pos.y; y < chunk.pos.y + Chunk.SIZE; ++y) {
-                for (int z = chunk.pos.z; z < chunk.pos.z + Chunk.SIZE; ++z) {
-                    float n = Noise.Fractal(new Vector3(x, y, z), 5, 0.01f);
+        for (int x = 0; x < Chunk.SIZE; ++x) {
+            for (int y = 0; y < Chunk.SIZE; ++y) {
+                for (int z = 0; z < Chunk.SIZE; ++z) {
+                    Vector3 wp = new Vector3(x, y, z) + chunk.pos.ToVector3();
+                    float n = 0.0f;
 
-                    if (n > 0.2f) {
-                        chunk.SetBlock(x, y, z, new Block(), true);
+                    // experiment with catlike coding noise some more
+                    //NoiseSample samp = Noise.Sum(Noise.Simplex3D, wp, 0.015f, 5, 2.0f, 0.5f);
+                    //float n = samp.value * 3.0f;
+
+                    // TODO: convert shapes.cginc into c# equiv, and or get gen going on multiple thread (try job system!!!)
+                    n -= Vector3.Dot(wp, Vector3.up) * 0.05f;
+
+                    n += Noise.Fractal(wp, 5, 0.01f);
+
+                    if (n > 0.3f) {
+                        chunk.SetBlock(x, y, z, new Block());
+                    } else if (n > 0.15f) {
+                        chunk.SetBlock(x, y, z, new BlockGrass());
+
+                        // trying to make grass not spawn on cliff edge...
+                        //if (Mathf.Abs(samp.derivative.normalized.y) < 0.4f) {
+                        //    chunk.SetBlock(x, y, z, new BlockGrass());
+                        //} else {
+                        //    chunk.SetBlock(x, y, z, new Block());
+                        //}
                     } else {
-                        chunk.SetBlock(x, y, z, new BlockAir(), true);
+                        chunk.SetBlock(x, y, z, new BlockAir());
                     }
+
                 }
             }
         }
