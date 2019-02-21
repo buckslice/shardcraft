@@ -34,9 +34,9 @@ public class World : MonoBehaviour {
         Debug.Assert(x % Chunk.SIZE == 0 && y % Chunk.SIZE == 0 && z % Chunk.SIZE == 0);
 
         Vector3i worldPos = new Vector3i(x, y, z);
-
+         
         //Instantiate the chunk at the coordinates using the chunk prefab
-        GameObject newChunkObject = Instantiate(chunkPrefab, new Vector3(x, y, z), Quaternion.Euler(Vector3.zero)) as GameObject;
+        GameObject newChunkObject = Instantiate(chunkPrefab, new Vector3(x, y, z), Quaternion.Euler(Vector3.zero), transform) as GameObject;
         newChunkObject.name = "Chunk " + (worldPos / Chunk.SIZE).ToString();
         Chunk newChunk = newChunkObject.GetComponent<Chunk>();
 

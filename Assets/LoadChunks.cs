@@ -7,14 +7,51 @@ public class LoadChunks : MonoBehaviour {
     int loadRadius = 2;
     public World world;
 
-    //List<Vector3i> updateList = new List<Vector3i>(); // list of chunk positions that should be rendered
     List<Vector3i> genList = new List<Vector3i>(); // list of chunk positions that should be built
 
+    Vector3i[] neighborChunks; // list of chunk offsets to generate in order of closeness
 
     // Start is called before the first frame update
     void Start() {
-
+        GenerateNeighborChunks(loadRadius);
     }
+
+    // im too netarded to try to figure out this pattern so writing some trash flood fill algo lol
+    void GenerateNeighborChunks(int radius) {
+        int size = radius * 2 + 1;
+        neighborChunks = new Vector3i[size * size * size];
+        neighborChunks[0] = new Vector3i(0, 0, 0);
+
+        HashSet<Vector3i> visited = new HashSet<Vector3i>();
+        visited.Add(new Vector3i(0, 0, 0));
+
+        Vector3i[] neighbors = new Vector3i[] {
+            Vector3i.forward, Vector3i.right, Vector3i.up,
+            Vector3i.back, Vector3i.left, Vector3i.down
+        };
+
+        bool TooGreat(Vector3i v) {
+            return Mathf.Abs(v.x) > radius || Mathf.Abs(v.y) > radius || Mathf.Abs(v.z) > radius;
+        }
+
+        int end = 0;
+        for (int i = 0; i < neighborChunks.Length; ++i) {
+            Vector3i cur = neighborChunks[i];
+            for (int n = 0; n < 6; ++n) {
+                Vector3i next = cur + neighbors[n];
+                if (!visited.Contains(next) && !TooGreat(next)) {
+                    neighborChunks[++end] = next;
+                    visited.Add(next);
+                }
+            }
+
+        }
+
+        //for (int i = 0; i < neighborChunks.Length; ++i) {
+        //    Debug.Log(neighborChunks[i]);
+        //}
+    }
+
 
     // Update is called once per frame
     int timer = 0;
@@ -30,43 +67,34 @@ public class LoadChunks : MonoBehaviour {
     }
 
 
+
     void FindChunksToLoad() {
-        Vector3i playerPos = Chunk.GetChunkPosition(transform.position);
-
-        int added = 0;
         if (genList.Count == 0) {
+            Vector3i playerPos = Chunk.GetChunkPosition(transform.position);
+            int added = 0;
 
-            for (int s = 0; s <= loadRadius; ++s) {
-                for (int x = -s; x <= s; ++x) {
-                    for (int y = -s; y <= s; ++y) {
-                        for (int z = -s; z <= s; ++z) {
-                            if (x == -s || x == s || y == -s || y == s || z == -s || z == s) {
-                                Vector3i p = playerPos + new Vector3i(x, y, z) * Chunk.SIZE;
+            for (int i = 0; i < neighborChunks.Length; ++i) {
+                Vector3i p = playerPos + neighborChunks[i] * Chunk.SIZE;
+                Chunk newChunk = world.GetChunk(p);
 
-                                Chunk newChunk = world.GetChunk(p.x, p.y, p.z);
+                if (newChunk != null && newChunk.rendered) {
+                    continue;
+                }
 
-                                if (newChunk != null && newChunk.rendered) {
-                                    continue;
-                                }
+                genList.Add(p);
 
-                                genList.Add(p);
-
-                                // dont let list get too huge
-                                if (++added >= 16) {
-                                    return;
-                                }
-                            }
-                        }
-                    }
+                // dont let list get too huge
+                if (++added >= 32) {
+                    return;
                 }
             }
-
 
         }
 
     }
 
     void BuildChunk(Vector3i pos) {
+        // loads area around chunk so mesh is rendered properly
         int pad = Chunk.SIZE * 1;
         for (int x = pos.x - pad; x <= pos.x + pad; x += Chunk.SIZE) {
             for (int y = pos.y - pad; y <= pos.y + pad; y += Chunk.SIZE) {
@@ -77,11 +105,6 @@ public class LoadChunks : MonoBehaviour {
                 }
             }
         }
-        //if (world.GetChunk(pos.x, pos.y, pos.z) == null) {
-        //    world.CreateChunk(pos.x, pos.y, pos.z);
-        //}
-
-        //updateList.Add(pos);
     }
 
     void GenerateChunks() {
@@ -109,24 +132,10 @@ public class LoadChunks : MonoBehaviour {
         }
     }
 
-    //void LoadAndRenderChunks() {
-    //for (int i = 0; i < 1 && buildList.Count != 0; ++i) {
-    //    BuildChunk(buildList[0]);
-    //    buildList.RemoveAt(0);
-    //}
-
-    //for (int i = 0; i < updateList.Count; ++i) {
-    //    Vector3i upos = updateList[i];
-    //    Chunk chunk = world.GetChunk(upos.x, upos.y, upos.z);
-    //    if (chunk != null) {
-    //        chunk.update = true;
-    //    }
-    //}
-    //updateList.Clear();
-    //}
-
+    // todo: change to just delete if chunk offset is not in the neighbors set
+    // or at least turn off renderer then delete chunk later actually
     void DeleteFarChunks() {
-        float maxDist = (loadRadius * 3) * Chunk.SIZE;
+        float maxDist = (loadRadius * 4) * Chunk.SIZE;
 
         List<Vector3i> chunksToDelete = new List<Vector3i>();
         foreach (var chunk in world.chunks) {
@@ -142,9 +151,9 @@ public class LoadChunks : MonoBehaviour {
         foreach (var cp in chunksToDelete) {
             world.DestroyChunk(cp.x, cp.y, cp.z);
         }
-        if (chunksToDelete.Count > 0) {
-            Debug.Log("deleted: " + chunksToDelete.Count);
-        }
+        //if (chunksToDelete.Count > 0) {
+        //    Debug.Log("deleted: " + chunksToDelete.Count);
+        //}
     }
 
 }

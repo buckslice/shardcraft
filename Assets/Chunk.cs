@@ -89,7 +89,7 @@ public class Chunk : MonoBehaviour {
 
         coll.sharedMesh = mesh;
 
-        Debug.Log("updated: " + pos.ToString());
+        //Debug.Log("updated: " + pos.ToString());
     }
 
     public Block GetBlock(int x, int y, int z) {

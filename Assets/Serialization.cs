@@ -5,6 +5,8 @@ using System;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Runtime.Serialization;
 
+// todo: add regions which are 16x16x16 chunks in one file so not so many files reading and writing
+
 public static class Serialization {
 
     public static string saveFolderName = "saves";

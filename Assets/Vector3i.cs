@@ -13,12 +13,6 @@ public struct Vector3i {
         this.z = z;
     }
 
-    public Vector3i(int[] arr) {
-        x = arr[0];
-        y = arr[1];
-        z = arr[2];
-    }
-
     public void Add(Vector3i v) {
         x += v.x;
         y += v.y;
@@ -67,22 +61,46 @@ public struct Vector3i {
     }
 
     public override string ToString() {
-        return "(" + x + "," + y + "," + z + ")";
+        return string.Format("({0}, {1}, {2})", x, y, z);
     }
 
     public Vector3 ToVector3() {
         return new Vector3(x, y, z);
     }
 
-    public static Vector3i UnitX = new Vector3i(1, 0, 0);
-    public static Vector3i UnitY = new Vector3i(0, 1, 0);
-    public static Vector3i UnitZ = new Vector3i(0, 0, 1);
-    public static Vector3i Zero = new Vector3i(0, 0, 0);
-    public static Vector3i One = new Vector3i(1, 1, 1);
+    // Default values
+    public static Vector3i one {
+        get { return new Vector3i(1, 1, 1); }
+    }
+    public static Vector3i zero {
+        get { return new Vector3i(0, 0, 0); }
+    }
+    public static Vector3i forward {
+        get { return new Vector3i(0, 0, 1); }
+    }
+    public static Vector3i right {
+        get { return new Vector3i(1, 0, 0); }
+    }
+    public static Vector3i up {
+        get { return new Vector3i(0, 1, 0); }
+    }
+    public static Vector3i back {
+        get { return new Vector3i(0, 0, -1); }
+    }
+    public static Vector3i left {
+        get { return new Vector3i(-1, 0, 0); }
+    }
+    public static Vector3i down {
+        get { return new Vector3i(0, -1, 0); }
+    }
+
 
     public static explicit operator Vector3i(Vector3 v) {
         return new Vector3i((int)v.x, (int)v.y, (int)v.z);
     }
+    //public static implicit operator Vector3(Vector3i source) {
+    //    return new Vector3(source.x, source.y, source.z);
+    //}
 
     public static Vector3i operator +(Vector3i v0, Vector3i v1) {
         return new Vector3i(v0.x + v1.x, v0.y + v1.y, v0.z + v1.z);

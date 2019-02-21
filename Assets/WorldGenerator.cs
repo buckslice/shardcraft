@@ -18,7 +18,7 @@ public static class WorldGenerator {
                     //float n = samp.value * 3.0f;
 
                     // TODO: convert shapes.cginc into c# equiv, and or get gen going on multiple thread (try job system!!!)
-                    n -= Vector3.Dot(wp, Vector3.up) * 0.05f;
+                    n -= Vector3.Dot(wp, Vector3.up) * 0.5f;
 
                     n += Noise.Fractal(wp, 5, 0.01f);
 
