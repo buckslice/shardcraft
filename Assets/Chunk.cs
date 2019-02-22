@@ -75,19 +75,18 @@ public class Chunk : MonoBehaviour {
     void UpdateMesh(MeshData data) {
         filter.mesh.Clear();
         filter.mesh.vertices = data.vertices.ToArray();
-        filter.mesh.triangles = data.triangles.ToArray();
-
         filter.mesh.uv = data.uv.ToArray();
+        filter.mesh.triangles = data.triangles.ToArray();
         filter.mesh.RecalculateNormals();
 
         //additions:
-        coll.sharedMesh = null;
-        Mesh mesh = new Mesh();
-        mesh.vertices = data.colVertices.ToArray();
-        mesh.triangles = data.colTriangles.ToArray();
-        mesh.RecalculateNormals();
+        //coll.sharedMesh = null;
+        //Mesh mesh = new Mesh();
+        //mesh.vertices = data.colVertices.ToArray();
+        //mesh.triangles = data.colTriangles.ToArray();
+        //mesh.RecalculateNormals();
 
-        coll.sharedMesh = mesh;
+        //coll.sharedMesh = mesh;
 
         //Debug.Log("updated: " + pos.ToString());
     }
