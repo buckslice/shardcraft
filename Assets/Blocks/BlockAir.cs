@@ -2,16 +2,13 @@
 using System.Collections;
 using System;
 
-[Serializable]
-public class BlockAir : Block {
-    public BlockAir() : base() {
+public class BlockAir : BlockType {
 
+    public override bool IsSolid(Dir dir) {
+        return false;
     }
 
     public override void AddData(Chunk chunk, int x, int y, int z, MeshData meshData) {
     }
 
-    public override bool IsSolid(Block.Dir direction) {
-        return false;
-    }
 }

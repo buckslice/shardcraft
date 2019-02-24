@@ -54,7 +54,7 @@ public static class Terrain {
     public static Block GetBlock(RaycastHit hit, bool adjacent = false) {
         Chunk chunk = hit.collider.GetComponent<Chunk>();
         if (chunk == null)
-            return null;
+            return Blocks.AIR;
 
         Vector3i pos = GetBlockPos(hit, adjacent);
 

@@ -3,16 +3,57 @@ using System.Collections;
 using System;
 
 [Serializable]
-public class Block {
+public struct Block {
 
-    public enum Dir { north, east, south, west, up, down };
+    public byte type;
 
-    public bool changed = true;
+    public bool changed;
 
-    //Base block constructor
-    public Block() {
+    // byte light;
 
+    public Block(byte type) {
+        this.type = type;
+        changed = true;
     }
+
+    public bool IsSolid(Dir dir) {
+        return BlockTypes.GetBlockType(type).IsSolid(dir);
+    }
+
+    public Tile TexturePosition(Dir dir) {
+        return BlockTypes.GetBlockType(type).TexturePosition(dir);
+    }
+
+    public void AddData(Chunk chunk, int x, int y, int z, MeshData meshData) {
+        BlockTypes.GetBlockType(type).AddData(chunk, x, y, z, meshData);
+    }
+
+}
+
+public enum Dir { north, east, south, west, up, down };
+
+// make sure this matches array below
+public static class Blocks {
+    public static readonly Block AIR = new Block(0);
+    public static readonly Block STONE = new Block(1);
+    public static readonly Block GRASS = new Block(2);
+}
+
+public static class BlockTypes {
+
+    private static BlockType[] types = new BlockType[] {
+        new BlockAir(),
+        new BlockStone(),
+        new BlockGrass(),
+    };
+
+    public static BlockType GetBlockType(int type) {
+        return types[type];
+    }
+
+}
+
+public abstract class BlockType {
 
     public virtual bool IsSolid(Dir dir) {
         switch (dir) {
@@ -32,8 +73,11 @@ public class Block {
         return false;
     }
 
-    public virtual void AddData(Chunk chunk, int x, int y, int z, MeshData meshData) {
+    public virtual Tile TexturePosition(Dir dir) {
+        return new Tile() { x = 0, y = 0 };
+    }
 
+    public virtual void AddData(Chunk chunk, int x, int y, int z, MeshData meshData) {
         if (!chunk.GetBlock(x, y + 1, z).IsSolid(Dir.down)) {
             FaceDataUp(chunk, x, y, z, meshData);
         }
@@ -125,29 +169,25 @@ public class Block {
         meshData.uv.AddRange(FaceUVs(Dir.west));
     }
 
-
-    public struct Tile { public int x; public int y; }
-
-    const float TILE_SIZE = 0.25f; // set equal to 1 / number of tiles on sprite sheet 
-
-    public virtual Tile TexturePosition(Dir dir) {
-        Tile tile = new Tile();
-        tile.x = 0;
-        tile.y = 0;
-
-        return tile;
-    }
-
     public virtual Vector2[] FaceUVs(Dir dir) {
         Vector2[] uvs = new Vector2[4];
         Tile tilePos = TexturePosition(dir);
 
-        uvs[0] = new Vector2(TILE_SIZE * tilePos.x + TILE_SIZE, TILE_SIZE * tilePos.y);
-        uvs[1] = new Vector2(TILE_SIZE * tilePos.x + TILE_SIZE, TILE_SIZE * tilePos.y + TILE_SIZE);
-        uvs[2] = new Vector2(TILE_SIZE * tilePos.x, TILE_SIZE * tilePos.y + TILE_SIZE);
-        uvs[3] = new Vector2(TILE_SIZE * tilePos.x, TILE_SIZE * tilePos.y);
+        uvs[0] = new Vector2(Tile.SIZE * tilePos.x + Tile.SIZE, Tile.SIZE * tilePos.y);
+        uvs[1] = new Vector2(Tile.SIZE * tilePos.x + Tile.SIZE, Tile.SIZE * tilePos.y + Tile.SIZE);
+        uvs[2] = new Vector2(Tile.SIZE * tilePos.x, Tile.SIZE * tilePos.y + Tile.SIZE);
+        uvs[3] = new Vector2(Tile.SIZE * tilePos.x, Tile.SIZE * tilePos.y);
 
         return uvs;
     }
 
 }
+
+
+public struct Tile {
+    public const float SIZE = 0.25f; // set equal to 1 / number of tiles on sprite sheet 
+    public int x;
+    public int y;
+}
+
+public class BlockStone : BlockType { }

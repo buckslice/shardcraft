@@ -8,12 +8,13 @@ using UnityEngine;
 [RequireComponent(typeof(MeshCollider))]
 
 public class Chunk : MonoBehaviour {
-    public Block[,,] blocks = new Block[SIZE, SIZE, SIZE];
+    public const int SIZE = 16;
+
+    public Array3<Block> blocks = new Array3<Block>(SIZE);
 
     public World world;
     public Vector3i pos; // maybe switch to not be world space and in chunk space
 
-    public const int SIZE = 16;
 
     public bool update { get; set; }
     public bool rendered { get; set; }
@@ -42,19 +43,46 @@ public class Chunk : MonoBehaviour {
 
     // Updates the chunk based on its contents
     void UpdateChunk() {
+
+        // double check to make sure all nearby chunks are loaded by this point
         for (int x = -1; x <= 1; ++x) {
             for (int y = -1; y <= 1; ++y) {
                 for (int z = -1; z <= 1; ++z) {
-                    if (x == 0 && y == 0 && z == 0) {
-                        continue;
-                    }
-
                     Debug.Assert(world.GetChunk(pos + new Vector3i(x, y, z) * SIZE) != null);
                 }
             }
         }
 
 
+        //UpdateMesh(GreedyMesh());
+
+        UpdateMesh(StupidMesh());
+
+        rendered = true;
+    }
+
+
+    //https://github.com/roboleary/GreedyMesh/blob/master/src/mygame/Main.java
+    MeshData GreedyMesh() {
+        MeshData meshData = new MeshData();
+
+        // setup variables for algo
+        int i, j, k, l, w, h, u, v, n, side = 0;
+
+        int[] x = new int[] { 0, 0, 0 };
+        int[] q = new int[] { 0, 0, 0 };
+        int[] du = new int[] { 0, 0, 0 };
+        int[] dv = new int[] { 0, 0, 0 };
+
+        // mask will contain groups of matching blocks as we proceed through chunk in 6 directions, onces for each face
+        Block[] mask = new Block[SIZE * SIZE];
+
+
+
+        return meshData;
+    }
+
+    MeshData StupidMesh() {
         MeshData meshData = new MeshData();
 
         for (int x = 0; x < SIZE; x++) {
@@ -65,9 +93,7 @@ public class Chunk : MonoBehaviour {
             }
         }
 
-        UpdateMesh(meshData);
-
-        rendered = true;
+        return meshData;
     }
 
     // Sends the calculated mesh information
@@ -79,14 +105,14 @@ public class Chunk : MonoBehaviour {
         filter.mesh.triangles = data.triangles.ToArray();
         filter.mesh.RecalculateNormals();
 
-        //additions:
-        //coll.sharedMesh = null;
-        //Mesh mesh = new Mesh();
-        //mesh.vertices = data.colVertices.ToArray();
-        //mesh.triangles = data.colTriangles.ToArray();
-        //mesh.RecalculateNormals();
+        // generate collider
+        coll.sharedMesh = null;
+        Mesh mesh = new Mesh();
+        mesh.vertices = data.colVertices.ToArray();
+        mesh.triangles = data.colTriangles.ToArray();
+        mesh.RecalculateNormals();
 
-        //coll.sharedMesh = mesh;
+        coll.sharedMesh = mesh;
 
         //Debug.Log("updated: " + pos.ToString());
     }
@@ -107,7 +133,6 @@ public class Chunk : MonoBehaviour {
         }
     }
 
-
     public static bool InRange(int x, int y, int z) {
         return x >= 0 && x < SIZE && y >= 0 && y < SIZE && z >= 0 && z < SIZE;
     }
@@ -122,8 +147,10 @@ public class Chunk : MonoBehaviour {
     }
 
     public void SetBlocksUnmodified() {
-        foreach (Block block in blocks) {
-            block.changed = false;
+        for (int i = 0; i < blocks.sizeCubed; ++i) {
+            Block b = blocks[i];
+            b.changed = false;
+            blocks[i] = b;
         }
     }
 

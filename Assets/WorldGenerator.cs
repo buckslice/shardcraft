@@ -23,9 +23,9 @@ public static class WorldGenerator {
                     n += Noise.Fractal(wp, 5, 0.01f);
 
                     if (n > 0.3f) {
-                        chunk.SetBlock(x, y, z, new Block());
+                        chunk.SetBlock(x, y, z, Blocks.STONE);
                     } else if (n > 0.15f) {
-                        chunk.SetBlock(x, y, z, new BlockGrass());
+                        chunk.SetBlock(x, y, z, Blocks.GRASS);
 
                         // trying to make grass not spawn on cliff edge...
                         //if (Mathf.Abs(samp.derivative.normalized.y) < 0.4f) {
@@ -34,7 +34,7 @@ public static class WorldGenerator {
                         //    chunk.SetBlock(x, y, z, new Block());
                         //}
                     } else {
-                        chunk.SetBlock(x, y, z, new BlockAir());
+                        chunk.SetBlock(x, y, z, Blocks.AIR);
                     }
 
                 }

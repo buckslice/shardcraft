@@ -10,17 +10,19 @@ public class CamModify : MonoBehaviour {
     public float yaw;
 
     void Update() {
+        // left click delete
         if (Input.GetMouseButtonDown(0)) {
             RaycastHit hit;
             if (Physics.Raycast(transform.position, transform.forward, out hit, 100)) {
-                Terrain.SetBlock(hit, new BlockAir());
+                Terrain.SetBlock(hit, Blocks.AIR);
             }
         }
 
+        // right click place
         if (Input.GetMouseButtonDown(1)) {
             RaycastHit hit;
             if (Physics.Raycast(transform.position, transform.forward, out hit, 100)) {
-                Terrain.SetBlock(hit, new BlockGrass(), true);
+                Terrain.SetBlock(hit, Blocks.GRASS, true);
             }
         }
 

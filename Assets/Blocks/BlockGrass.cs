@@ -1,18 +1,14 @@
-﻿using UnityEngine;
-using System.Collections;
-using System;
+﻿
 
-[Serializable]
-public class BlockGrass : Block {
-
-    public BlockGrass() : base() {
-
+public class BlockGrass : BlockType {
+    public override bool IsSolid(Dir dir) {
+        return true;
     }
 
-    public override Tile TexturePosition(Dir direction) {
+    public override Tile TexturePosition(Dir dir) {
         Tile tile = new Tile();
 
-        switch (direction) {
+        switch (dir) {
             case Dir.up:
                 tile.x = 2;
                 tile.y = 0;
