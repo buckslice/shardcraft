@@ -16,6 +16,10 @@ public struct Block {
         changed = true;
     }
 
+    public BlockType GetBlockType() {
+        return BlockTypes.GetBlockType(type);
+    }
+
     public bool IsSolid(Dir dir) {
         return BlockTypes.GetBlockType(type).IsSolid(dir);
     }
@@ -26,6 +30,13 @@ public struct Block {
 
     public void AddData(Chunk chunk, int x, int y, int z, MeshData meshData) {
         BlockTypes.GetBlockType(type).AddData(chunk, x, y, z, meshData);
+    }
+
+    public static bool operator ==(Block a, Block b) {
+        return a.type == b.type;
+    }
+    public static bool operator !=(Block a, Block b) {
+        return !(a == b);
     }
 
 }
@@ -177,6 +188,18 @@ public abstract class BlockType {
         uvs[1] = new Vector2(Tile.SIZE * tilePos.x + Tile.SIZE, Tile.SIZE * tilePos.y + Tile.SIZE);
         uvs[2] = new Vector2(Tile.SIZE * tilePos.x, Tile.SIZE * tilePos.y + Tile.SIZE);
         uvs[3] = new Vector2(Tile.SIZE * tilePos.x, Tile.SIZE * tilePos.y);
+
+        return uvs;
+    }
+
+    public virtual Vector2[] FaceUVsGreedy(Dir dir) {
+        Vector2[] uvs = new Vector2[4];
+        Tile tilePos = TexturePosition(dir);
+
+        uvs[0] = new Vector2(Tile.SIZE * tilePos.x, Tile.SIZE * tilePos.y);
+        uvs[1] = new Vector2(Tile.SIZE * tilePos.x + Tile.SIZE, Tile.SIZE * tilePos.y);
+        uvs[2] = new Vector2(Tile.SIZE * tilePos.x, Tile.SIZE * tilePos.y + Tile.SIZE);
+        uvs[3] = new Vector2(Tile.SIZE * tilePos.x + Tile.SIZE, Tile.SIZE * tilePos.y + Tile.SIZE);
 
         return uvs;
     }
