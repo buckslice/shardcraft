@@ -51,7 +51,11 @@ public class Chunk : MonoBehaviour {
         for (int x = -1; x <= 1; ++x) {
             for (int y = -1; y <= 1; ++y) {
                 for (int z = -1; z <= 1; ++z) {
-                    Debug.Assert(world.GetChunk(pos + new Vector3i(x, y, z) * SIZE) != null);
+                    //Debug.Assert(world.GetChunk(pos + new Vector3i(x, y, z) * SIZE) != null);
+                    if(world.GetChunk(pos + new Vector3i(x, y, z) * SIZE) == null) {
+                        Debug.LogWarning("update failed, neighbors aren't loaded");
+                        return;
+                    }
                 }
             }
         }
@@ -213,10 +217,10 @@ public class Chunk : MonoBehaviour {
                         Vector3 topLeft = new Vector3(x[0] + du[0], x[1] + du[1], x[2] + du[2]);
                         Vector3 topRight = new Vector3(x[0] + du[0] + dv[0], x[1] + du[1] + dv[1], x[2] + du[2] + dv[2]);
 
-                        botLeft *= VOXEL_SIZE;
-                        topLeft *= VOXEL_SIZE;
-                        topRight *= VOXEL_SIZE;
-                        botRight *= VOXEL_SIZE;
+                        //botLeft *= VOXEL_SIZE;
+                        //topLeft *= VOXEL_SIZE;
+                        //topRight *= VOXEL_SIZE;
+                        //botRight *= VOXEL_SIZE;
 
                         data.AddVertex(botLeft);
                         data.AddVertex(botRight);
@@ -225,7 +229,7 @@ public class Chunk : MonoBehaviour {
 
                         data.AddQuadTrianglesGreedy(d0 == 2 ? backFace : !backFace);
 
-                        data.uv.AddRange(slice[n].GetBlockType().FaceUVsGreedy(side));
+                        slice[n].GetBlockType().FaceUVsGreedy(side, data, w, h);
 
                         // zero out the quad in the mask
                         for (l = 0; l < h; ++l) {
@@ -266,6 +270,9 @@ public class Chunk : MonoBehaviour {
         filter.mesh.Clear();
         filter.mesh.vertices = data.vertices.ToArray();
         filter.mesh.uv = data.uv.ToArray();
+        if (beGreedy) {
+            filter.mesh.uv2 = data.uv2.ToArray();
+        }
         filter.mesh.triangles = data.triangles.ToArray();
         filter.mesh.RecalculateNormals();
 

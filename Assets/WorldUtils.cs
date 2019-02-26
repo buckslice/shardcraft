@@ -47,7 +47,7 @@ public static class WorldUtils {
         }
 
         Vector3i pos = GetBlockPos(hit, adjacent);
-        Debug.Log(pos);
+        //Debug.Log(pos);
 
         chunk.world.SetBlock(pos.x, pos.y, pos.z, block);
 

@@ -200,16 +200,18 @@ public abstract class BlockType {
         return uvs;
     }
 
-    public virtual Vector2[] FaceUVsGreedy(Dir dir) {
-        Vector2[] uvs = new Vector2[4];
-        Tile tilePos = TexturePosition(dir);
+    public virtual void FaceUVsGreedy(Dir dir, MeshData data, int w, int h) {
+        Tile tp = TexturePosition(dir);
 
-        uvs[0] = new Vector2(Tile.SIZE * tilePos.x, Tile.SIZE * tilePos.y);
-        uvs[1] = new Vector2(Tile.SIZE * tilePos.x + Tile.SIZE, Tile.SIZE * tilePos.y);
-        uvs[2] = new Vector2(Tile.SIZE * tilePos.x, Tile.SIZE * tilePos.y + Tile.SIZE);
-        uvs[3] = new Vector2(Tile.SIZE * tilePos.x + Tile.SIZE, Tile.SIZE * tilePos.y + Tile.SIZE);
+        data.uv.Add(new Vector2(tp.x, tp.y) * Tile.SIZE);
+        data.uv.Add(new Vector2(tp.x, tp.y) * Tile.SIZE);
+        data.uv.Add(new Vector2(tp.x, tp.y) * Tile.SIZE);
+        data.uv.Add(new Vector2(tp.x, tp.y) * Tile.SIZE); 
 
-        return uvs;
+        data.uv2.Add(new Vector2(0, 0));
+        data.uv2.Add(new Vector2(h, 0));
+        data.uv2.Add(new Vector2(0, w));
+        data.uv2.Add(new Vector2(h, w));
     }
 
 }
@@ -227,7 +229,9 @@ public struct Tile {
 }
 
 public class BlockStone : BlockType {
-    public override Tile TexturePosition(Dir dir) {
-        return new Tile(1, 1);
-    }
+
+    // test smiley texture
+    //public override Tile TexturePosition(Dir dir) {
+    //    return new Tile(1, 1);
+    //}
 }
