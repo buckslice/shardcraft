@@ -5,7 +5,9 @@ public static class WorldUtils {
 
 
     public static Vector3i GetBlockPos(Vector3 pos) {
-        return new Vector3i(Mathf.RoundToInt(pos.x), Mathf.RoundToInt(pos.y), Mathf.RoundToInt(pos.z));
+        //return new Vector3i(Mathf.RoundToInt(pos.x), Mathf.RoundToInt(pos.y), Mathf.RoundToInt(pos.z));
+        //return new Vector3i((int)pos.x, (int)pos.y, (int)pos.z); // THIS TRUNCATES but we need FLOOORING REEEEEEEEEEEE
+        return new Vector3i((int)Mathf.Floor(pos.x), (int)Mathf.Floor(pos.y), (int)Mathf.Floor(pos.z));
     }
 
     public static Vector3i GetBlockPos(RaycastHit hit, bool adjacent = false) {

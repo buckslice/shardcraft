@@ -12,6 +12,12 @@ public class CamModify : MonoBehaviour {
     RaycastHit lastHit;
     Vector3 lastPos;
 
+    World w;
+
+    void Start() {
+        w = GameObject.FindObjectOfType<World>();
+    }
+
     void Update() {
         // left click delete
         if (Input.GetMouseButtonDown(0)) {
@@ -30,6 +36,16 @@ public class CamModify : MonoBehaviour {
                 lastPos = transform.position;
                 lastHit = hit;
                 WorldUtils.SetBlock(hit, Blocks.GRASS, true);
+            }
+        }
+
+        if (Input.GetKeyDown(KeyCode.P)) {
+            Chunk.beGreedy = !Chunk.beGreedy;
+
+            foreach(Chunk c in w.chunks.Values) {
+                if (c.rendered) {
+                    c.update = true;
+                }
             }
         }
 

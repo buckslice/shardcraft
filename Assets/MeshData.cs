@@ -35,16 +35,16 @@ public class MeshData {
 
     }
 
-    public void AddQuadTrianglesGreedy(bool backFace) {
-        if (backFace) {
+    public void AddQuadTrianglesGreedy(bool clockwise) {
+        if (!clockwise) {
 
-            triangles.Add(vertices.Count - 2);
-            triangles.Add(vertices.Count - 4);
-            triangles.Add(vertices.Count - 3);
+            triangles.Add(vertices.Count - 2);  // 2
+            triangles.Add(vertices.Count - 4);  // 0
+            triangles.Add(vertices.Count - 3);  // 1
 
-            triangles.Add(vertices.Count - 3);
-            triangles.Add(vertices.Count - 1);
-            triangles.Add(vertices.Count - 2);
+            triangles.Add(vertices.Count - 3);  // 1
+            triangles.Add(vertices.Count - 1);  // 3
+            triangles.Add(vertices.Count - 2);  // 2
 
             if (useRenderDataForCol) {
                 colTriangles.Add(colVertices.Count - 2);
@@ -55,13 +55,13 @@ public class MeshData {
                 colTriangles.Add(colVertices.Count - 2);
             }
         } else {
-            triangles.Add(vertices.Count - 2);
-            triangles.Add(vertices.Count - 1);
-            triangles.Add(vertices.Count - 3);
+            triangles.Add(vertices.Count - 2);  // 2
+            triangles.Add(vertices.Count - 1);  // 3
+            triangles.Add(vertices.Count - 3);  // 1
 
-            triangles.Add(vertices.Count - 3);
-            triangles.Add(vertices.Count - 4);
-            triangles.Add(vertices.Count - 2);
+            triangles.Add(vertices.Count - 3);  // 1
+            triangles.Add(vertices.Count - 4);  // 0
+            triangles.Add(vertices.Count - 2);  // 2
 
             if (useRenderDataForCol) {
                 colTriangles.Add(colVertices.Count - 2);
