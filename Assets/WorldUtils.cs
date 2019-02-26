@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
 
-public static class Terrain {
+public static class WorldUtils {
 
 
     public static Vector3i GetBlockPos(Vector3 pos) {
@@ -45,6 +45,7 @@ public static class Terrain {
         }
 
         Vector3i pos = GetBlockPos(hit, adjacent);
+        Debug.Log(pos);
 
         chunk.world.SetBlock(pos.x, pos.y, pos.z, block);
 

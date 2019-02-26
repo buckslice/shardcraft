@@ -9,12 +9,17 @@ public class CamModify : MonoBehaviour {
     public float pitch;
     public float yaw;
 
+    RaycastHit lastHit;
+    Vector3 lastPos;
+
     void Update() {
         // left click delete
         if (Input.GetMouseButtonDown(0)) {
             RaycastHit hit;
             if (Physics.Raycast(transform.position, transform.forward, out hit, 100)) {
-                Terrain.SetBlock(hit, Blocks.AIR);
+                lastPos = transform.position;
+                lastHit = hit;
+                WorldUtils.SetBlock(hit, Blocks.AIR);
             }
         }
 
@@ -22,7 +27,9 @@ public class CamModify : MonoBehaviour {
         if (Input.GetMouseButtonDown(1)) {
             RaycastHit hit;
             if (Physics.Raycast(transform.position, transform.forward, out hit, 100)) {
-                Terrain.SetBlock(hit, Blocks.GRASS, true);
+                lastPos = transform.position;
+                lastHit = hit;
+                WorldUtils.SetBlock(hit, Blocks.GRASS, true);
             }
         }
 
@@ -58,4 +65,12 @@ public class CamModify : MonoBehaviour {
 
         transform.position += move * Time.deltaTime;
     }
+
+    private void OnDrawGizmos() {
+        Debug.DrawLine(lastPos, lastHit.point, Color.green, 1.0f);
+        Debug.DrawRay(lastHit.point, lastHit.normal, Color.magenta, 1.0f);
+
+    }
+
 }
+

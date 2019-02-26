@@ -75,6 +75,8 @@ public class Chunk : MonoBehaviour {
 
     private const int VOXEL_SIZE = 1;
 
+    // this is used only once and currenly doesnt matter since all blocks are either true or false
+    // will come into play later tho...
     Dir opDir(Dir dir) {
         if (dir == Dir.south) {
             return Dir.north;
@@ -145,25 +147,22 @@ public class Chunk : MonoBehaviour {
                 }
 
                 // move through dimension from front to back
-                for (x[d] = -1; x[d] < CHUNK_WIDTH;) {
+                for (x[d] = 0; x[d] < CHUNK_WIDTH;) {
 
                     // compute mask
                     n = 0;
                     for (x[v] = 0; x[v] < CHUNK_HEIGHT; x[v]++) {
                         for (x[u] = 0; x[u] < CHUNK_WIDTH; x[u]++) {
                             // get two faces to compare
-                            //voxelFace = x[d] >= 0 ? GetBlockGreedy(x[0], x[1], x[2]) : Blocks.AIR;
-                            //voxelFace1 = x[d] < CHUNK_WIDTH - 1 ? GetBlockGreedy(x[0] + q[0], x[1] + q[1], x[2] + q[2]) : Blocks.AIR;
+                            //Block block1 = (x[d] >= 0) ? GetBlockGreedy(x[0], x[1], x[2]) : Blocks.AIR;
+                            //Block block2 = (x[d] < CHUNK_WIDTH - 1) ? GetBlockGreedy(x[0] + q[0], x[1] + q[1], x[2] + q[2]) : Blocks.AIR;
 
-                            //mask[n++] = (voxelFace != Blocks.AIR && voxelFace1 != Blocks.AIR &&
-                            //             voxelFace == voxelFace1) ?
-                            //            Blocks.AIR : backFace ? voxelFace1 : voxelFace;
-
+                            //mask[n++] = block1 == block2 ? Blocks.AIR : backFace ? block2 : block1;
 
                             Block block1 = GetBlock(x[0], x[1], x[2]); // block were at
                             Block block2 = GetBlock(x[0] + q[0], x[1] + q[1], x[2] + q[2]); // block were going to
 
-                            mask[n++] = block1.IsSolid(side) && block2.IsSolid(side) ? Blocks.AIR : backFace ? block2 : block1;                            
+                            mask[n++] = block1.IsSolid(opDir(side)) && block2.IsSolid(side) ? Blocks.AIR : backFace ? block2 : block1;
 
                             //mask[n++] = (block1 != Blocks.AIR && block2 != Blocks.AIR && block1 == block2) ?
                             //            Blocks.AIR : backFace ? block2 : block1;
@@ -180,14 +179,13 @@ public class Chunk : MonoBehaviour {
                             if (mask[n] != Blocks.AIR) {
 
                                 // compute width
-                                for (w = 1; i + w < CHUNK_WIDTH && mask[n + w] != Blocks.AIR && mask[n + w] == mask[n]; ++w) { }
+                                for (w = 1; i + w < CHUNK_WIDTH && mask[n + w] == mask[n]; ++w) { }
 
                                 // compute height
                                 bool done = false;
                                 for (h = 1; j + h < CHUNK_HEIGHT; ++h) {
                                     for (k = 0; k < w; ++k) {
-                                        if (mask[n + k + h * CHUNK_WIDTH] == Blocks.AIR ||
-                                            mask[n + k + h * CHUNK_WIDTH] != mask[n]) {
+                                        if (mask[n + k + h * CHUNK_WIDTH] != mask[n]) {
                                             done = true;
                                             break;
                                         }
@@ -198,7 +196,7 @@ public class Chunk : MonoBehaviour {
                                 }
 
                                 // check transparent attrib to make sure we dont mesh culled faces
-                                // skipping that part for now
+                                // skipping that part for now, i dont rly get it
                                 bool transparent = false;
                                 if (!transparent) {
                                     // add a quad
@@ -238,7 +236,6 @@ public class Chunk : MonoBehaviour {
 
                                 // zero out mask
                                 for (l = 0; l < h; ++l) {
-
                                     for (k = 0; k < w; ++k) { mask[n + k + l * CHUNK_WIDTH] = Blocks.AIR; }
                                 }
 

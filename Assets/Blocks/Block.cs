@@ -211,6 +211,15 @@ public struct Tile {
     public const float SIZE = 0.25f; // set equal to 1 / number of tiles on sprite sheet 
     public int x;
     public int y;
+
+    public Tile(int x, int y) {
+        this.x = x;
+        this.y = y;
+    }
 }
 
-public class BlockStone : BlockType { }
+public class BlockStone : BlockType {
+    public override Tile TexturePosition(Dir dir) {
+        return new Tile(1, 1);
+    }
+}
