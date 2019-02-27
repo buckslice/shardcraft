@@ -7,13 +7,13 @@ public struct Block {
 
     public byte type;
 
-    public bool changed;
+    public byte changed;
 
     // byte light;
 
     public Block(byte type) {
         this.type = type;
-        changed = true;
+        changed = 1;
     }
 
     public BlockType GetBlockType() {

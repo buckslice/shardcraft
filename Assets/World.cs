@@ -21,6 +21,8 @@ public class World : MonoBehaviour {
         if (loadPlayerSave) {
             Serialization.LoadPlayer();
         }
+
+        Debug.Assert(Chunk.CHUNK_HEIGHT >= Chunk.CHUNK_WIDTH);
     }
 
     public void OnApplicationQuit() {
@@ -46,16 +48,11 @@ public class World : MonoBehaviour {
         newChunk.pos = worldPos;
         newChunk.world = this;
 
+        JobController.StartGenerationJob(newChunk);
+
         //Add it to the chunks dictionary with the position as the key
         chunks.Add(worldPos, newChunk);
 
-        WorldGenerator.Generate(newChunk);
-
-        // could also set unmodified after loading and then if theres no new modified blocks
-        // leave save file alone
-        newChunk.SetBlocksUnmodified();
-
-        Serialization.LoadChunk(newChunk);
     }
 
     public void DestroyChunk(int x, int y, int z) {

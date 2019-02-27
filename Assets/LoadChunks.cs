@@ -4,8 +4,8 @@ using UnityEngine;
 
 public class LoadChunks : MonoBehaviour {
 
-    int loadRadius = 2;
-    public World world;
+    int loadRadius = 10;
+    World world;
 
     List<Vector3i> genList = new List<Vector3i>(); // list of chunk positions that should be built
 
@@ -13,6 +13,7 @@ public class LoadChunks : MonoBehaviour {
 
     // Start is called before the first frame update
     void Start() {
+        world = FindObjectOfType<World>();
         GenerateNeighborChunks(loadRadius);
     }
 
@@ -84,7 +85,7 @@ public class LoadChunks : MonoBehaviour {
                 genList.Add(p);
 
                 // dont let list get too huge
-                if (++added >= 32) {
+                if (++added >= 1000) {
                     return;
                 }
             }
@@ -93,24 +94,13 @@ public class LoadChunks : MonoBehaviour {
 
     }
 
-    void BuildChunk(Vector3i pos) {
-        // loads area around chunk so mesh is rendered properly
-        int pad = Chunk.SIZE * 1;
-        for (int x = pos.x - pad; x <= pos.x + pad; x += Chunk.SIZE) {
-            for (int y = pos.y - pad; y <= pos.y + pad; y += Chunk.SIZE) {
-                for (int z = pos.z - pad; z <= pos.z + pad; z += Chunk.SIZE) {
-                    if (world.GetChunk(x, y, z) == null) {
-                        world.CreateChunk(x, y, z);
-                    }
-                }
-            }
-        }
-    }
-
     void GenerateChunks() {
-        const int maxGensPerFrame = 4;
+        const int maxGensPerFrame = 1000;
+        const int maxUpdatesPerFrame = 20;
         const int pad = Chunk.SIZE * 1;
+        int updates = 0;
         int generated = 0;
+
         while (generated < maxGensPerFrame && genList.Count > 0) {
             Vector3i pos = genList[0];
             for (int x = pos.x - pad; x <= pos.x + pad; x += Chunk.SIZE) {
@@ -127,8 +117,10 @@ public class LoadChunks : MonoBehaviour {
             }
             genList.RemoveAt(0);
 
-            // THIS IS SETUP IN NEGATIVE SCRIPT EXECUTION ORDER so chunks will update in same frame
-            world.GetChunk(pos).update = true;
+            if (++updates <= maxUpdatesPerFrame) {
+                world.GetChunk(pos).update = true;
+            }
+
         }
     }
 
@@ -151,9 +143,9 @@ public class LoadChunks : MonoBehaviour {
         foreach (var cp in chunksToDelete) {
             world.DestroyChunk(cp.x, cp.y, cp.z);
         }
-        //if (chunksToDelete.Count > 0) {
-        //    Debug.Log("deleted: " + chunksToDelete.Count);
-        //}
+        if (chunksToDelete.Count > 0) {
+            Debug.Log("deleted: " + chunksToDelete.Count);
+        }
     }
 
 }

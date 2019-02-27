@@ -15,7 +15,7 @@ public class Chunk : MonoBehaviour {
     public World world;
     public Vector3i pos; // maybe switch to not be world space and in chunk space
 
-
+    public bool generated { get; set; }
     public bool update { get; set; }
     public bool rendered { get; set; }
 
@@ -25,8 +25,11 @@ public class Chunk : MonoBehaviour {
 
     public static bool beGreedy = false;
 
+    public static bool generateColliders = false;
+
     // Use this for initialization
     void Start() {
+        generated = false;
         update = false;
         rendered = false;
 
@@ -35,13 +38,11 @@ public class Chunk : MonoBehaviour {
         mr.material = Chunk.beGreedy ? world.TileMatGreedy : world.TileMat;
         coll = gameObject.GetComponent<MeshCollider>();
 
-        Debug.Assert(CHUNK_HEIGHT >= CHUNK_WIDTH);
     }
 
-    //Update is called once per frame
-    void Update() {
+    // lateupdate so new chunks generated can get updated later in same frame
+    void LateUpdate() {
         if (update) {
-            update = false;
             UpdateChunk();
             //Debug.Log("updated " + pos.ToString());
         }
@@ -55,8 +56,14 @@ public class Chunk : MonoBehaviour {
             for (int y = -1; y <= 1; ++y) {
                 for (int z = -1; z <= 1; ++z) {
                     //Debug.Assert(world.GetChunk(pos + new Vector3i(x, y, z) * SIZE) != null);
-                    if (world.GetChunk(pos + new Vector3i(x, y, z) * SIZE) == null) {
+                    Chunk neighbor = world.GetChunk(pos + new Vector3i(x, y, z) * SIZE);
+
+                    if (neighbor == null) {
                         Debug.LogWarning("update failed, neighbors aren't loaded");
+                        return;
+                    }
+
+                    if (!neighbor.generated) {
                         return;
                     }
                 }
@@ -64,12 +71,14 @@ public class Chunk : MonoBehaviour {
         }
 
         if (beGreedy) {
-            UpdateMesh(GreedyMesh(), null);
+            UpdateMesh(GreedyMesh(), true);
         } else {
-            UpdateMesh(NaiveMesh(), GreedyMesh(true));
+            UpdateMesh(NaiveMesh(), false);
         }
 
         rendered = true;
+
+        update = false;
     }
 
 
@@ -81,10 +90,10 @@ public class Chunk : MonoBehaviour {
     //private const int BOTTOM = 5;
 
     // equal for now but keeping if u want to change this later. would have to change away from array3 tho actually
-    private const int CHUNK_WIDTH = SIZE;
-    private const int CHUNK_HEIGHT = SIZE;
+    public const int CHUNK_WIDTH = SIZE;
+    public const int CHUNK_HEIGHT = SIZE;
 
-    private const int VOXEL_SIZE = 1;
+    //public const int VOXEL_SIZE = 1;
 
     // this is used only once and currenly doesnt matter since all blocks are either true or false
     // will come into play later tho...
@@ -269,9 +278,8 @@ public class Chunk : MonoBehaviour {
         return meshData;
     }
 
-    // Sends the calculated mesh information
-    // to the mesh and collision components
-    void UpdateMesh(MeshData meshData, MeshData colData) {
+    // Sends the calculated mesh information to the mesh and collision components
+    void UpdateMesh(MeshData meshData, bool useMeshDataAsCollider) {
         filter.mesh.Clear();
         filter.mesh.vertices = meshData.vertices.ToArray();
         filter.mesh.uv = meshData.uv.ToArray();
@@ -281,8 +289,13 @@ public class Chunk : MonoBehaviour {
         filter.mesh.triangles = meshData.triangles.ToArray();
         filter.mesh.RecalculateNormals();
 
-        if (colData == null) {
-            colData = meshData;
+        if (!generateColliders) {
+            return;
+        }
+
+        MeshData colData = meshData;
+        if (!useMeshDataAsCollider) {
+            colData = GreedyMesh(true);
         }
 
         // generate collider
@@ -299,6 +312,10 @@ public class Chunk : MonoBehaviour {
     public Block GetBlock(int x, int y, int z) {
         // return block if its in range of this chunk
         if (InRange(x, y, z)) {
+            if (!generated) {
+                return Blocks.AIR;
+            }
+
             return blocks[x, y, z];
         }
         return world.GetBlock(pos.x + x, pos.y + y, pos.z + z);
@@ -306,6 +323,9 @@ public class Chunk : MonoBehaviour {
 
     public void SetBlock(int x, int y, int z, Block block) {
         if (InRange(x, y, z)) {
+            if (!generated) {
+                return;
+            }
             blocks[x, y, z] = block;
         } else {
             world.SetBlock(pos.x + x, pos.y + y, pos.z + z, block);
@@ -328,7 +348,7 @@ public class Chunk : MonoBehaviour {
     public void SetBlocksUnmodified() {
         for (int i = 0; i < blocks.sizeCubed; ++i) {
             Block b = blocks[i];
-            b.changed = false;
+            b.changed = 0;
             blocks[i] = b;
         }
     }

@@ -12,10 +12,10 @@ public class CamModify : MonoBehaviour {
     RaycastHit lastHit;
     Vector3 lastPos;
 
-    World w;
+    World world;
 
     void Start() {
-        w = GameObject.FindObjectOfType<World>();
+        world = FindObjectOfType<World>();
     }
 
     void Update() {
@@ -40,7 +40,7 @@ public class CamModify : MonoBehaviour {
         }
 
         if (Input.GetKeyDown(KeyCode.P)) {
-            w.SwapGreedy();
+            world.SwapGreedy();
         }
 
         yaw += Input.GetAxis("Mouse X") * sensitivity;

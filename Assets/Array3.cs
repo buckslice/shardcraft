@@ -43,5 +43,9 @@ public class Array3<T> where T : struct {
         }
     }
 
+    public T[] GetData() {
+        return data;
+    }
+
 }
 
