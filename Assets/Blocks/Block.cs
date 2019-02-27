@@ -130,7 +130,7 @@ public abstract class BlockType {
 
         meshData.AddQuadTriangles();
 
-        meshData.uv.AddRange(FaceUVs(Dir.up));
+        AddFaceUVs(Dir.up, meshData);
     }
 
     protected virtual void FaceDataDown(Chunk chunk, int x, int y, int z, MeshData meshData) {
@@ -141,7 +141,7 @@ public abstract class BlockType {
 
         meshData.AddQuadTriangles();
 
-        meshData.uv.AddRange(FaceUVs(Dir.down));
+        AddFaceUVs(Dir.down, meshData);
     }
 
     protected virtual void FaceDataNorth(Chunk chunk, int x, int y, int z, MeshData meshData) {
@@ -152,7 +152,7 @@ public abstract class BlockType {
 
         meshData.AddQuadTriangles();
 
-        meshData.uv.AddRange(FaceUVs(Dir.north));
+        AddFaceUVs(Dir.north, meshData);
     }
 
     protected virtual void FaceDataEast(Chunk chunk, int x, int y, int z, MeshData meshData) {
@@ -163,7 +163,7 @@ public abstract class BlockType {
 
         meshData.AddQuadTriangles();
 
-        meshData.uv.AddRange(FaceUVs(Dir.east));
+        AddFaceUVs(Dir.east, meshData);
     }
 
     protected virtual void FaceDataSouth(Chunk chunk, int x, int y, int z, MeshData meshData) {
@@ -174,40 +174,39 @@ public abstract class BlockType {
 
         meshData.AddQuadTriangles();
 
-        meshData.uv.AddRange(FaceUVs(Dir.south));
+        AddFaceUVs(Dir.south, meshData);
     }
 
-    protected virtual void FaceDataWest(Chunk chunk, int x, int y, int z, MeshData meshData) {
-        meshData.AddVertex(new Vector3(x, y, z + 1.0f));
-        meshData.AddVertex(new Vector3(x, y + 1.0f, z + 1.0f));
-        meshData.AddVertex(new Vector3(x, y + 1.0f, z));
-        meshData.AddVertex(new Vector3(x, y, z));
+    protected virtual void FaceDataWest(Chunk chunk, int x, int y, int z, MeshData data) {
+        data.AddVertex(new Vector3(x, y, z + 1.0f));
+        data.AddVertex(new Vector3(x, y + 1.0f, z + 1.0f));
+        data.AddVertex(new Vector3(x, y + 1.0f, z));
+        data.AddVertex(new Vector3(x, y, z));
 
-        meshData.AddQuadTriangles();
+        data.AddQuadTriangles();
 
-        meshData.uv.AddRange(FaceUVs(Dir.west));
+        AddFaceUVs(Dir.west, data);
     }
 
-    public virtual Vector2[] FaceUVs(Dir dir) {
-        Vector2[] uvs = new Vector2[4];
-        Tile tilePos = TexturePosition(dir);
+    public virtual void AddFaceUVs(Dir dir, MeshData data) {
+        Tile tp = TexturePosition(dir);
 
-        uvs[0] = new Vector2(Tile.SIZE * tilePos.x + Tile.SIZE, Tile.SIZE * tilePos.y);
-        uvs[1] = new Vector2(Tile.SIZE * tilePos.x + Tile.SIZE, Tile.SIZE * tilePos.y + Tile.SIZE);
-        uvs[2] = new Vector2(Tile.SIZE * tilePos.x, Tile.SIZE * tilePos.y + Tile.SIZE);
-        uvs[3] = new Vector2(Tile.SIZE * tilePos.x, Tile.SIZE * tilePos.y);
-
-        return uvs;
+        data.uv.Add(new Vector2(tp.x + 1, tp.y) * Tile.SIZE);
+        data.uv.Add(new Vector2(tp.x + 1, tp.y + 1) * Tile.SIZE);
+        data.uv.Add(new Vector2(tp.x, tp.y + 1) * Tile.SIZE);
+        data.uv.Add(new Vector2(tp.x, tp.y) * Tile.SIZE);
     }
 
     public virtual void FaceUVsGreedy(Dir dir, MeshData data, int w, int h) {
         Tile tp = TexturePosition(dir);
 
+        // store the offset
         data.uv.Add(new Vector2(tp.x, tp.y) * Tile.SIZE);
         data.uv.Add(new Vector2(tp.x, tp.y) * Tile.SIZE);
         data.uv.Add(new Vector2(tp.x, tp.y) * Tile.SIZE);
-        data.uv.Add(new Vector2(tp.x, tp.y) * Tile.SIZE); 
+        data.uv.Add(new Vector2(tp.x, tp.y) * Tile.SIZE);
 
+        // then add width and height in uv2, shader will calculate coordinate from this
         data.uv2.Add(new Vector2(0, 0));
         data.uv2.Add(new Vector2(h, 0));
         data.uv2.Add(new Vector2(0, w));

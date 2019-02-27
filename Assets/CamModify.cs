@@ -40,13 +40,7 @@ public class CamModify : MonoBehaviour {
         }
 
         if (Input.GetKeyDown(KeyCode.P)) {
-            Chunk.beGreedy = !Chunk.beGreedy;
-
-            foreach(Chunk c in w.chunks.Values) {
-                if (c.rendered) {
-                    c.update = true;
-                }
-            }
+            w.SwapGreedy();
         }
 
         yaw += Input.GetAxis("Mouse X") * sensitivity;

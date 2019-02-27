@@ -7,8 +7,8 @@ Material:
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_Name: TileMat
-  m_Shader: {fileID: 4800000, guid: a85adce126e7e89408f0c06efdb3d30a, type: 3}
+  m_Name: TileMatGreedy
+  m_Shader: {fileID: 4800000, guid: 460ae1df2f21b474e8253edb4147a654, type: 3}
   m_ShaderKeywords: 
   m_LightmapFlags: 4
   m_EnableInstancingVariants: 1

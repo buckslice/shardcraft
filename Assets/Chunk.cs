@@ -20,9 +20,10 @@ public class Chunk : MonoBehaviour {
     public bool rendered { get; set; }
 
     MeshFilter filter;
+    public MeshRenderer mr;
     MeshCollider coll;
 
-    public static bool beGreedy = true;
+    public static bool beGreedy = false;
 
     // Use this for initialization
     void Start() {
@@ -30,6 +31,8 @@ public class Chunk : MonoBehaviour {
         rendered = false;
 
         filter = gameObject.GetComponent<MeshFilter>();
+        mr = gameObject.GetComponent<MeshRenderer>();
+        mr.material = Chunk.beGreedy ? world.TileMatGreedy : world.TileMat;
         coll = gameObject.GetComponent<MeshCollider>();
 
         Debug.Assert(CHUNK_HEIGHT >= CHUNK_WIDTH);
@@ -52,7 +55,7 @@ public class Chunk : MonoBehaviour {
             for (int y = -1; y <= 1; ++y) {
                 for (int z = -1; z <= 1; ++z) {
                     //Debug.Assert(world.GetChunk(pos + new Vector3i(x, y, z) * SIZE) != null);
-                    if(world.GetChunk(pos + new Vector3i(x, y, z) * SIZE) == null) {
+                    if (world.GetChunk(pos + new Vector3i(x, y, z) * SIZE) == null) {
                         Debug.LogWarning("update failed, neighbors aren't loaded");
                         return;
                     }
@@ -61,9 +64,9 @@ public class Chunk : MonoBehaviour {
         }
 
         if (beGreedy) {
-            UpdateMesh(GreedyMesh());
+            UpdateMesh(GreedyMesh(), null);
         } else {
-            UpdateMesh(NaiveMesh());
+            UpdateMesh(NaiveMesh(), GreedyMesh(true));
         }
 
         rendered = true;
@@ -109,7 +112,7 @@ public class Chunk : MonoBehaviour {
 
     //https://github.com/roboleary/GreedyMesh/blob/master/src/mygame/Main.java
     //https://github.com/darkedge/starlight/blob/master/starlight/starlight_game.cpp
-    MeshData GreedyMesh() {
+    MeshData GreedyMesh(bool forCollision = false) {
         MeshData data = new MeshData();
 
         // setup variables for algo
@@ -229,7 +232,9 @@ public class Chunk : MonoBehaviour {
 
                         data.AddQuadTrianglesGreedy(d0 == 2 ? backFace : !backFace);
 
-                        slice[n].GetBlockType().FaceUVsGreedy(side, data, w, h);
+                        if (!forCollision) {
+                            slice[n].GetBlockType().FaceUVsGreedy(side, data, w, h);
+                        }
 
                         // zero out the quad in the mask
                         for (l = 0; l < h; ++l) {
@@ -266,23 +271,26 @@ public class Chunk : MonoBehaviour {
 
     // Sends the calculated mesh information
     // to the mesh and collision components
-    void UpdateMesh(MeshData data) {
+    void UpdateMesh(MeshData meshData, MeshData colData) {
         filter.mesh.Clear();
-        filter.mesh.vertices = data.vertices.ToArray();
-        filter.mesh.uv = data.uv.ToArray();
+        filter.mesh.vertices = meshData.vertices.ToArray();
+        filter.mesh.uv = meshData.uv.ToArray();
         if (beGreedy) {
-            filter.mesh.uv2 = data.uv2.ToArray();
+            filter.mesh.uv2 = meshData.uv2.ToArray();
         }
-        filter.mesh.triangles = data.triangles.ToArray();
+        filter.mesh.triangles = meshData.triangles.ToArray();
         filter.mesh.RecalculateNormals();
+
+        if (colData == null) {
+            colData = meshData;
+        }
 
         // generate collider
         coll.sharedMesh = null;
         Mesh mesh = new Mesh();
-        mesh.vertices = data.colVertices.ToArray();
-        mesh.triangles = data.colTriangles.ToArray();
+        mesh.vertices = colData.vertices.ToArray();
+        mesh.triangles = colData.triangles.ToArray();
         mesh.RecalculateNormals();
-
         coll.sharedMesh = mesh;
 
         //Debug.Log("updated: " + pos.ToString());

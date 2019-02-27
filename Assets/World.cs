@@ -8,6 +8,9 @@ public class World : MonoBehaviour {
 
     public GameObject chunkPrefab;
 
+    public Material TileMat;
+    public Material TileMatGreedy;
+
     public Dictionary<Vector3i, Chunk> chunks = new Dictionary<Vector3i, Chunk>();
 
     public bool loadPlayerSave = false;
@@ -114,6 +117,17 @@ public class World : MonoBehaviour {
         }
     }
 
+
+    public void SwapGreedy() {
+        Chunk.beGreedy = !Chunk.beGreedy;
+
+        foreach (Chunk c in chunks.Values) {
+            c.mr.material = Chunk.beGreedy ? TileMatGreedy : TileMat;
+            if (c.rendered) {
+                c.update = true;
+            }
+        }
+    }
 
 
 }
