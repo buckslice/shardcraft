@@ -23,7 +23,7 @@ public class Chunk : MonoBehaviour {
     public MeshRenderer mr;
     MeshCollider coll;
 
-    public static bool beGreedy = false;
+    public static bool beGreedy = true;
 
     public static bool generateColliders = false;
 
@@ -95,32 +95,11 @@ public class Chunk : MonoBehaviour {
 
     //public const int VOXEL_SIZE = 1;
 
-    // this is used only once and currenly doesnt matter since all blocks are either true or false
-    // will come into play later tho...
-    Dir opDir(Dir dir) {
-        if (dir == Dir.south) {
-            return Dir.north;
-        }
-        if (dir == Dir.north) {
-            return Dir.south;
-        }
-        if (dir == Dir.west) {
-            return Dir.east;
-        }
-        if (dir == Dir.east) {
-            return Dir.west;
-        }
-        if (dir == Dir.up) {
-            return Dir.down;
-        }
-        if (dir == Dir.down) {
-            return Dir.up;
-        }
-        return Dir.west;
-    }
-
     //https://github.com/roboleary/GreedyMesh/blob/master/src/mygame/Main.java
     //https://github.com/darkedge/starlight/blob/master/starlight/starlight_game.cpp
+
+    // make separate version of this algo just for collisions. only cares about solid, not block type
+    // also make faces bigger to get rid of cracks
     MeshData GreedyMesh(bool forCollision = false) {
         MeshData data = new MeshData();
 
@@ -133,7 +112,7 @@ public class Chunk : MonoBehaviour {
         int[] du = new int[] { 0, 0, 0 };
         int[] dv = new int[] { 0, 0, 0 };
 
-        // mask will contain groups of matching blocks as we proceed through chunk in 6 directions, onces for each face
+        // slice will contain groups of matching blocks as we proceed through chunk in 6 directions, onces for each face
         Block[] slice = new Block[CHUNK_WIDTH * CHUNK_HEIGHT];
 
         int[] maxDim = new int[] { CHUNK_WIDTH, CHUNK_HEIGHT, CHUNK_WIDTH };
@@ -175,7 +154,7 @@ public class Chunk : MonoBehaviour {
                         Block block2 = GetBlock(x[0] + q[0], x[1] + q[1], x[2] + q[2]); // block were going to
 
                         // this isSolid is probably wrong in some cases but no blocks use yet cuz i dont rly get so figure out later lol
-                        slice[n++] = block1.IsSolid(side) && block2.IsSolid(opDir(side)) ?
+                        slice[n++] = block1.IsSolid(side) && block2.IsSolid(Dirs.Opp(side)) ?
                             Blocks.AIR : backFace ? block2 : block1;
                     }
                 }
@@ -224,11 +203,13 @@ public class Chunk : MonoBehaviour {
                         dv[2] = 0;
                         dv[d2] = h;
 
-                        Vector3 botLeft = new Vector3(x[0], x[1], x[2]);
-                        Vector3 botRight = new Vector3(x[0] + dv[0], x[1] + dv[1], x[2] + dv[2]);
-                        Vector3 topLeft = new Vector3(x[0] + du[0], x[1] + du[1], x[2] + du[2]);
-                        Vector3 topRight = new Vector3(x[0] + du[0] + dv[0], x[1] + du[1] + dv[1], x[2] + du[2] + dv[2]);
+                        int s = (int)side;
+                        Vector3 botLeft = new Vector3(x[0], x[1], x[2]) + MeshUtils.padOffset[s][0];
+                        Vector3 botRight = new Vector3(x[0] + dv[0], x[1] + dv[1], x[2] + dv[2]) + MeshUtils.padOffset[s][1];
+                        Vector3 topLeft = new Vector3(x[0] + du[0], x[1] + du[1], x[2] + du[2]) + MeshUtils.padOffset[s][2];
+                        Vector3 topRight = new Vector3(x[0] + du[0] + dv[0], x[1] + du[1] + dv[1], x[2] + du[2] + dv[2]) + MeshUtils.padOffset[s][3];
 
+                        // not using for now
                         //botLeft *= VOXEL_SIZE;
                         //topLeft *= VOXEL_SIZE;
                         //topRight *= VOXEL_SIZE;

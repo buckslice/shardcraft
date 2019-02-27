@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class LoadChunks : MonoBehaviour {
 
-    int loadRadius = 10;
+    int loadRadius = 8;
     World world;
 
     List<Vector3i> genList = new List<Vector3i>(); // list of chunk positions that should be built
@@ -95,22 +95,21 @@ public class LoadChunks : MonoBehaviour {
     }
 
     void GenerateChunks() {
-        const int maxGensPerFrame = 1000;
-        const int maxUpdatesPerFrame = 20;
+        const int maxUpdatesPerFrame = 10;
         const int pad = Chunk.SIZE * 1;
         int updates = 0;
-        int generated = 0;
 
-        while (generated < maxGensPerFrame && genList.Count > 0) {
+        while (genList.Count > 0) {
             Vector3i pos = genList[0];
             for (int x = pos.x - pad; x <= pos.x + pad; x += Chunk.SIZE) {
                 for (int y = pos.y - pad; y <= pos.y + pad; y += Chunk.SIZE) {
                     for (int z = pos.z - pad; z <= pos.z + pad; z += Chunk.SIZE) {
+                        if (JobController.GetRunningJobs() >= 16) {
+                            return;
+                        }
+
                         if (world.GetChunk(x, y, z) == null) {
                             world.CreateChunk(x, y, z);
-                            if (++generated > maxGensPerFrame) {
-                                return;
-                            }
                         }
                     }
                 }

@@ -21,7 +21,7 @@ public class World : MonoBehaviour {
         if (loadPlayerSave) {
             Serialization.LoadPlayer();
         }
-
+        Dirs.Test();
         Debug.Assert(Chunk.CHUNK_HEIGHT >= Chunk.CHUNK_WIDTH);
     }
 
@@ -49,6 +49,7 @@ public class World : MonoBehaviour {
         newChunk.world = this;
 
         JobController.StartGenerationJob(newChunk);
+        //JobController.StartGenerationTask(newChunk);
 
         //Add it to the chunks dictionary with the position as the key
         chunks.Add(worldPos, newChunk);

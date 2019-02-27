@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using Unity.Collections;
 using Unity.Jobs;
 using UnityEngine;
+using System.Threading.Tasks;
 using UnityEngine.UI;
 
 //[BurstCompile]
@@ -94,6 +95,8 @@ public class JobController : MonoBehaviour {
 
     static List<GenJobInfo> genInfos = new List<GenJobInfo>();
 
+    static List<Task<Chunk>> genTasks = new List<Task<Chunk>>();
+
     public ShadowText text;
 
     int totalGen = 0;
@@ -130,15 +133,33 @@ public class JobController : MonoBehaviour {
             }
         }
 
+        for (int i = 0; i < genTasks.Count; ++i) {
+            if (genTasks[i].IsCompleted) {
+                Chunk chunk = genTasks[i].Result;
+
+                chunk.generated = true;
+                // could also set unmodified after loading and then if theres no new modified blocks leave save file alone
+                chunk.SetBlocksUnmodified();
+                Serialization.LoadChunk(chunk);
+
+                totalGen++;
+
+                //genTasks[i].Dispose();
+                genTasks[i] = genTasks[genTasks.Count - 1];
+                genTasks.RemoveAt(genTasks.Count - 1);
+                --i;
+            }
+
+        }
+
 
         text.SetText(string.Format(
             "Gen: {0}\n" +
             "Chunks: {1}\n" +
             "Greedy: {2}",
-            genInfos.Count, world.chunks.Count, Chunk.beGreedy));
+            Mathf.Max(genInfos.Count, genTasks.Count), world.chunks.Count, Chunk.beGreedy));
 
     }
-
 
 
     public static void StartGenerationJob(Chunk chunk) {
@@ -152,6 +173,23 @@ public class JobController : MonoBehaviour {
         genInfo.handle = job.Schedule();
 
         genInfos.Add(genInfo);
+
+    }
+
+    public static int GetRunningJobs() {
+        return Mathf.Max(genTasks.Count, genInfos.Count);
+    }
+
+    public static void StartGenerationTask(Chunk chunk) {
+
+        Task<Chunk> t = Task<Chunk>.Factory.StartNew(() => {
+
+            WorldGenerator.Generate(chunk);
+
+            return chunk;
+        }, TaskCreationOptions.PreferFairness);
+
+        genTasks.Add(t);
     }
 
 }

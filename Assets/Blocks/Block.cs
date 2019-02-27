@@ -41,16 +41,6 @@ public struct Block {
 
 }
 
-// dont change the ordering
-public enum Dir {
-    west,
-    down,
-    south,
-    east,
-    up,
-    north,
-};
-
 // make sure this matches array below
 public static class Blocks {
     public static readonly Block AIR = new Block(0);
