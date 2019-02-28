@@ -64,7 +64,7 @@ public static class BlockTypes {
 
 public abstract class BlockType {
 
-    public virtual bool IsSolid(Dir dir) {
+    public virtual bool IsSolid(Dir dir) { // checking if this side is opaque basically
         switch (dir) {
             case Dir.north:
                 return true;

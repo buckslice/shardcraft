@@ -148,22 +148,37 @@ public struct Vector3i {
         return a.x >= b.x && a.y >= b.y && a.z >= b.z;
     }
 
-    public bool Equals(Vector3i other) {
-        return other.y == y && other.z == z && other.x == x;
+    public static bool operator ==(Vector3i lhs, Vector3i rhs) {
+        return lhs.x == rhs.x &&
+               lhs.y == rhs.y &&
+               lhs.z == rhs.z;
     }
 
-    public override bool Equals(object obj) {
-        if (ReferenceEquals(null, obj)) return false;
-        if (obj.GetType() != typeof(Vector3i)) return false;
-        return Equals((Vector3i)obj);
+    public static bool operator !=(Vector3i lhs, Vector3i rhs) {
+        return !(lhs == rhs);
     }
+
+    public bool Equals(Vector3i other) {
+        return this == other;
+    }
+
+    public override bool Equals(object other) {
+        if (!(other is Vector3i)) {
+            return false;
+        }
+        return this == (Vector3i)other;
+    }
+
+    //public override int GetHashCode() {
+    //    unchecked {
+    //        int result = y;
+    //        result = (result * 397) ^ z;
+    //        result = (result * 397) ^ x;
+    //        return result;
+    //    }
+    //}
 
     public override int GetHashCode() {
-        unchecked {
-            int result = y;
-            result = (result * 397) ^ z;
-            result = (result * 397) ^ x;
-            return result;
-        }
+        return this.x.GetHashCode() ^ this.y.GetHashCode() << 2 ^ this.z.GetHashCode() >> 2;
     }
 }

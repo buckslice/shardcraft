@@ -78,9 +78,8 @@ public class World : MonoBehaviour {
     public Block GetBlock(int x, int y, int z) {
         Chunk containerChunk = GetChunk(x, y, z);
 
-        if (containerChunk != null) {
-            Block block = containerChunk.GetBlock(x - containerChunk.pos.x, y - containerChunk.pos.y, z - containerChunk.pos.z);
-            return block;
+        if (containerChunk != null && containerChunk.generated) {
+            return containerChunk.GetBlock(x - containerChunk.pos.x, y - containerChunk.pos.y, z - containerChunk.pos.z);
         } else {
             return Blocks.AIR;
         }

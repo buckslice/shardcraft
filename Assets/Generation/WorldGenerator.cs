@@ -1,13 +1,14 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Unity.Jobs;
+using Unity.Collections;
 
 public static class WorldGenerator {
 
 
-    public static void Generate(Chunk chunk) {
-        Vector3 chunkPos = chunk.pos.ToVector3();
-
+    public static void Generate(Vector3 chunkPos, NativeArray<Block> blocks) {
+        // make this single loop instead and calculate x,y,z from index i
         for (int x = 0; x < Chunk.SIZE; ++x) {
             for (int y = 0; y < Chunk.SIZE; ++y) {
                 for (int z = 0; z < Chunk.SIZE; ++z) {
@@ -18,15 +19,15 @@ public static class WorldGenerator {
                     //NoiseSample samp = Noise.Sum(Noise.Simplex3D, wp, 0.015f, 5, 2.0f, 0.5f);
                     //float n = samp.value * 3.0f;
 
-                    // TODO: go get that density.cs file in here, and convert more from shapes.cginc, maybe its called shapes.cs... i think and or get gen going on multiple thread (try job system!!!)
+                    // TODO: convert shapes.cginc into c# equiv, and or get gen going on multiple thread (try job system!!!)
                     n -= Vector3.Dot(wp, Vector3.up) * 0.05f;
 
                     n += Noise.Fractal(wp, 5, 0.01f);
 
                     if (n > 0.3f) {
-                        chunk.blocks[x, y, z] = Blocks.STONE;
+                        blocks[x + y * Chunk.SIZE + z * Chunk.SIZE * Chunk.SIZE] = Blocks.STONE;
                     } else if (n > 0.15f) {
-                        chunk.blocks[x, y, z] = Blocks.GRASS;
+                        blocks[x + y * Chunk.SIZE + z * Chunk.SIZE * Chunk.SIZE] = Blocks.GRASS;
 
                         // trying to make grass not spawn on cliff edge...
                         //if (Mathf.Abs(samp.derivative.normalized.y) < 0.4f) {
@@ -35,13 +36,12 @@ public static class WorldGenerator {
                         //    chunk.SetBlock(x, y, z, new Block());
                         //}
                     } else {
-                        chunk.blocks[x, y, z] = Blocks.AIR;
+                        blocks[x + y * Chunk.SIZE + z * Chunk.SIZE * Chunk.SIZE] = Blocks.AIR;
                     }
 
                 }
             }
         }
-
     }
 
 }

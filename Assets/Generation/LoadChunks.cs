@@ -4,12 +4,12 @@ using UnityEngine;
 
 public class LoadChunks : MonoBehaviour {
 
-    int loadRadius = 8;
+    int loadRadius = 8; // render radius will be 1 minus this
     World world;
 
-    List<Vector3i> genList = new List<Vector3i>(); // list of chunk positions that should be built
-
     Vector3i[] neighborChunks; // list of chunk offsets to generate in order of closeness
+
+    public const int maxUpdatesPerFrame = 20;
 
     // Start is called before the first frame update
     void Start() {
@@ -48,17 +48,26 @@ public class LoadChunks : MonoBehaviour {
 
         }
 
+        Debug.Log(neighborChunks.Length);
+        //Debug.Assert(SumNeighborChunks() == Vector3i.zero);
+
         //for (int i = 0; i < neighborChunks.Length; ++i) {
         //    Debug.Log(neighborChunks[i]);
         //}
+    }
+
+    Vector3i SumNeighborChunks() {
+        Vector3i val = new Vector3i();
+        for (int i = 0; i < neighborChunks.Length; ++i) {
+            val += neighborChunks[i];
+        }
+        return val;
     }
 
 
     // Update is called once per frame
     int timer = 0;
     void Update() {
-        FindChunksToLoad();
-
         if (++timer < 10) {
             GenerateChunks();
         } else {
@@ -67,60 +76,81 @@ public class LoadChunks : MonoBehaviour {
         }
     }
 
+    public static int needUpdates = 0;
+    public static int needGeneration = 0;
+    void LateUpdate() {
 
+        UpdateChunks();
 
-    void FindChunksToLoad() {
-        if (genList.Count == 0) {
-            Vector3i playerPos = Chunk.GetChunkPosition(transform.position);
-            int added = 0;
-
-            for (int i = 0; i < neighborChunks.Length; ++i) {
-                Vector3i p = playerPos + neighborChunks[i] * Chunk.SIZE;
-                Chunk newChunk = world.GetChunk(p);
-
-                if (newChunk != null && newChunk.rendered) {
-                    continue;
-                }
-
-                genList.Add(p);
-
-                // dont let list get too huge
-                if (++added >= 1000) {
-                    return;
-                }
+        needUpdates = 0;
+        needGeneration = 0;
+        foreach (var chunk in world.chunks.Values) {
+            if (chunk.update && chunk.generated) {
+                needUpdates++;
             }
-
+            if (!chunk.generated) {
+                needGeneration++;
+            }
         }
 
     }
 
-    void GenerateChunks() {
-        const int maxUpdatesPerFrame = 10;
-        const int pad = Chunk.SIZE * 1;
+    void UpdateChunks() {
         int updates = 0;
 
-        while (genList.Count > 0) {
-            Vector3i pos = genList[0];
-            for (int x = pos.x - pad; x <= pos.x + pad; x += Chunk.SIZE) {
-                for (int y = pos.y - pad; y <= pos.y + pad; y += Chunk.SIZE) {
-                    for (int z = pos.z - pad; z <= pos.z + pad; z += Chunk.SIZE) {
-                        if (JobController.GetRunningJobs() >= 16) {
-                            return;
-                        }
-
-                        if (world.GetChunk(x, y, z) == null) {
-                            world.CreateChunk(x, y, z);
-                        }
-                    }
+        Vector3i playerChunk = Chunk.GetChunkPosition(transform.position);
+        for (int i = 0; i < neighborChunks.Length && updates < maxUpdatesPerFrame; ++i) {
+            Vector3i p = playerChunk + neighborChunks[i] * Chunk.SIZE;
+            Chunk chunk = world.GetChunk(p);
+            if (chunk != null) {
+                if (chunk.update) {
+                    updates += chunk.UpdateChunk() ? 1 : 0;
                 }
             }
-            genList.RemoveAt(0);
+        }
 
-            if (++updates <= maxUpdatesPerFrame) {
-                world.GetChunk(pos).update = true;
+    }
+
+    // generates all chunks that need to be generated
+    void GenerateChunks() {
+        //const int pad = 1;
+
+        Vector3i playerChunk = Chunk.GetChunkPosition(transform.position);
+
+        for (int i = 0; i < neighborChunks.Length; ++i) {
+            Vector3i p = playerChunk + neighborChunks[i] * Chunk.SIZE;
+
+            //for (int x = -pad; x <= pad; ++x) {
+            //    for (int y = -pad; y <= pad; ++y) {
+            //        for (int z = -pad; z <= pad; ++z) {
+            //            // dont overload job system, not sure if this is needed tho...
+            //            // still good to reduce new gameobject creation maybe
+            //            if (JobController.GetRunningJobs() >= 16) {
+            //                return;
+            //            }
+            //            // add offset
+            //            Vector3i o = new Vector3i(x, y, z) * Chunk.SIZE;
+            //            p += o;
+            //            Chunk chunk = world.GetChunk(p);
+            //            if (chunk == null) {
+            //                world.CreateChunk(p.x, p.y, p.z);
+            //            }
+            //            p -= o;
+            //        }
+            //    }
+            //}
+
+            if (JobController.GetRunningJobs() >= 16) {
+                return;
+            }
+            // add offset
+            Chunk chunk = world.GetChunk(p);
+            if (chunk == null) {
+                world.CreateChunk(p.x, p.y, p.z);
             }
 
         }
+
     }
 
     // todo: change to just delete if chunk offset is not in the neighbors set

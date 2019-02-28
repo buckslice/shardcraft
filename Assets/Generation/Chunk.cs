@@ -19,11 +19,11 @@ public class Chunk : MonoBehaviour {
     public bool update { get; set; }
     public bool rendered { get; set; }
 
+    public MeshRenderer mr { get; set; }
     MeshFilter filter;
-    public MeshRenderer mr;
     MeshCollider coll;
 
-    public static bool beGreedy = true;
+    public static bool beGreedy = false;
 
     public static bool generateColliders = false;
 
@@ -33,24 +33,15 @@ public class Chunk : MonoBehaviour {
         update = false;
         rendered = false;
 
-        filter = gameObject.GetComponent<MeshFilter>();
         mr = gameObject.GetComponent<MeshRenderer>();
-        mr.material = Chunk.beGreedy ? world.TileMatGreedy : world.TileMat;
+        filter = gameObject.GetComponent<MeshFilter>();
         coll = gameObject.GetComponent<MeshCollider>();
 
-    }
-
-    // lateupdate so new chunks generated can get updated later in same frame
-    void LateUpdate() {
-        if (update) {
-            UpdateChunk();
-            //Debug.Log("updated " + pos.ToString());
-        }
+        mr.material = Chunk.beGreedy ? world.TileMatGreedy : world.TileMat;
     }
 
     // Updates the chunk based on its contents
-    void UpdateChunk() {
-
+    public bool UpdateChunk() {
         // double check to make sure all nearby chunks are loaded by this point
         for (int x = -1; x <= 1; ++x) {
             for (int y = -1; y <= 1; ++y) {
@@ -59,12 +50,12 @@ public class Chunk : MonoBehaviour {
                     Chunk neighbor = world.GetChunk(pos + new Vector3i(x, y, z) * SIZE);
 
                     if (neighbor == null) {
-                        Debug.LogWarning("update failed, neighbors aren't loaded");
-                        return;
+                        //Debug.LogWarning("update failed, neighbors aren't loaded");
+                        return false;
                     }
 
                     if (!neighbor.generated) {
-                        return;
+                        return false;
                     }
                 }
             }
@@ -79,17 +70,13 @@ public class Chunk : MonoBehaviour {
         rendered = true;
 
         update = false;
+
+        return true;
     }
 
 
-    //private const int SOUTH = 0;
-    //private const int NORTH = 1;
-    //private const int EAST = 2;
-    //private const int WEST = 3;
-    //private const int TOP = 4;
-    //private const int BOTTOM = 5;
-
     // equal for now but keeping if u want to change this later. would have to change away from array3 tho actually
+    // also very untested lol so prob will megachoke
     public const int CHUNK_WIDTH = SIZE;
     public const int CHUNK_HEIGHT = SIZE;
 
