@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class LoadChunks : MonoBehaviour {
 
-    int loadRadius = 8; // render radius will be 1 minus this
+    int loadRadius = 3; // render radius will be 1 minus this
     World world;
 
     Vector3i[] neighborChunks; // list of chunk offsets to generate in order of closeness
@@ -74,6 +74,10 @@ public class LoadChunks : MonoBehaviour {
             DeleteFarChunks();
             timer = 0;
         }
+
+        if (Input.GetKeyDown(KeyCode.F)) {
+            TestFillChunk(new Vector3i(-2, 0, 2), Blocks.STONE);
+        }
     }
 
     public static int needUpdates = 0;
@@ -100,7 +104,7 @@ public class LoadChunks : MonoBehaviour {
 
         Vector3i playerChunk = Chunk.GetChunkPosition(transform.position);
         for (int i = 0; i < neighborChunks.Length && updates < maxUpdatesPerFrame; ++i) {
-            Vector3i p = playerChunk + neighborChunks[i] * Chunk.SIZE;
+            Vector3i p = playerChunk + neighborChunks[i];
             Chunk chunk = world.GetChunk(p);
             if (chunk != null) {
                 if (chunk.update) {
@@ -118,7 +122,7 @@ public class LoadChunks : MonoBehaviour {
         Vector3i playerChunk = Chunk.GetChunkPosition(transform.position);
 
         for (int i = 0; i < neighborChunks.Length; ++i) {
-            Vector3i p = playerChunk + neighborChunks[i] * Chunk.SIZE;
+            Vector3i p = playerChunk + neighborChunks[i];
 
             //for (int x = -pad; x <= pad; ++x) {
             //    for (int y = -pad; y <= pad; ++y) {
@@ -160,8 +164,7 @@ public class LoadChunks : MonoBehaviour {
 
         List<Vector3i> chunksToDelete = new List<Vector3i>();
         foreach (var chunk in world.chunks) {
-            Vector3i cp = chunk.Key;
-            float sqrDist = Vector3.SqrMagnitude(cp.ToVector3() + Vector3.one * Chunk.SIZE - transform.position);
+            float sqrDist = Vector3.SqrMagnitude(chunk.Value.pos.ToVector3() + Vector3.one * Chunk.SIZE - transform.position);
 
             if (sqrDist > maxDist * maxDist) {
                 chunksToDelete.Add(chunk.Key);
@@ -174,6 +177,24 @@ public class LoadChunks : MonoBehaviour {
         }
         if (chunksToDelete.Count > 0) {
             Debug.Log("deleted: " + chunksToDelete.Count);
+        }
+    }
+
+
+
+    void TestFillChunk(Vector3i chunkPos, Block toFill) {
+        Chunk c = world.GetChunk(chunkPos);
+        if (c == null) {
+            Debug.Log("no chunk here");
+            return;
+        }
+
+        for (int x = 0; x < Chunk.SIZE; ++x) {
+            for (int y = 0; y < Chunk.SIZE; ++y) {
+                for (int z = 0; z < Chunk.SIZE; ++z) {
+                    c.SetBlock(x, y, z, Blocks.STONE);
+                }
+            }
         }
     }
 

@@ -16,17 +16,13 @@ public enum Dir : byte {
 
 public static class Dirs {
     public static Dir Opp(Dir dir) {
-        return (Dir)(((int)dir + 3) % 6);
+        return (Dir)Opp((int)dir);
     }
 
-    public static void Test() {
-        Debug.Assert(Opp(Dir.west) == Dir.east);
-        Debug.Assert(Opp(Dir.down) == Dir.up);
-        Debug.Assert(Opp(Dir.south) == Dir.north);
-        Debug.Assert(Opp(Dir.east) == Dir.west);
-        Debug.Assert(Opp(Dir.up) == Dir.down);
-        Debug.Assert(Opp(Dir.north) == Dir.south);
+    public static int Opp(int dir) {
+        return (dir + 3) % 6;
     }
+
 }
 
 

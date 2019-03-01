@@ -12,8 +12,10 @@ public class Chunk : MonoBehaviour {
 
     public Array3<Block> blocks = new Array3<Block>(SIZE);
 
+    public HashSet<ushort> modifiedBlockIndices = new HashSet<ushort>(); // hashset to avoid duplicates
+
     public World world;
-    public Vector3i pos; // maybe switch to not be world space and in chunk space
+    public Vector3i pos; // world space position
 
     public bool generated { get; set; }
     public bool update { get; set; }
@@ -23,9 +25,11 @@ public class Chunk : MonoBehaviour {
     MeshFilter filter;
     MeshCollider coll;
 
+    public Chunk[] neighbors = new Chunk[6];
+
     public static bool beGreedy = false;
 
-    public static bool generateColliders = false;
+    public static bool generateColliders = true;
 
     // Use this for initialization
     void Start() {
@@ -42,22 +46,9 @@ public class Chunk : MonoBehaviour {
 
     // Updates the chunk based on its contents
     public bool UpdateChunk() {
-        // double check to make sure all nearby chunks are loaded by this point
-        for (int x = -1; x <= 1; ++x) {
-            for (int y = -1; y <= 1; ++y) {
-                for (int z = -1; z <= 1; ++z) {
-                    //Debug.Assert(world.GetChunk(pos + new Vector3i(x, y, z) * SIZE) != null);
-                    Chunk neighbor = world.GetChunk(pos + new Vector3i(x, y, z) * SIZE);
-
-                    if (neighbor == null) {
-                        //Debug.LogWarning("update failed, neighbors aren't loaded");
-                        return false;
-                    }
-
-                    if (!neighbor.generated) {
-                        return false;
-                    }
-                }
+        for (int i = 0; i < 6; ++i) {
+            if (neighbors[i] == null || !neighbors[i].generated) {
+                return false;
             }
         }
 
@@ -291,12 +282,13 @@ public class Chunk : MonoBehaviour {
 
     // sets block modified this way
     public void SetBlock(int x, int y, int z, Block block) {
-        block.modified = true;
         if (InRange(x, y, z)) {
             if (!generated) {
                 return;
             }
             blocks[x, y, z] = block;
+            modifiedBlockIndices.Add(CoordToUint(x, y, z));
+            update = true;
         } else {
             world.SetBlock(pos.x + x, pos.y + y, pos.z + z, block);
         }
@@ -307,12 +299,25 @@ public class Chunk : MonoBehaviour {
     }
 
     // returns the chunk coord that pos is in
-    public static Vector3i GetChunkPosition(Vector3 pos) {
+    public static Vector3i GetChunkPosition(Vector3 worldPos) {
         return new Vector3i(
-            Mathf.FloorToInt(pos.x / SIZE) * SIZE,
-            Mathf.FloorToInt(pos.y / SIZE) * SIZE,
-            Mathf.FloorToInt(pos.z / SIZE) * SIZE
+            Mathf.FloorToInt(worldPos.x / SIZE),
+            Mathf.FloorToInt(worldPos.y / SIZE),
+            Mathf.FloorToInt(worldPos.z / SIZE)
         );
+    }
+
+    // linearize vector3i based on chunk size
+    public static ushort CoordToUint(int x, int y, int z) {
+        Debug.Assert(x >= 0 && x < 16 && y >= 0 && y < 16 && z >= 0 && z < 16);
+        return (ushort)(x + y * SIZE + z * SIZE * SIZE);
+    }
+
+    public static Vector3i IntToCoord(int i) {
+        int x = i % SIZE;
+        int y = (i % (SIZE * SIZE)) / SIZE;
+        int z = i / (SIZE * SIZE);
+        return new Vector3i(x, y, z);
     }
 
 }

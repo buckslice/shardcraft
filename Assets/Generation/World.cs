@@ -17,12 +17,13 @@ public class World : MonoBehaviour {
 
     // Use this for initialization
     void Start() {
+        Debug.Assert(Chunk.CHUNK_HEIGHT >= Chunk.CHUNK_WIDTH);
 
         if (loadPlayerSave) {
             Serialization.LoadPlayer();
         }
-        Dirs.Test();
-        Debug.Assert(Chunk.CHUNK_HEIGHT >= Chunk.CHUNK_WIDTH);
+
+        Tests.Run();
     }
 
     public void OnApplicationQuit() {
@@ -36,47 +37,82 @@ public class World : MonoBehaviour {
     }
 
     public void CreateChunk(int x, int y, int z) {
-        Debug.Assert(x % Chunk.SIZE == 0 && y % Chunk.SIZE == 0 && z % Chunk.SIZE == 0);
+        Debug.Assert(GetChunk(x, y, z) == null);
 
-        Vector3i worldPos = new Vector3i(x, y, z);
+        Vector3i chunkPos = new Vector3i(x, y, z);
+        Vector3i worldPos = chunkPos * Chunk.SIZE;
 
         //Instantiate the chunk at the coordinates using the chunk prefab
-        GameObject newChunkObject = Instantiate(chunkPrefab, new Vector3(x, y, z), Quaternion.Euler(Vector3.zero), transform) as GameObject;
-        newChunkObject.name = "Chunk " + (worldPos / Chunk.SIZE).ToString();
-        Chunk newChunk = newChunkObject.GetComponent<Chunk>();
+        GameObject newChunkObject = Instantiate(chunkPrefab, worldPos.ToVector3(), Quaternion.Euler(Vector3.zero), transform) as GameObject;
+        newChunkObject.name = "Chunk " + chunkPos.ToString();
+        Chunk chunk = newChunkObject.GetComponent<Chunk>();
 
-        newChunk.pos = worldPos;
-        newChunk.world = this;
+        chunk.pos = worldPos;
+        chunk.world = this;
 
-        JobController.StartGenerationJob(newChunk);
+        JobController.StartGenerationJob(chunk);
         //JobController.StartGenerationTask(newChunk);
 
         //Add it to the chunks dictionary with the position as the key
-        chunks.Add(worldPos, newChunk);
+        chunks.Add(chunkPos, chunk);
 
+        // setup chunk neighbors
+        SetNeighbor(chunk, GetChunk(x - 1, y, z), Dir.west);
+        SetNeighbor(chunk, GetChunk(x, y - 1, z), Dir.down);
+        SetNeighbor(chunk, GetChunk(x, y, z - 1), Dir.south);
+        SetNeighbor(chunk, GetChunk(x + 1, y, z), Dir.east);
+        SetNeighbor(chunk, GetChunk(x, y + 1, z), Dir.up);
+        SetNeighbor(chunk, GetChunk(x, y, z + 1), Dir.north);
+    }
+
+    void SetNeighbor(Chunk c, Chunk n, Dir dir) {
+        if (n == null) {
+            return;
+        }
+        int d = (int)dir;
+        c.neighbors[d] = n;
+        n.neighbors[Dirs.Opp(d)] = c;
     }
 
     public void DestroyChunk(int x, int y, int z) {
-        Chunk chunk = null;
-        if (chunks.TryGetValue(new Vector3i(x, y, z), out chunk)) {
+        Chunk chunk = GetChunk(x, y, z);
+        if(chunk != null) {
             Serialization.SaveChunk(chunk);
+
+            // notify neighbors
+            for (int i = 0; i < 6; ++i) {
+                Chunk n = chunk.neighbors[i];
+                if (n != null) {
+                    n.neighbors[Dirs.Opp(i)] = null;
+                }
+            }
+
             Destroy(chunk.gameObject);
             chunks.Remove(new Vector3i(x, y, z));
+        } else {
+            Debug.LogWarning("trying to destroy chunk that doesn't exist...");
         }
+
     }
 
     // gets chunk using world coordinates
-    public Chunk GetChunk(int x, int y, int z) {
-        chunks.TryGetValue(Chunk.GetChunkPosition(new Vector3(x, y, z)), out Chunk containerChunk);
-        return containerChunk;
+    public Chunk GetChunkByWorldPos(int x, int y, int z) {
+        chunks.TryGetValue(Chunk.GetChunkPosition(new Vector3(x, y, z)), out Chunk chunk);
+        return chunk;
     }
-    public Chunk GetChunk(Vector3i p) {
-        chunks.TryGetValue(Chunk.GetChunkPosition(p.ToVector3()), out Chunk containerChunk);
-        return containerChunk;
+    // gets chunk using chunk coords
+    public Chunk GetChunk(int x, int y, int z) {
+        chunks.TryGetValue(new Vector3i(x, y, z), out Chunk chunk);
+        return chunk;
+    }
+    public Chunk GetChunk(Vector3i chunkPos) {
+        chunks.TryGetValue(chunkPos, out Chunk chunk);
+        return chunk;
     }
 
+
     public Block GetBlock(int x, int y, int z) {
-        Chunk containerChunk = GetChunk(x, y, z);
+        Chunk containerChunk = GetChunkByWorldPos(x, y, z);
 
         if (containerChunk != null && containerChunk.generated) {
             return containerChunk.GetBlock(x - containerChunk.pos.x, y - containerChunk.pos.y, z - containerChunk.pos.z);
@@ -88,11 +124,10 @@ public class World : MonoBehaviour {
 
     // sets block using world coordinates
     public void SetBlock(int x, int y, int z, Block block) {
-        Chunk chunk = GetChunk(x, y, z);
+        Chunk chunk = GetChunkByWorldPos(x, y, z);
 
         if (chunk != null) {
             chunk.SetBlock(x - chunk.pos.x, y - chunk.pos.y, z - chunk.pos.z, block);
-            chunk.update = true;
 
             // if block is on a chunk edge then update neighbor chunks
             UpdateIfEqual(x - chunk.pos.x, 0, new Vector3i(x - 1, y, z));
@@ -107,7 +142,7 @@ public class World : MonoBehaviour {
 
     void UpdateIfEqual(int value1, int value2, Vector3i pos) {
         if (value1 == value2) {
-            Chunk chunk = GetChunk(pos.x, pos.y, pos.z);
+            Chunk chunk = GetChunkByWorldPos(pos.x, pos.y, pos.z);
             if (chunk != null) {
                 chunk.update = true;
             }

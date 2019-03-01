@@ -22,12 +22,13 @@ public static class Serialization {
     }
 
     public static string FileName(Vector3i chunkLocation) {
+        chunkLocation.Div(Chunk.SIZE);
         string fileName = chunkLocation.x + "," + chunkLocation.y + "," + chunkLocation.z + ".bin";
         return fileName;
     }
 
     public static void SaveChunk(Chunk chunk) {
-        Save save = new Save(chunk);
+        ChunkSave save = new ChunkSave(chunk);
         if (save.blocks.Count == 0) {
             return;
         }
@@ -51,9 +52,10 @@ public static class Serialization {
         IFormatter formatter = new BinaryFormatter();
         FileStream stream = new FileStream(saveFile, FileMode.Open);
 
-        Save save = (Save)formatter.Deserialize(stream);
+        ChunkSave save = (ChunkSave)formatter.Deserialize(stream);
         foreach (var block in save.blocks) {
-            chunk.blocks[block.Key.x, block.Key.y, block.Key.z] = new Block(block.Value.type, true);
+            chunk.blocks[block.Key] = new Block(block.Value.type);
+            chunk.modifiedBlockIndices.Add(block.Key);
         }
 
         stream.Close();
