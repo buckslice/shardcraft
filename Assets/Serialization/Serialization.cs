@@ -53,7 +53,7 @@ public static class Serialization {
 
         Save save = (Save)formatter.Deserialize(stream);
         foreach (var block in save.blocks) {
-            chunk.blocks[block.Key.x, block.Key.y, block.Key.z] = block.Value;
+            chunk.blocks[block.Key.x, block.Key.y, block.Key.z] = new Block(block.Value.type, true);
         }
 
         stream.Close();

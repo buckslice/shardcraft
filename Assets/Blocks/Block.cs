@@ -7,13 +7,14 @@ public struct Block {
 
     public byte type;
 
-    public byte changed;
+    [NonSerialized]
+    public bool modified;
 
-    // byte light;
+    // byte light; // prob should be separate array in chunk actually
 
-    public Block(byte type) {
+    public Block(byte type, bool modified = false) {
         this.type = type;
-        changed = 1;
+        this.modified = modified;
     }
 
     public BlockType GetBlockType() {

@@ -49,9 +49,6 @@ public class GenJobInfo {
 
         chunk.generated = true;
 
-        // could also set unmodified after loading and then if theres no new modified blocks leave save file alone
-        chunk.SetBlocksUnmodified();
-
         Serialization.LoadChunk(chunk);
 
         chunk.update = true;

@@ -289,7 +289,9 @@ public class Chunk : MonoBehaviour {
         return world.GetBlock(pos.x + x, pos.y + y, pos.z + z);
     }
 
+    // sets block modified this way
     public void SetBlock(int x, int y, int z, Block block) {
+        block.modified = true;
         if (InRange(x, y, z)) {
             if (!generated) {
                 return;
@@ -311,14 +313,6 @@ public class Chunk : MonoBehaviour {
             Mathf.FloorToInt(pos.y / SIZE) * SIZE,
             Mathf.FloorToInt(pos.z / SIZE) * SIZE
         );
-    }
-
-    public void SetBlocksUnmodified() {
-        for (int i = 0; i < blocks.sizeCubed; ++i) {
-            Block b = blocks[i];
-            b.changed = 0;
-            blocks[i] = b;
-        }
     }
 
 }
