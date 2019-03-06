@@ -4,7 +4,7 @@ using UnityEngine;
 
 public class LoadChunks : MonoBehaviour {
 
-    int loadRadius = 3; // render radius will be 1 minus this
+    int loadRadius = 8; // render radius will be 1 minus this
     World world;
 
     Vector3i[] neighborChunks; // list of chunk offsets to generate in order of closeness

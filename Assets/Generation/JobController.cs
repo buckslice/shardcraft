@@ -64,9 +64,7 @@ public class JobController : MonoBehaviour {
     //static List<Task<Chunk>> genTasks = new List<Task<Chunk>>();
 
     public ShadowText text;
-
-    int totalGen = 0;
-
+    
     World world;
 
     // Start is called before the first frame update
@@ -90,14 +88,12 @@ public class JobController : MonoBehaviour {
                 genInfos[i].handle.Complete();
 
                 genInfos[i].Finish();
-                totalGen++;
+                finished++;
 
                 // swap and pop
                 genInfos[i] = genInfos[genInfos.Count - 1];
                 genInfos.RemoveAt(genInfos.Count - 1);
                 --i;
-
-                finished++;
             }
         }
 
@@ -145,6 +141,8 @@ public class JobController : MonoBehaviour {
         job.chunkPos = chunk.pos.ToVector3();
 
         genInfo.handle = job.Schedule();
+
+        Debug.Assert(!genInfo.handle.IsCompleted);
 
         genInfos.Add(genInfo);
 

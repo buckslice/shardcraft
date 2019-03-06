@@ -3,11 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 
 
-[RequireComponent(typeof(MeshFilter))]
-[RequireComponent(typeof(MeshRenderer))]
-[RequireComponent(typeof(MeshCollider))]
-
-public class Chunk : MonoBehaviour {
+public class Chunk {
     public const int SIZE = 16;
 
     public Array3<Block> blocks = new Array3<Block>(SIZE);
@@ -15,6 +11,7 @@ public class Chunk : MonoBehaviour {
     public HashSet<ushort> modifiedBlockIndices = new HashSet<ushort>(); // hashset to avoid duplicates
 
     public World world;
+    public GameObject gameObject;
     public Vector3i pos; // world space position
 
     public bool generated { get; set; }
@@ -29,10 +26,13 @@ public class Chunk : MonoBehaviour {
 
     public static bool beGreedy = false;
 
-    public static bool generateColliders = true;
+    public static bool generateColliders = false;
 
-    // Use this for initialization
-    void Start() {
+    public Chunk(World world, Vector3i pos, GameObject gameObject) {
+        this.world = world;
+        this.pos = pos;
+        this.gameObject = gameObject;
+
         generated = false;
         update = false;
         rendered = false;
@@ -226,9 +226,9 @@ public class Chunk : MonoBehaviour {
     MeshData NaiveMesh() {
         MeshData meshData = new MeshData();
 
-        for (int x = 0; x < SIZE; x++) {
+        for (int z = 0; z < SIZE; z++) {
             for (int y = 0; y < SIZE; y++) {
-                for (int z = 0; z < SIZE; z++) {
+                for (int x = 0; x < SIZE; x++) {
                     blocks[x, y, z].AddData(this, x, y, z, meshData);
                 }
             }

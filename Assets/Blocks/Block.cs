@@ -88,7 +88,7 @@ public abstract class BlockType {
             FaceDataUp(chunk, x, y, z, meshData);
         }
 
-        if (!chunk.GetBlock(x, y - 1, z).IsSolid(Dir.up)) {
+        if (!chunk.GetBlock(x, y - 1, z).IsSolid(Dir.up)) { 
             FaceDataDown(chunk, x, y, z, meshData);
         }
 

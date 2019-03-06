@@ -45,13 +45,9 @@ public class World : MonoBehaviour {
         //Instantiate the chunk at the coordinates using the chunk prefab
         GameObject newChunkObject = Instantiate(chunkPrefab, worldPos.ToVector3(), Quaternion.Euler(Vector3.zero), transform) as GameObject;
         newChunkObject.name = "Chunk " + chunkPos.ToString();
-        Chunk chunk = newChunkObject.GetComponent<Chunk>();
-
-        chunk.pos = worldPos;
-        chunk.world = this;
+        Chunk chunk = new Chunk(this, worldPos, newChunkObject);
 
         JobController.StartGenerationJob(chunk);
-        //JobController.StartGenerationTask(newChunk);
 
         //Add it to the chunks dictionary with the position as the key
         chunks.Add(chunkPos, chunk);
