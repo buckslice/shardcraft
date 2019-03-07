@@ -88,14 +88,14 @@ public class LoadChunks : MonoBehaviour {
 
         needUpdates = 0;
         needGeneration = 0;
-        foreach (var chunk in world.chunks.Values) {
-            if (chunk.update && chunk.generated) {
-                needUpdates++;
-            }
-            if (!chunk.generated) {
-                needGeneration++;
-            }
-        }
+        //foreach (var chunk in world.chunks.Values) {
+        //    if (chunk.update && chunk.generated) {
+        //        needUpdates++;
+        //    }
+        //    if (!chunk.generated) {
+        //        needGeneration++;
+        //    }
+        //}
 
     }
 
@@ -115,44 +115,34 @@ public class LoadChunks : MonoBehaviour {
 
     }
 
+    int neighborIndex = 0;
+    Vector3i lastPlayerChunk = new Vector3i(1000000, 1000000, 1000000);
+    const int neighborsCheckedPerFrame = 20;
+
     // generates all chunks that need to be generated
     void GenerateChunks() {
         //const int pad = 1;
 
         Vector3i playerChunk = Chunk.GetChunkPosition(transform.position);
+        if (playerChunk != lastPlayerChunk) {
+            neighborIndex = 0;
+        }
+        lastPlayerChunk = playerChunk;
 
-        for (int i = 0; i < neighborChunks.Length; ++i) {
-            Vector3i p = playerChunk + neighborChunks[i];
-
-            //for (int x = -pad; x <= pad; ++x) {
-            //    for (int y = -pad; y <= pad; ++y) {
-            //        for (int z = -pad; z <= pad; ++z) {
-            //            // dont overload job system, not sure if this is needed tho...
-            //            // still good to reduce new gameobject creation maybe
-            //            if (JobController.GetRunningJobs() >= 16) {
-            //                return;
-            //            }
-            //            // add offset
-            //            Vector3i o = new Vector3i(x, y, z) * Chunk.SIZE;
-            //            p += o;
-            //            Chunk chunk = world.GetChunk(p);
-            //            if (chunk == null) {
-            //                world.CreateChunk(p.x, p.y, p.z);
-            //            }
-            //            p -= o;
-            //        }
-            //    }
-            //}
-
+        while (neighborIndex < neighborChunks.Length) {
             if (JobController.GetRunningJobs() >= 32) {
                 return;
             }
+
+            Vector3i p = playerChunk + neighborChunks[neighborIndex];
+
             // add offset
             Chunk chunk = world.GetChunk(p);
             if (chunk == null) {
                 world.CreateChunk(p.x, p.y, p.z);
             }
 
+            neighborIndex++;
         }
 
     }

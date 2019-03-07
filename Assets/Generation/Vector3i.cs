@@ -2,7 +2,7 @@
 using UnityEngine;
 
 [Serializable]
-public struct Vector3i {
+public struct Vector3i : IEquatable<Vector3i> {
     public int x;
     public int y;
     public int z;
@@ -169,16 +169,16 @@ public struct Vector3i {
         return this == (Vector3i)other;
     }
 
-    //public override int GetHashCode() {
-    //    unchecked {
-    //        int result = y;
-    //        result = (result * 397) ^ z;
-    //        result = (result * 397) ^ x;
-    //        return result;
-    //    }
-    //}
-
     public override int GetHashCode() {
-        return this.x.GetHashCode() ^ this.y.GetHashCode() << 2 ^ this.z.GetHashCode() >> 2;
+        unchecked {
+            int result = y;
+            result = (result * 397) ^ z;
+            result = (result * 397) ^ x;
+            return result;
+        }
     }
+
+    //public override int GetHashCode() {
+    //    return this.x.GetHashCode() ^ this.y.GetHashCode() << 2 ^ this.z.GetHashCode() >> 2;
+    //}
 }
