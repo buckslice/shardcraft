@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Unity.Collections;
 
 
 public class Chunk {
@@ -17,11 +18,13 @@ public class Chunk {
     public bool generated { get; set; }
     public bool update { get; set; }
     public bool rendered { get; set; }
+    public bool waitingForMesh { get; set; }
 
     public MeshRenderer mr { get; set; }
     MeshFilter filter;
     MeshCollider coll;
 
+    // w d s e u n
     public Chunk[] neighbors = new Chunk[6];
 
     public static bool beGreedy = false;
@@ -36,6 +39,7 @@ public class Chunk {
         generated = false;
         update = false;
         rendered = false;
+        waitingForMesh = false;
 
         mr = gameObject.GetComponent<MeshRenderer>();
         filter = gameObject.GetComponent<MeshFilter>();
@@ -52,12 +56,16 @@ public class Chunk {
             }
         }
 
+        //if(!rendered && !waitingForMesh) {
+        //    waitingForMesh = true;
+        //    JobController.StartMeshJob(this);
+        //}
+
         if (beGreedy) {
             UpdateMesh(GreedyMesh(), true);
         } else {
             UpdateMesh(NaiveMesh(), false);
         }
-
         rendered = true;
 
         update = false;
@@ -266,6 +274,14 @@ public class Chunk {
         coll.sharedMesh = mesh;
 
         //Debug.Log("updated: " + pos.ToString());
+    }
+
+    public void UpdateMeshNative(NativeList<Vector3> vertices, NativeList<int> triangles, NativeList<Vector2> uvs) {
+        filter.mesh.Clear();
+        filter.mesh.vertices = vertices.ToArray();
+        filter.mesh.uv = uvs.ToArray();
+        filter.mesh.triangles = triangles.ToArray();
+        filter.mesh.RecalculateNormals();
     }
 
     public Block GetBlock(int x, int y, int z) {

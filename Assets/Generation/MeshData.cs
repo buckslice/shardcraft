@@ -55,6 +55,7 @@ public class MeshData {
 
 }
 
+
 public static class MeshUtils {
     // adds small overlap between blocks to prevent t junctions causing small pixel gaps between meshes
     // (annoying because you can see through mesh slightly because of this)
