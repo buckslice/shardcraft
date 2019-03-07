@@ -2,9 +2,30 @@
 using System.Collections.Generic;
 using UnityEngine;
 using Unity.Jobs;
+using Unity.Mathematics;
 using Unity.Collections;
 
 public static class WorldGenerator {
+
+
+    public static float Fractal(Vector3 v, int octaves, float frequency, float persistence = 0.5f, float lacunarity = 2.0f) {
+        float total = 0.0f;
+        float amplitude = 1.0f;
+
+        for (int i = 0; i < octaves; ++i) {
+            float n = noise.snoise((v * frequency));
+            //float n = noise.cellular(v * frequency).y;
+            //float2 n2 = noise.cellular(v * frequency);
+            //float n = n2.y - n2.x;
+
+            total += n * amplitude;
+
+            amplitude *= persistence;
+            frequency *= lacunarity;
+        }
+
+        return total;
+    }
 
 
     public static void Generate(Vector3 chunkPos, NativeArray<Block> blocks) {
@@ -22,7 +43,8 @@ public static class WorldGenerator {
                     // TODO: convert shapes.cginc into c# equiv, and or get gen going on multiple thread (try job system!!!)
                     n -= Vector3.Dot(wp, Vector3.up) * 0.05f;
 
-                    n += Noise.Fractal(wp, 5, 0.01f);
+                    //n += Fractal(wp, 5, 0.01f);
+                    n += Fractal(wp, 5, 0.02f);
 
                     if (n > 0.3f) {
                         blocks[x + y * Chunk.SIZE + z * Chunk.SIZE * Chunk.SIZE] = Blocks.STONE;

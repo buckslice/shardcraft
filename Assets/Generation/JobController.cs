@@ -1,12 +1,13 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
+using Unity.Burst;
 using Unity.Collections;
 using Unity.Jobs;
 using UnityEngine;
 using System.Threading.Tasks;
 using UnityEngine.UI;
 
-//[BurstCompile]
+[BurstCompile]
 public struct GenerationJob : IJob {
 
     public Vector3 chunkPos;
@@ -17,6 +18,20 @@ public struct GenerationJob : IJob {
 
         WorldGenerator.Generate(chunkPos, blocks);
 
+    }
+}
+
+public struct MeshJob : IJob {
+
+    public Chunk chunk;
+
+    public NativeList<Vector3> vertices;
+
+    public void Execute() {
+
+        MeshData data = chunk.NaiveMesh();
+
+        //vertices = data.vertices.ToArray();
     }
 }
 
@@ -142,7 +157,7 @@ public class JobController : MonoBehaviour {
 
         genInfo.handle = job.Schedule();
 
-        Debug.Assert(!genInfo.handle.IsCompleted);
+        //Debug.Assert(!genInfo.handle.IsCompleted);
 
         genInfos.Add(genInfo);
 

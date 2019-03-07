@@ -144,7 +144,7 @@ public class LoadChunks : MonoBehaviour {
             //    }
             //}
 
-            if (JobController.GetRunningJobs() >= 16) {
+            if (JobController.GetRunningJobs() >= 32) {
                 return;
             }
             // add offset

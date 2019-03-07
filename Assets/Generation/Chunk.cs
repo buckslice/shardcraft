@@ -223,7 +223,7 @@ public class Chunk {
         return data;
     }
 
-    MeshData NaiveMesh() {
+    public MeshData NaiveMesh() {
         MeshData meshData = new MeshData();
 
         for (int z = 0; z < SIZE; z++) {
