@@ -12,7 +12,6 @@ public struct GenerationJob : IJob {
 
     public Vector3 chunkPos;
     public NativeArray<Block> blocks;
-    //public Array3<Block> blocks;
 
     public void Execute() {
 
@@ -22,119 +21,27 @@ public struct GenerationJob : IJob {
 }
 
 //[BurstCompile]
+// need to get rid of all class references for burst...??? frick
 public struct MeshJob : IJob {
 
-    public NativeArray<Block> blocks; // has 1 block padding on edges
+    [ReadOnly]
+    public NativeArray<Block> blocks;
 
     public NativeList<Vector3> vertices;
     public NativeList<int> triangles;
     public NativeList<Vector2> uvs;
 
+    public NativeList<Vector3> colliderVerts;
+    public NativeList<int> colliderTris;
+    //public NativeList<Vector2> uvs;
+
     public void Execute() {
 
-        const int s2 = Chunk.SIZE + 2;
+        MeshBuilder.BuildNaive(blocks, vertices, triangles, uvs);
 
-        for (int z = 1; z < s2 - 1; z++) {
-            for (int y = 1; y < s2 - 1; y++) {
-                for (int x = 1; x < s2 - 1; x++) {
-                    Block b = blocks[x + y * s2 + z * s2 * s2];
-                    if (b == Blocks.AIR) {
-                        continue;
-                    }
-                    BlockType bt = b.GetBlockType();
-
-                    if (!blocks[(x + 1) + y * s2 + z * s2 * s2].IsSolid(Dir.west)) {
-                        vertices.Add(new Vector3(x + 1.0f, y, z));
-                        vertices.Add(new Vector3(x + 1.0f, y + 1.0f, z));
-                        vertices.Add(new Vector3(x + 1.0f, y + 1.0f, z + 1.0f));
-                        vertices.Add(new Vector3(x + 1.0f, y, z + 1.0f));
-
-                        AddQuadTriangles();
-
-                        AddFaceUVs(bt, Dir.east);
-                    }
-                    if (!blocks[x + (y + 1) * s2 + z * s2 * s2].IsSolid(Dir.down)) {
-                        vertices.Add(new Vector3(x, y + 1.0f, z + 1.0f));
-                        vertices.Add(new Vector3(x + 1.0f, y + 1.0f, z + 1.0f));
-                        vertices.Add(new Vector3(x + 1.0f, y + 1.0f, z));
-                        vertices.Add(new Vector3(x, y + 1.0f, z));
-
-                        AddQuadTriangles();
-
-                        AddFaceUVs(bt, Dir.up);
-                    }
-                    if (!blocks[x + y * s2 + (z + 1) * s2 * s2].IsSolid(Dir.south)) {
-                        vertices.Add(new Vector3(x + 1.0f, y, z + 1.0f));
-                        vertices.Add(new Vector3(x + 1.0f, y + 1.0f, z + 1.0f));
-                        vertices.Add(new Vector3(x, y + 1.0f, z + 1.0f));
-                        vertices.Add(new Vector3(x, y, z + 1.0f));
-
-                        AddQuadTriangles();
-
-                        AddFaceUVs(bt, Dir.north);
-                    }
-
-                    if (!blocks[(x - 1) + y * s2 + z * s2 * s2].IsSolid(Dir.east)) {
-                        vertices.Add(new Vector3(x, y, z + 1.0f));
-                        vertices.Add(new Vector3(x, y + 1.0f, z + 1.0f));
-                        vertices.Add(new Vector3(x, y + 1.0f, z));
-                        vertices.Add(new Vector3(x, y, z));
-
-                        AddQuadTriangles();
-
-                        AddFaceUVs(bt, Dir.west);
-
-                    }
-                    if (!blocks[x + (y - 1) * s2 + z * s2 * s2].IsSolid(Dir.up)) {
-                        vertices.Add(new Vector3(x, y, z));
-                        vertices.Add(new Vector3(x + 1.0f, y, z));
-                        vertices.Add(new Vector3(x + 1.0f, y, z + 1.0f));
-                        vertices.Add(new Vector3(x, y, z + 1.0f));
-
-                        AddQuadTriangles();
-
-                        AddFaceUVs(bt, Dir.down);
-                    }
-
-
-                    if (!blocks[x + y * s2 + (z - 1) * s2 * s2].IsSolid(Dir.north)) {
-                        vertices.Add(new Vector3(x, y, z));
-                        vertices.Add(new Vector3(x, y + 1.0f, z));
-                        vertices.Add(new Vector3(x + 1.0f, y + 1.0f, z));
-                        vertices.Add(new Vector3(x + 1.0f, y, z));
-
-                        AddQuadTriangles();
-
-                        AddFaceUVs(bt, Dir.south);
-                    }
-
-
-                }
-            }
-        }
-
-        //vertices = data.vertices.ToArray();
+        MeshBuilder.BuildGreedyCollider(blocks, colliderVerts, colliderTris);
     }
 
-    public void AddQuadTriangles() {
-        triangles.Add(vertices.Length - 4);  // 0
-        triangles.Add(vertices.Length - 3);  // 1
-        triangles.Add(vertices.Length - 2);  // 2
-
-        triangles.Add(vertices.Length - 4);  // 0
-        triangles.Add(vertices.Length - 2);  // 2
-        triangles.Add(vertices.Length - 1);  // 3
-
-    }
-
-    public void AddFaceUVs(BlockType bt, Dir dir) {
-        Tile tp = bt.TexturePosition(dir);
-
-        uvs.Add(new Vector2(tp.x + 1, tp.y) * Tile.SIZE);
-        uvs.Add(new Vector2(tp.x + 1, tp.y + 1) * Tile.SIZE);
-        uvs.Add(new Vector2(tp.x, tp.y + 1) * Tile.SIZE);
-        uvs.Add(new Vector2(tp.x, tp.y) * Tile.SIZE);
-    }
 }
 
 public struct LightingJob : IJob {
@@ -184,73 +91,27 @@ public class MeshJobInfo {
     public NativeList<int> triangles;
     public NativeList<Vector2> uvs;
 
-    public MeshJobInfo(Chunk chunk) {
-        const int s = Chunk.SIZE;
-        const int s1 = s + 1;
-        const int s2 = s + 2;
+    public NativeList<Vector3> colliderVerts;
+    public NativeList<int> colliderTris;
 
-        blocks = new NativeArray<Block>(s2 * s2 * s2, Allocator.TempJob);
+    public MeshJobInfo(Chunk chunk) {
+        blocks = MeshBuilder.BuildPaddedBlockArray(chunk);
+
         vertices = new NativeList<Vector3>(Allocator.TempJob);
         triangles = new NativeList<int>(Allocator.TempJob);
         uvs = new NativeList<Vector2>(Allocator.TempJob);
 
+        colliderVerts = new NativeList<Vector3>(Allocator.TempJob);
+        colliderTris = new NativeList<int>(Allocator.TempJob);
+
         this.chunk = chunk;
 
-        // west neighbor
-        //d s , e u n
-
-        // west
-        for (int z = 0; z < s; ++z) {
-            for (int y = 0; y < s; ++y) {
-                blocks[0 + (y + 1) * s2 + (z + 1) * s2 * s2] = chunk.neighbors[0].blocks[(s - 1) + y * s + z * s * s];
-            }
-        }
-        // down
-        for (int z = 0; z < s; ++z) {
-            for (int x = 0; x < s; ++x) {
-                blocks[(x + 1) + 0 + (z + 1) * s2 * s2] = chunk.neighbors[1].blocks[x + (s - 1) * s + z * s * s];
-            }
-        }
-
-        // south
-        for (int y = 0; y < s; ++y) {
-            for (int x = 0; x < s; ++x) {
-                blocks[(x + 1) + (y + 1) * s2 + 0] = chunk.neighbors[2].blocks[x + y * s + (s - 1) * s * s];
-            }
-        }
-
-        // east
-        for (int z = 0; z < s; ++z) {
-            for (int y = 0; y < s; ++y) {
-                blocks[s1 + (y + 1) * s2 + (z + 1) * s2 * s2] = chunk.neighbors[3].blocks[0 + y * s + z * s * s];
-            }
-        }
-        // up
-        for (int z = 0; z < s; ++z) {
-            for (int x = 0; x < s; ++x) {
-                blocks[(x + 1) + s1 * s2 + (z + 1) * s2 * s2] = chunk.neighbors[4].blocks[x + 0 + z * s * s];
-            }
-        }
-
-        // north
-        for (int y = 0; y < s; ++y) {
-            for (int x = 0; x < s; ++x) {
-                blocks[(x + 1) + (y + 1) * s2 + s1 * s2 * s2] = chunk.neighbors[5].blocks[x + y * s + 0];
-            }
-        }
-
-        // fill blocks array with padding
-        for (int z = 1; z < s1; z++) {
-            for (int y = 1; y < s1; y++) {
-                for (int x = 1; x < s1; x++) {
-                    blocks[x + y * s2 + z * s2 * s2] = chunk.blocks[(x - 1) + (y - 1) * s + (z - 1) * s * s];
-                }
-            }
-        }
     }
 
     public void Finish() {
         chunk.UpdateMeshNative(vertices, triangles, uvs);
+
+        chunk.UpdateColliderNative(colliderVerts, colliderTris);
 
         chunk.waitingForMesh = false;
         chunk.rendered = true;
@@ -259,8 +120,12 @@ public class MeshJobInfo {
         vertices.Dispose();
         triangles.Dispose();
         uvs.Dispose();
+
+        colliderVerts.Dispose();
+        colliderTris.Dispose();
     }
 }
+
 
 public class JobController : MonoBehaviour {
 
@@ -386,6 +251,9 @@ public class JobController : MonoBehaviour {
         job.vertices = info.vertices;
         job.triangles = info.triangles;
         job.uvs = info.uvs;
+
+        job.colliderVerts = info.colliderVerts;
+        job.colliderTris = info.colliderTris;
 
         info.handle = job.Schedule();
 

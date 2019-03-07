@@ -6,12 +6,12 @@ using System.Collections.Generic;
 // allows for autocompletion when programming stuff
 public static class Tags {
     public const string Player = "Player";
+    public const string Terrain = "Terrain";
 }
 
 
 public static class Layers {
     //public const int PlayerHitBox = 8;
-
 }
 
 public static class ShaderParams {

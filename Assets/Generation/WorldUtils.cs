@@ -11,14 +11,6 @@ public static class WorldUtils {
     }
 
     public static Vector3i GetBlockPos(RaycastHit hit, bool adjacent = false) {
-        //Vector3 pos = new Vector3(
-        //    MoveWithinBlock(hit.point.x, hit.normal.x, adjacent),
-        //    MoveWithinBlock(hit.point.y, hit.normal.y, adjacent),
-        //    MoveWithinBlock(hit.point.z, hit.normal.z, adjacent)
-        //);
-
-        //return GetBlockPos(pos);
-
         Vector3 p = hit.point;
         if (adjacent) {
             p += hit.normal / 10.0f;
@@ -40,28 +32,26 @@ public static class WorldUtils {
         return pos;
     }
 
-    public static bool SetBlock(RaycastHit hit, Block block, bool adjacent = false) {
-        Chunk chunk = hit.collider.GetComponent<Chunk>();
-        if (chunk == null) {
+    public static bool SetBlock(World world, RaycastHit hit, Block block, bool adjacent = false) {
+        if (!hit.collider.CompareTag(Tags.Terrain)) {
             return false;
         }
 
         Vector3i pos = GetBlockPos(hit, adjacent);
-        //Debug.Log(pos);
 
-        chunk.world.SetBlock(pos.x, pos.y, pos.z, block);
+        world.SetBlock(pos.x, pos.y, pos.z, block);
 
         return true;
     }
 
-    public static Block GetBlock(RaycastHit hit, bool adjacent = false) {
-        Chunk chunk = hit.collider.GetComponent<Chunk>();
-        if (chunk == null)
+    public static Block GetBlock(World world, RaycastHit hit, bool adjacent = false) {
+        if (!hit.collider.CompareTag(Tags.Terrain)) {
             return Blocks.AIR;
+        }
 
         Vector3i pos = GetBlockPos(hit, adjacent);
 
-        Block block = chunk.world.GetBlock(pos.x, pos.y, pos.z);
+        Block block = world.GetBlock(pos.x, pos.y, pos.z);
 
         return block;
     }

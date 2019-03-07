@@ -3,7 +3,7 @@ using System.Collections;
 using System;
 
 [Serializable]
-public struct Block {
+public struct Block : IEquatable<Block> {
 
     public byte type;
 
@@ -21,6 +21,10 @@ public struct Block {
         return BlockTypes.GetBlockType(type).IsSolid(dir);
     }
 
+    public bool ColliderSolid() {
+        return BlockTypes.GetBlockType(type).ColliderSolid();
+    }
+
     public Tile TexturePosition(Dir dir) {
         return BlockTypes.GetBlockType(type).TexturePosition(dir);
     }
@@ -34,6 +38,21 @@ public struct Block {
     }
     public static bool operator !=(Block a, Block b) {
         return !(a == b);
+    }
+
+    public bool Equals(Block other) {
+        return this == other;
+    }
+
+    public override bool Equals(object other) {
+        if (!(other is Block)) {
+            return false;
+        }
+        return this == (Block)other;
+    }
+
+    public override int GetHashCode() {
+        return type;
     }
 
 }
@@ -79,6 +98,11 @@ public abstract class BlockType {
         return false;
     }
 
+    // not sure how to handle above IsSolid cases, seems more for blocks with visually transparent faces but should still have a collider there
+    public virtual bool ColliderSolid() {
+        return true;
+    }
+
     public virtual Tile TexturePosition(Dir dir) {
         return new Tile() { x = 0, y = 0 };
     }
@@ -88,7 +112,7 @@ public abstract class BlockType {
             FaceDataUp(chunk, x, y, z, meshData);
         }
 
-        if (!chunk.GetBlock(x, y - 1, z).IsSolid(Dir.up)) { 
+        if (!chunk.GetBlock(x, y - 1, z).IsSolid(Dir.up)) {
             FaceDataDown(chunk, x, y, z, meshData);
         }
 

@@ -6,6 +6,10 @@ using Unity.Collections;
 
 public class Chunk {
     public const int SIZE = 16;
+    // equal for now but keeping if u want to change this later. would have to change away from array3 tho actually
+    // also very untested lol so prob will megachoke
+    public const int CHUNK_WIDTH = SIZE;
+    public const int CHUNK_HEIGHT = SIZE;
 
     public Array3<Block> blocks = new Array3<Block>(SIZE);
 
@@ -29,7 +33,7 @@ public class Chunk {
 
     public static bool beGreedy = false;
 
-    public static bool generateColliders = false;
+    public static bool generateColliders = true;
 
     public Chunk(World world, Vector3i pos, GameObject gameObject) {
         this.world = world;
@@ -56,28 +60,26 @@ public class Chunk {
             }
         }
 
-        //if(!rendered && !waitingForMesh) {
-        //    waitingForMesh = true;
-        //    JobController.StartMeshJob(this);
-        //}
-
-        if (beGreedy) {
-            UpdateMesh(GreedyMesh(), true);
+        if (update && !waitingForMesh) {
+            waitingForMesh = true;
+            update = false;
+            JobController.StartMeshJob(this);
         } else {
-            UpdateMesh(NaiveMesh(), false);
+            return false;
         }
-        rendered = true;
 
-        update = false;
+        //if (beGreedy) {
+        //    UpdateMesh(GreedyMesh(), true);
+        //} else {
+        //    UpdateMesh(NaiveMesh(), false);
+        //}
+        //rendered = true;
+        //update = false;
 
         return true;
     }
 
 
-    // equal for now but keeping if u want to change this later. would have to change away from array3 tho actually
-    // also very untested lol so prob will megachoke
-    public const int CHUNK_WIDTH = SIZE;
-    public const int CHUNK_HEIGHT = SIZE;
 
     //public const int VOXEL_SIZE = 1;
 
@@ -282,6 +284,24 @@ public class Chunk {
         filter.mesh.uv = uvs.ToArray();
         filter.mesh.triangles = triangles.ToArray();
         filter.mesh.RecalculateNormals();
+
+        //// generate collider
+        //MeshData colData = GreedyMesh(true);
+        //coll.sharedMesh = null;
+        //Mesh mesh = new Mesh();
+        //mesh.vertices = colData.vertices.ToArray();
+        //mesh.triangles = colData.triangles.ToArray();
+        //mesh.RecalculateNormals();
+        //coll.sharedMesh = mesh;
+    }
+
+    public void UpdateColliderNative(NativeList<Vector3> vertices, NativeList<int> triangles) {
+        coll.sharedMesh = null;
+        Mesh mesh = new Mesh();
+        mesh.vertices = vertices.ToArray();
+        mesh.triangles = triangles.ToArray();
+        mesh.RecalculateNormals();
+        coll.sharedMesh = mesh;
     }
 
     public Block GetBlock(int x, int y, int z) {

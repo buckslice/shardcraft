@@ -11,4 +11,8 @@ public class BlockAir : BlockType {
     public override void AddData(Chunk chunk, int x, int y, int z, MeshData meshData) {
     }
 
+    public override bool ColliderSolid() {
+        return false;
+    }
+
 }

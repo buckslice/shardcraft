@@ -25,7 +25,7 @@ public class CamModify : MonoBehaviour {
             if (Physics.Raycast(transform.position, transform.forward, out hit, 100)) {
                 lastPos = transform.position;
                 lastHit = hit;
-                WorldUtils.SetBlock(hit, Blocks.AIR);
+                WorldUtils.SetBlock(world, hit, Blocks.AIR);
             }
         }
 
@@ -35,7 +35,7 @@ public class CamModify : MonoBehaviour {
             if (Physics.Raycast(transform.position, transform.forward, out hit, 100)) {
                 lastPos = transform.position;
                 lastHit = hit;
-                WorldUtils.SetBlock(hit, Blocks.GRASS, true);
+                WorldUtils.SetBlock(world, hit, Blocks.GRASS, true);
             }
         }
 
