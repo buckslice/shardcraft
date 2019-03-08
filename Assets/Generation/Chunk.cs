@@ -23,6 +23,7 @@ public class Chunk {
     public bool update { get; set; }
     public bool rendered { get; set; }
     public bool waitingForMesh { get; set; }
+    public bool builtStructures { get; set; }
 
     public MeshRenderer mr { get; set; }
     MeshFilter filter;
@@ -44,6 +45,7 @@ public class Chunk {
         update = false;
         rendered = false;
         waitingForMesh = false;
+        builtStructures = false;
 
         mr = gameObject.GetComponent<MeshRenderer>();
         filter = gameObject.GetComponent<MeshFilter>();
@@ -58,6 +60,11 @@ public class Chunk {
             if (neighbors[i] == null || !neighbors[i].generated) {
                 return false;
             }
+        }
+
+        if (!builtStructures) {
+            BuildStructures();
+            builtStructures = true;
         }
 
         if (update && !waitingForMesh) {
@@ -79,7 +86,27 @@ public class Chunk {
         return true;
     }
 
+    // called once generate happens
+    public void BuildStructures() {
 
+        // not sure here lol
+        Random.InitState(pos.GetHashCode() + world.seed);
+
+        for (int z = 0; z < SIZE; ++z) {
+            for (int y = 0; y < SIZE; ++y) {
+                for (int x = 0; x < SIZE; ++x) {
+
+                    if (GetBlock(x, y, z) == Blocks.AIR && GetBlock(x, y - 1, z) == Blocks.GRASS) {
+                        if(Random.value < 0.01f) {
+                            SetBlock(x, y, z, Blocks.TORCH);
+                        }
+                    }
+
+                }
+            }
+        }
+
+    }
 
     //public const int VOXEL_SIZE = 1;
 

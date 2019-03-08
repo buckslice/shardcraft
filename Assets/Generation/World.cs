@@ -15,6 +15,8 @@ public class World : MonoBehaviour {
 
     public bool loadPlayerSave = false;
 
+    public int seed;
+
     // Use this for initialization
     void Start() {
         Debug.Assert(Chunk.CHUNK_HEIGHT >= Chunk.CHUNK_WIDTH);
@@ -24,6 +26,8 @@ public class World : MonoBehaviour {
         }
 
         Tests.Run();
+
+        seed = 1000;
     }
 
     public void OnApplicationQuit() {

@@ -71,6 +71,7 @@ public class GenJobInfo {
 
         blocks.CopyTo(chunk.blocks.GetData());
 
+
         chunk.generated = true;
 
         Serialization.LoadChunk(chunk);

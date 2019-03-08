@@ -46,10 +46,11 @@ public static class WorldGenerator {
                     //n += Fractal(wp, 5, 0.01f);
                     n += Fractal(wp, 5, 0.02f);
 
+                    Block b = Blocks.AIR;
                     if (n > 0.3f) {
-                        blocks[x + y * Chunk.SIZE + z * Chunk.SIZE * Chunk.SIZE] = Blocks.STONE;
+                        b = Blocks.STONE;
                     } else if (n > 0.15f) {
-                        blocks[x + y * Chunk.SIZE + z * Chunk.SIZE * Chunk.SIZE] = Blocks.GRASS;
+                        b = Blocks.GRASS;
 
                         // trying to make grass not spawn on cliff edge...
                         //if (Mathf.Abs(samp.derivative.normalized.y) < 0.4f) {
@@ -57,9 +58,9 @@ public static class WorldGenerator {
                         //} else {
                         //    chunk.SetBlock(x, y, z, new Block());
                         //}
-                    } else {
-                        blocks[x + y * Chunk.SIZE + z * Chunk.SIZE * Chunk.SIZE] = Blocks.AIR;
                     }
+
+                    blocks[x + y * Chunk.SIZE + z * Chunk.SIZE * Chunk.SIZE] = b;
 
                 }
             }
