@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.Collections;
 
 public class MeshData {
     public List<Vector3> vertices = new List<Vector3>();
@@ -51,6 +52,53 @@ public class MeshData {
 
     public void AddVertex(Vector3 vertex) {
         vertices.Add(vertex);
+    }
+
+}
+
+public class NativeMeshData {
+    NativeArray<Block> blocks;
+    public NativeList<Vector3> vertices;
+    public NativeList<int> triangles;
+    public NativeList<Vector2> uvs;
+    readonly int size;
+
+    public NativeMeshData(int size, NativeArray<Block> blocks, NativeList<Vector3> vertices, NativeList<int> triangles, NativeList<Vector2> uvs) {
+        this.size = size;
+        this.blocks = blocks;
+        this.vertices = vertices;
+        this.triangles = triangles;
+        this.uvs = uvs;
+    }
+
+    public Block GetBlock(int x, int y, int z) {
+        return blocks[(x+1) + (y+1) * size + (z+1) * size * size];
+    }
+
+    public void AddVertex(Vector3 vertex) {
+        vertices.Add(vertex);
+    }
+
+    public void AddTriangle(int tri) {
+        triangles.Add(tri);
+    }
+
+    public void AddQuadTriangles() {
+        triangles.Add(vertices.Length - 4);  // 0
+        triangles.Add(vertices.Length - 3);  // 1
+        triangles.Add(vertices.Length - 2);  // 2
+
+        triangles.Add(vertices.Length - 4);  // 0
+        triangles.Add(vertices.Length - 2);  // 2
+        triangles.Add(vertices.Length - 1);  // 3
+
+    }
+
+    public void AddFaceUVs(Tile tp) {
+        uvs.Add(new Vector2(tp.x + 1, tp.y) * Tile.SIZE);
+        uvs.Add(new Vector2(tp.x + 1, tp.y + 1) * Tile.SIZE);
+        uvs.Add(new Vector2(tp.x, tp.y + 1) * Tile.SIZE);
+        uvs.Add(new Vector2(tp.x, tp.y) * Tile.SIZE);
     }
 
 }

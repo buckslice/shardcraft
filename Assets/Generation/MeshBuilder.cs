@@ -7,107 +7,18 @@ public static class MeshBuilder {
 
 
     public static void BuildNaive(NativeArray<Block> blocks, NativeList<Vector3> vertices, NativeList<int> triangles, NativeList<Vector2> uvs) {
-        void AddQuadTriangles() {
-            triangles.Add(vertices.Length - 4);  // 0
-            triangles.Add(vertices.Length - 3);  // 1
-            triangles.Add(vertices.Length - 2);  // 2
-
-            triangles.Add(vertices.Length - 4);  // 0
-            triangles.Add(vertices.Length - 2);  // 2
-            triangles.Add(vertices.Length - 1);  // 3
-
-        }
-
-        void AddFaceUVs(BlockType bt, Dir dir) {
-            Tile tp = bt.TexturePosition(dir);
-
-            uvs.Add(new Vector2(tp.x + 1, tp.y) * Tile.SIZE);
-            uvs.Add(new Vector2(tp.x + 1, tp.y + 1) * Tile.SIZE);
-            uvs.Add(new Vector2(tp.x, tp.y + 1) * Tile.SIZE);
-            uvs.Add(new Vector2(tp.x, tp.y) * Tile.SIZE);
-        }
 
         const int s = Chunk.SIZE;
         const int s2 = s + 2;
+        NativeMeshData data = new NativeMeshData(s2, blocks, vertices, triangles, uvs);
 
         for (int z = 0; z < s; z++) {
             for (int y = 0; y < s; y++) {
                 for (int x = 0; x < s; x++) {
-                    int xx = x + 1;
-                    int yy = y + 1;
-                    int zz = z + 1;
 
-                    Block b = blocks[xx + yy * s2 + zz * s2 * s2];
-                    if (b == Blocks.AIR) {
-                        continue;
-                    }
+                    Block b = blocks[(x+1) + (y+1) * s2 + (z+1) * s2 * s2];
                     BlockType bt = b.GetBlockType();
-
-                    if (!blocks[(xx + 1) + yy * s2 + zz * s2 * s2].IsSolid(Dir.west)) {
-                        vertices.Add(new Vector3(x + 1.0f, y, z));
-                        vertices.Add(new Vector3(x + 1.0f, y + 1.0f, z));
-                        vertices.Add(new Vector3(x + 1.0f, y + 1.0f, z + 1.0f));
-                        vertices.Add(new Vector3(x + 1.0f, y, z + 1.0f));
-
-                        AddQuadTriangles();
-
-                        AddFaceUVs(bt, Dir.east);
-                    }
-                    if (!blocks[xx + (yy + 1) * s2 + zz * s2 * s2].IsSolid(Dir.down)) {
-                        vertices.Add(new Vector3(x, y + 1.0f, z + 1.0f));
-                        vertices.Add(new Vector3(x + 1.0f, y + 1.0f, z + 1.0f));
-                        vertices.Add(new Vector3(x + 1.0f, y + 1.0f, z));
-                        vertices.Add(new Vector3(x, y + 1.0f, z));
-
-                        AddQuadTriangles();
-
-                        AddFaceUVs(bt, Dir.up);
-                    }
-                    if (!blocks[xx + yy * s2 + (zz + 1) * s2 * s2].IsSolid(Dir.south)) {
-                        vertices.Add(new Vector3(x + 1.0f, y, z + 1.0f));
-                        vertices.Add(new Vector3(x + 1.0f, y + 1.0f, z + 1.0f));
-                        vertices.Add(new Vector3(x, y + 1.0f, z + 1.0f));
-                        vertices.Add(new Vector3(x, y, z + 1.0f));
-
-                        AddQuadTriangles();
-
-                        AddFaceUVs(bt, Dir.north);
-                    }
-
-                    if (!blocks[(xx - 1) + yy * s2 + zz * s2 * s2].IsSolid(Dir.east)) {
-                        vertices.Add(new Vector3(x, y, z + 1.0f));
-                        vertices.Add(new Vector3(x, y + 1.0f, z + 1.0f));
-                        vertices.Add(new Vector3(x, y + 1.0f, z));
-                        vertices.Add(new Vector3(x, y, z));
-
-                        AddQuadTriangles();
-
-                        AddFaceUVs(bt, Dir.west);
-
-                    }
-                    if (!blocks[xx + (yy - 1) * s2 + zz * s2 * s2].IsSolid(Dir.up)) {
-                        vertices.Add(new Vector3(x, y, z));
-                        vertices.Add(new Vector3(x + 1.0f, y, z));
-                        vertices.Add(new Vector3(x + 1.0f, y, z + 1.0f));
-                        vertices.Add(new Vector3(x, y, z + 1.0f));
-
-                        AddQuadTriangles();
-
-                        AddFaceUVs(bt, Dir.down);
-                    }
-
-
-                    if (!blocks[xx + yy * s2 + (zz - 1) * s2 * s2].IsSolid(Dir.north)) {
-                        vertices.Add(new Vector3(x, y, z));
-                        vertices.Add(new Vector3(x, y + 1.0f, z));
-                        vertices.Add(new Vector3(x + 1.0f, y + 1.0f, z));
-                        vertices.Add(new Vector3(x + 1.0f, y, z));
-
-                        AddQuadTriangles();
-
-                        AddFaceUVs(bt, Dir.south);
-                    }
-
+                    bt.AddDataNative(x, y, z, data);
 
                 }
             }
@@ -205,7 +116,7 @@ public static class MeshBuilder {
                 n = 0;
                 for (j = 0; j < maxDim[d2]; ++j) {
                     for (i = 0; i < maxDim[d1];) {
-                        if (!slice[n].ColliderSolid()) { 
+                        if (!slice[n].ColliderSolid()) {
                             ++i;
                             ++n;
                             continue;

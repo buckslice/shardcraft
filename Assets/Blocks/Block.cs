@@ -17,10 +17,14 @@ public struct Block : IEquatable<Block> {
         return BlockTypes.GetBlockType(type);
     }
 
+    // returns whether the block has a solid face from this direction
+    // consider stairs, bottom and back are solid but other sides aren't completely
+    // air is not solid on any sides, also torches because they dont cover any whole face
     public bool IsSolid(Dir dir) {
         return BlockTypes.GetBlockType(type).IsSolid(dir);
     }
 
+    // todo: add way to specify custom collider data for different shapes
     public bool ColliderSolid() {
         return BlockTypes.GetBlockType(type).ColliderSolid();
     }
@@ -29,9 +33,9 @@ public struct Block : IEquatable<Block> {
         return BlockTypes.GetBlockType(type).TexturePosition(dir);
     }
 
-    public void AddData(Chunk chunk, int x, int y, int z, MeshData meshData) {
-        BlockTypes.GetBlockType(type).AddData(chunk, x, y, z, meshData);
-    }
+    //public void AddData(Chunk chunk, int x, int y, int z, MeshData meshData) {
+    //    BlockTypes.GetBlockType(type).AddData(chunk, x, y, z, meshData);
+    //}
 
     public static bool operator ==(Block a, Block b) {
         return a.type == b.type;
@@ -62,6 +66,7 @@ public static class Blocks {
     public static readonly Block AIR = new Block(0);
     public static readonly Block STONE = new Block(1);
     public static readonly Block GRASS = new Block(2);
+    public static readonly Block TORCH = new Block(3);
 }
 
 public static class BlockTypes {
@@ -70,6 +75,7 @@ public static class BlockTypes {
         new BlockAir(),
         new BlockStone(),
         new BlockGrass(),
+        new BlockTorch(),
     };
 
     public static BlockType GetBlockType(int type) {
@@ -107,88 +113,29 @@ public abstract class BlockType {
         return new Tile() { x = 0, y = 0 };
     }
 
-    public virtual void AddData(Chunk chunk, int x, int y, int z, MeshData meshData) {
-        if (!chunk.GetBlock(x, y + 1, z).IsSolid(Dir.down)) {
-            FaceDataUp(chunk, x, y, z, meshData);
+    public virtual void AddDataNative(int x, int y, int z, NativeMeshData data) {
+        if (!data.GetBlock(x + 1, y, z).IsSolid(Dir.west)) {
+            FaceDataEastNative(x, y, z, data);
         }
-
-        if (!chunk.GetBlock(x, y - 1, z).IsSolid(Dir.up)) {
-            FaceDataDown(chunk, x, y, z, meshData);
+        if (!data.GetBlock(x, y + 1, z).IsSolid(Dir.down)) {
+            FaceDataUpNative(x, y, z, data);
         }
-
-        if (!chunk.GetBlock(x, y, z + 1).IsSolid(Dir.south)) {
-            FaceDataNorth(chunk, x, y, z, meshData);
+        if (!data.GetBlock(x, y, z + 1).IsSolid(Dir.south)) {
+            FaceDataNorthNative(x, y, z, data);
         }
-
-        if (!chunk.GetBlock(x, y, z - 1).IsSolid(Dir.north)) {
-            FaceDataSouth(chunk, x, y, z, meshData);
+        if (!data.GetBlock(x - 1, y, z).IsSolid(Dir.east)) {
+            FaceDataWestNative(x, y, z, data);
         }
-
-        if (!chunk.GetBlock(x + 1, y, z).IsSolid(Dir.west)) {
-            FaceDataEast(chunk, x, y, z, meshData);
+        if (!data.GetBlock(x, y - 1, z).IsSolid(Dir.up)) {
+            FaceDataDownNative(x, y, z, data);
         }
-
-        if (!chunk.GetBlock(x - 1, y, z).IsSolid(Dir.east)) {
-            FaceDataWest(chunk, x, y, z, meshData);
+        if (!data.GetBlock(x, y, z - 1).IsSolid(Dir.north)) {
+            FaceDataSouthNative(x, y, z, data);
         }
     }
 
-    protected virtual void FaceDataUp(Chunk chunk, int x, int y, int z, MeshData meshData) {
-        meshData.AddVertex(new Vector3(x, y + 1.0f, z + 1.0f));
-        meshData.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z + 1.0f));
-        meshData.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z));
-        meshData.AddVertex(new Vector3(x, y + 1.0f, z));
 
-        meshData.AddQuadTriangles();
-
-        AddFaceUVs(Dir.up, meshData);
-    }
-
-    protected virtual void FaceDataDown(Chunk chunk, int x, int y, int z, MeshData meshData) {
-        meshData.AddVertex(new Vector3(x, y, z));
-        meshData.AddVertex(new Vector3(x + 1.0f, y, z));
-        meshData.AddVertex(new Vector3(x + 1.0f, y, z + 1.0f));
-        meshData.AddVertex(new Vector3(x, y, z + 1.0f));
-
-        meshData.AddQuadTriangles();
-
-        AddFaceUVs(Dir.down, meshData);
-    }
-
-    protected virtual void FaceDataNorth(Chunk chunk, int x, int y, int z, MeshData meshData) {
-        meshData.AddVertex(new Vector3(x + 1.0f, y, z + 1.0f));
-        meshData.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z + 1.0f));
-        meshData.AddVertex(new Vector3(x, y + 1.0f, z + 1.0f));
-        meshData.AddVertex(new Vector3(x, y, z + 1.0f));
-
-        meshData.AddQuadTriangles();
-
-        AddFaceUVs(Dir.north, meshData);
-    }
-
-    protected virtual void FaceDataEast(Chunk chunk, int x, int y, int z, MeshData meshData) {
-        meshData.AddVertex(new Vector3(x + 1.0f, y, z));
-        meshData.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z));
-        meshData.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z + 1.0f));
-        meshData.AddVertex(new Vector3(x + 1.0f, y, z + 1.0f));
-
-        meshData.AddQuadTriangles();
-
-        AddFaceUVs(Dir.east, meshData);
-    }
-
-    protected virtual void FaceDataSouth(Chunk chunk, int x, int y, int z, MeshData meshData) {
-        meshData.AddVertex(new Vector3(x, y, z));
-        meshData.AddVertex(new Vector3(x, y + 1.0f, z));
-        meshData.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z));
-        meshData.AddVertex(new Vector3(x + 1.0f, y, z));
-
-        meshData.AddQuadTriangles();
-
-        AddFaceUVs(Dir.south, meshData);
-    }
-
-    protected virtual void FaceDataWest(Chunk chunk, int x, int y, int z, MeshData data) {
+    protected virtual void FaceDataWestNative(int x, int y, int z, NativeMeshData data) {
         data.AddVertex(new Vector3(x, y, z + 1.0f));
         data.AddVertex(new Vector3(x, y + 1.0f, z + 1.0f));
         data.AddVertex(new Vector3(x, y + 1.0f, z));
@@ -196,17 +143,162 @@ public abstract class BlockType {
 
         data.AddQuadTriangles();
 
-        AddFaceUVs(Dir.west, data);
+        data.AddFaceUVs(TexturePosition(Dir.west));
+    }
+    protected virtual void FaceDataDownNative(int x, int y, int z, NativeMeshData data) {
+        data.AddVertex(new Vector3(x, y, z));
+        data.AddVertex(new Vector3(x + 1.0f, y, z));
+        data.AddVertex(new Vector3(x + 1.0f, y, z + 1.0f));
+        data.AddVertex(new Vector3(x, y, z + 1.0f));
+
+        data.AddQuadTriangles();
+
+        data.AddFaceUVs(TexturePosition(Dir.down));
+    }
+    protected virtual void FaceDataSouthNative(int x, int y, int z, NativeMeshData data) {
+        data.AddVertex(new Vector3(x, y, z));
+        data.AddVertex(new Vector3(x, y + 1.0f, z));
+        data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z));
+        data.AddVertex(new Vector3(x + 1.0f, y, z));
+
+        data.AddQuadTriangles();
+
+        data.AddFaceUVs(TexturePosition(Dir.south));
     }
 
-    public virtual void AddFaceUVs(Dir dir, MeshData data) {
-        Tile tp = TexturePosition(dir);
+    protected virtual void FaceDataEastNative(int x, int y, int z, NativeMeshData data) {
+        data.AddVertex(new Vector3(x + 1.0f, y, z));
+        data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z));
+        data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z + 1.0f));
+        data.AddVertex(new Vector3(x + 1.0f, y, z + 1.0f));
 
-        data.uv.Add(new Vector2(tp.x + 1, tp.y) * Tile.SIZE);
-        data.uv.Add(new Vector2(tp.x + 1, tp.y + 1) * Tile.SIZE);
-        data.uv.Add(new Vector2(tp.x, tp.y + 1) * Tile.SIZE);
-        data.uv.Add(new Vector2(tp.x, tp.y) * Tile.SIZE);
+        data.AddQuadTriangles();
+
+        data.AddFaceUVs(TexturePosition(Dir.east));
     }
+    protected virtual void FaceDataUpNative(int x, int y, int z, NativeMeshData data) {
+        data.AddVertex(new Vector3(x, y + 1.0f, z + 1.0f));
+        data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z + 1.0f));
+        data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z));
+        data.AddVertex(new Vector3(x, y + 1.0f, z));
+
+        data.AddQuadTriangles();
+
+        data.AddFaceUVs(TexturePosition(Dir.up));
+    }
+    protected virtual void FaceDataNorthNative(int x, int y, int z, NativeMeshData data) {
+        data.AddVertex(new Vector3(x + 1.0f, y, z + 1.0f));
+        data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z + 1.0f));
+        data.AddVertex(new Vector3(x, y + 1.0f, z + 1.0f));
+        data.AddVertex(new Vector3(x, y, z + 1.0f));
+
+        data.AddQuadTriangles();
+
+        data.AddFaceUVs(TexturePosition(Dir.north));
+    }
+
+
+
+    //public virtual void AddData(Chunk chunk, int x, int y, int z, MeshData meshData) {
+    //    if (!chunk.GetBlock(x, y + 1, z).IsSolid(Dir.down)) {
+    //        FaceDataUp(chunk, x, y, z, meshData);
+    //    }
+
+    //    if (!chunk.GetBlock(x, y - 1, z).IsSolid(Dir.up)) {
+    //        FaceDataDown(chunk, x, y, z, meshData);
+    //    }
+
+    //    if (!chunk.GetBlock(x, y, z + 1).IsSolid(Dir.south)) {
+    //        FaceDataNorth(chunk, x, y, z, meshData);
+    //    }
+
+    //    if (!chunk.GetBlock(x, y, z - 1).IsSolid(Dir.north)) {
+    //        FaceDataSouth(chunk, x, y, z, meshData);
+    //    }
+
+    //    if (!chunk.GetBlock(x + 1, y, z).IsSolid(Dir.west)) {
+    //        FaceDataEast(chunk, x, y, z, meshData);
+    //    }
+
+    //    if (!chunk.GetBlock(x - 1, y, z).IsSolid(Dir.east)) {
+    //        FaceDataWest(chunk, x, y, z, meshData);
+    //    }
+    //}
+
+    //protected virtual void FaceDataUp(Chunk chunk, int x, int y, int z, MeshData meshData) {
+    //    meshData.AddVertex(new Vector3(x, y + 1.0f, z + 1.0f));
+    //    meshData.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z + 1.0f));
+    //    meshData.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z));
+    //    meshData.AddVertex(new Vector3(x, y + 1.0f, z));
+
+    //    meshData.AddQuadTriangles();
+
+    //    AddFaceUVs(Dir.up, meshData);
+    //}
+
+    //protected virtual void FaceDataDown(Chunk chunk, int x, int y, int z, MeshData meshData) {
+    //    meshData.AddVertex(new Vector3(x, y, z));
+    //    meshData.AddVertex(new Vector3(x + 1.0f, y, z));
+    //    meshData.AddVertex(new Vector3(x + 1.0f, y, z + 1.0f));
+    //    meshData.AddVertex(new Vector3(x, y, z + 1.0f));
+
+    //    meshData.AddQuadTriangles();
+
+    //    AddFaceUVs(Dir.down, meshData);
+    //}
+
+    //protected virtual void FaceDataNorth(Chunk chunk, int x, int y, int z, MeshData meshData) {
+    //    meshData.AddVertex(new Vector3(x + 1.0f, y, z + 1.0f));
+    //    meshData.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z + 1.0f));
+    //    meshData.AddVertex(new Vector3(x, y + 1.0f, z + 1.0f));
+    //    meshData.AddVertex(new Vector3(x, y, z + 1.0f));
+
+    //    meshData.AddQuadTriangles();
+
+    //    AddFaceUVs(Dir.north, meshData);
+    //}
+
+    //protected virtual void FaceDataEast(Chunk chunk, int x, int y, int z, MeshData meshData) {
+    //    meshData.AddVertex(new Vector3(x + 1.0f, y, z));
+    //    meshData.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z));
+    //    meshData.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z + 1.0f));
+    //    meshData.AddVertex(new Vector3(x + 1.0f, y, z + 1.0f));
+
+    //    meshData.AddQuadTriangles();
+
+    //    AddFaceUVs(Dir.east, meshData);
+    //}
+
+    //protected virtual void FaceDataSouth(Chunk chunk, int x, int y, int z, MeshData meshData) {
+    //    meshData.AddVertex(new Vector3(x, y, z));
+    //    meshData.AddVertex(new Vector3(x, y + 1.0f, z));
+    //    meshData.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z));
+    //    meshData.AddVertex(new Vector3(x + 1.0f, y, z));
+
+    //    meshData.AddQuadTriangles();
+
+    //    AddFaceUVs(Dir.south, meshData);
+    //}
+
+    //protected virtual void FaceDataWest(Chunk chunk, int x, int y, int z, MeshData data) {
+    //    data.AddVertex(new Vector3(x, y, z + 1.0f));
+    //    data.AddVertex(new Vector3(x, y + 1.0f, z + 1.0f));
+    //    data.AddVertex(new Vector3(x, y + 1.0f, z));
+    //    data.AddVertex(new Vector3(x, y, z));
+
+    //    data.AddQuadTriangles();
+
+    //    AddFaceUVs(Dir.west, data);
+    //}
+
+    //public virtual void AddFaceUVs(Dir dir, MeshData data) {
+    //    Tile tp = TexturePosition(dir);
+
+    //    data.uv.Add(new Vector2(tp.x + 1, tp.y) * Tile.SIZE);
+    //    data.uv.Add(new Vector2(tp.x + 1, tp.y + 1) * Tile.SIZE);
+    //    data.uv.Add(new Vector2(tp.x, tp.y + 1) * Tile.SIZE);
+    //    data.uv.Add(new Vector2(tp.x, tp.y) * Tile.SIZE);
+    //}
 
     public virtual void FaceUVsGreedy(Dir dir, MeshData data, int w, int h) {
         Tile tp = TexturePosition(dir);

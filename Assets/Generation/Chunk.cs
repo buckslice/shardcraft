@@ -233,19 +233,19 @@ public class Chunk {
         return data;
     }
 
-    public MeshData NaiveMesh() {
-        MeshData meshData = new MeshData();
+    //public MeshData NaiveMesh() {
+    //    MeshData meshData = new MeshData();
 
-        for (int z = 0; z < SIZE; z++) {
-            for (int y = 0; y < SIZE; y++) {
-                for (int x = 0; x < SIZE; x++) {
-                    blocks[x, y, z].AddData(this, x, y, z, meshData);
-                }
-            }
-        }
+    //    for (int z = 0; z < SIZE; z++) {
+    //        for (int y = 0; y < SIZE; y++) {
+    //            for (int x = 0; x < SIZE; x++) {
+    //                blocks[x, y, z].AddData(this, x, y, z, meshData);
+    //            }
+    //        }
+    //    }
 
-        return meshData;
-    }
+    //    return meshData;
+    //}
 
     // Sends the calculated mesh information to the mesh and collision components
     void UpdateMesh(MeshData meshData, bool useMeshDataAsCollider) {
