@@ -15,7 +15,7 @@ public class World : MonoBehaviour {
 
     public bool loadPlayerSave = false;
 
-    public int seed;
+    public int seed; // todo: make world generator use seed with some offset or something
 
     // Use this for initialization
     void Start() {

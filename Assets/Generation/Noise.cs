@@ -41,7 +41,7 @@ public static class Noise {
       5,5,3,4,5,5,2,4,4,5,3,2,2,2,1,4,2,3,3,4,2,5,4,2,4,2,2,2,4,5,3,2
     };
 
-    private static int fastfloor(double x) {
+    private static int FastFloor(double x) {
         return x < 0 ? ((int)x - 1) : ((int)x);
     }
 
@@ -60,9 +60,9 @@ public static class Noise {
         at[0] = x;
         at[1] = y;
         at[2] = z;
-        int iatx = fastfloor(at[0]);
-        int iaty = fastfloor(at[1]);
-        int iatz = fastfloor(at[2]);
+        int iatx = FastFloor(at[0]);
+        int iaty = FastFloor(at[1]);
+        int iatz = FastFloor(at[2]);
 
         // test center cube first
         AddSamples(iatx, iaty, iatz, max_order, F, ID, at, dFunc);
@@ -154,9 +154,11 @@ public static class Noise {
                     break;
                 case DistanceFunction.MANHATTAN:
                     d2 = Math.Abs(dx) + Math.Abs(dy) + Math.Abs(dz);
+                    d2 *= d2; // optional squaring to make it sharper
                     break;
                 case DistanceFunction.CHEBYSHEV:
                     d2 = Math.Max(Math.Max(Math.Abs(dx), Math.Abs(dy)), Math.Abs(dz));
+                    d2 *= d2; // optional squaring to make it sharper
                     break;
             }
 
@@ -225,9 +227,9 @@ public static class Noise {
 
         // Skew the input space to determine which simplex cell we're in
         float s = (v.x + v.y + v.z) * F3; // Very nice and simple skew factor for 3D
-        int i = fastfloor(v.x + s);
-        int j = fastfloor(v.y + s);
-        int k = fastfloor(v.z + s);
+        int i = FastFloor(v.x + s);
+        int j = FastFloor(v.y + s);
+        int k = FastFloor(v.z + s);
         float t = (i + j + k) * G3; // Very nice and simple unskew factor, too
         float X0 = i - t; // Unskew the cell origin back to (x,y,z) space
         float Y0 = j - t;
@@ -317,9 +319,8 @@ public static class Noise {
     /// <param name="persistence">Specifies the amplitude multiplier for successive octaves (usually between 0 and 1). Controls the roughness of the noise.</param>
     /// <param name="lacunarity">Specifies the frequency multiplier for successive octaves (usually greater than 1).</param>
     /// <returns>A float roughly between -1 and 1.</returns>
-    public static float Fractal(Vector3 v, int octaves, float frequency, float persistence = 0.5f, float lacunarity = 2.0f) {
+    public static float Fractal(Vector3 v, int octaves, float frequency, float amplitude = 1.0f, float persistence = 0.5f, float lacunarity = 2.0f) {
         float total = 0.0f;
-        float amplitude = 1.0f;
 
         for (int i = 0; i < octaves; ++i) {
             float noise = Simplex3(v * frequency);
@@ -337,33 +338,26 @@ public static class Noise {
         1, 2, 3, 4, 2, 3, 2, 2, 2
     };
 
-    public static float FractalWorley(Vector3 v, int octaves, float frequency, CellType cellType, DistanceFunction dfunc, float persistence = 0.5f, float lacunarity = 2.0f) {
+    /// <summary>
+    /// Generates a fractal version of 3D worley noise
+    /// </summary>
+    /// <param name="v">The input coordinate.</param> 
+    /// <param name="octaves">Each octave adds a sample of higher frequency and lower amplitude noise to the total result.</param>
+    /// <param name="frequency">The starting frequency of the noise.</param>
+    /// <param name="cellType">The way to combine the worley distance results</param>
+    /// <param name="dfunc">The distance function to use when determining distance to nearest cells</param>
+    /// <param name="amplitude">The starting amplitude of the noise.</param>
+    /// <param name="persistence">Specifies the amplitude multiplier for successive octaves (usually between 0 and 1). Controls the roughness of the noise.</param>
+    /// <param name="lacunarity">Specifies the frequency multiplier for successive octaves (usually greater than 1).</param>
+    /// <returns>A float between -1 and 1.</returns>
+    public static float FractalWorley(Vector3 v, int octaves, float frequency, CellType cellType, DistanceFunction dfunc, double amplitude = 1.0f, float persistence = 0.5f, float lacunarity = 2.0f) {
         double total = 0.0;
-        double amplitude = 1.0;
 
         uint maxOrder = maxOrderByCellType[(int)cellType];
 
         for (int i = 0; i < octaves; ++i) {
             WorleySample ws = Worley3(v.x * frequency, v.y * frequency, v.z * frequency, maxOrder, dfunc);
-            double n;
-            switch (cellType) {
-                default:
-                case CellType.F0: n = ws.F[0]; break;
-                case CellType.F1: n = ws.F[1]; break;
-                case CellType.F2: n = ws.F[2]; break;
-                case CellType.F3: n = ws.F[3]; break;
-                case CellType.F1subF0: n = ws.F[1] - ws.F[0]; break;
-                case CellType.F2subF1: n = ws.F[2] - ws.F[1]; break;
-                case CellType.F0plusF1div2: n = ws.F[0] + ws.F[1] / 2.0; break;
-                case CellType.F0multF1: n = ws.F[0] * ws.F[1]; break;
-                case CellType.Crackle:
-                    n = 10 * ws.F[1] - ws.F[0];
-                    if (n < 1.0) {
-                        n = 1.0;
-                    }
-                    break;
-
-            }
+            double n = ProcessWorley(ws, cellType);
             total += n * amplitude;
 
             amplitude *= persistence;
@@ -373,18 +367,38 @@ public static class Noise {
         return (float)total;
     }
 
+    public static double ProcessWorley(WorleySample ws, CellType cellType) {
+        switch (cellType) {
+            default:
+            case CellType.F0: return ws.F[0];
+            case CellType.F1: return ws.F[1];
+            case CellType.F2: return ws.F[2];
+            case CellType.F3: return ws.F[3];
+            case CellType.F1subF0: return ws.F[1] - ws.F[0];
+            case CellType.F2subF1: return ws.F[2] - ws.F[1];
+            case CellType.F0plusF1div2: return ws.F[0] + ws.F[1] / 2.0;
+            case CellType.F0multF1: return ws.F[0] * ws.F[1];
+            case CellType.Crackle:
+                double n = 10 * ws.F[1] - ws.F[0];
+                if (n < 1.0) {
+                    n = 1.0;
+                }
+                return n;
+        }
+    }
+
     /// <summary>
     /// Generates a fractal version of 3D Simplex noise.
     /// </summary>
     /// <param name="v">The input coordinate.</param> 
     /// <param name="octaves">Each octave adds a sample of higher frequency and lower amplitude noise to the total result.</param>
     /// <param name="frequency">The starting frequency of the noise.</param>
+    /// <param name="amplitude">The starting amplitude of the noise.</param>
     /// <param name="persistence">Specifies the amplitude multiplier for successive octaves (usually between 0 and 1). Controls the roughness of the noise.</param>
     /// <param name="lacunarity">Specifies the frequency multiplier for successive octaves (usually greater than 1).</param>
     /// <returns>A float between -1 and 1.</returns>
-    public static float FractalClamped(Vector3 v, int octaves, float frequency, float persistence = 0.5f, float lacunarity = 2.0f) {
+    public static float FractalClamped(Vector3 v, int octaves, float frequency, float amplitude = 1.0f, float persistence = 0.5f, float lacunarity = 2.0f) {
         float total = 0.0f;
-        float amplitude = 1.0f;
         float maxAmplitude = 0.0f;  // keeps track of largest possible amplitude;
 
         for (int i = 0; i < octaves; ++i) {
@@ -405,19 +419,44 @@ public static class Noise {
     /// <param name="v">The input coordinate.</param> 
     /// <param name="octaves">Each octave adds a sample of higher frequency and lower amplitude noise to the total result.</param>
     /// <param name="frequency">The starting frequency of the noise.</param>
+    /// <param name="amplitude">The starting amplitude of the noise.</param>
     /// <param name="persistence">Specifies the amplitude multiplier for successive octaves (usually between 0 and 1). Controls the roughness of the noise.</param>
     /// <param name="lacunarity">Specifies the frequency multiplier for successive octaves (usually greater than 1).</param>
     /// <returns>A float roughly between -1 and 1.</returns>
-    public static float Ridged(Vector3 v, int octaves, float frequency, float persistence = 0.5f, float lacunarity = 2.0f, bool smoothValleys = false) {
+    public static float Ridged(Vector3 v, int octaves, float frequency, float amplitude = 1.0f, float persistence = 0.5f, float lacunarity = 2.0f) {
         float total = 0.0f;
-        float amplitude = 1.0f;
 
         for (int i = 0; i < octaves; ++i) {
             float noise = Simplex3(v * frequency);
             noise = 1.0f - Mathf.Abs(noise);
             total += noise * amplitude;
 
-            amplitude *= persistence * (smoothValleys ? Mathf.Clamp01(total) : 1.0f);
+            amplitude *= persistence;
+            frequency *= lacunarity;
+        }
+
+        return (total - 1.1f) * 1.25f;
+    }
+
+    /// <summary>
+    /// Generates a fractal version of 3D Simplex noise that has a ridged look with smooth valleys
+    /// </summary>
+    /// <param name="v">The input coordinate.</param> 
+    /// <param name="octaves">Each octave adds a sample of higher frequency and lower amplitude noise to the total result.</param>
+    /// <param name="frequency">The starting frequency of the noise.</param>
+    /// <param name="amplitude">The starting amplitude of the noise.</param>
+    /// <param name="persistence">Specifies the amplitude multiplier for successive octaves (usually between 0 and 1). Controls the roughness of the noise.</param>
+    /// <param name="lacunarity">Specifies the frequency multiplier for successive octaves (usually greater than 1).</param>
+    /// <returns>A float roughly between -1 and 1.</returns>
+    public static float RidgedSmooth(Vector3 v, int octaves, float frequency, float amplitude = 1.0f, float persistence = 0.5f, float lacunarity = 2.0f) {
+        float total = 0.0f;
+
+        for (int i = 0; i < octaves; ++i) {
+            float noise = Simplex3(v * frequency);
+            noise = 1.0f - Mathf.Abs(noise);
+            total += noise * amplitude;
+
+            amplitude *= persistence * Mathf.Clamp01(total);
             frequency *= lacunarity;
         }
 
@@ -430,12 +469,12 @@ public static class Noise {
     /// <param name="v">The input coordinate.</param> 
     /// <param name="octaves">Each octave adds a sample of higher frequency and lower amplitude noise to the total result.</param>
     /// <param name="frequency">The starting frequency of the noise.</param>
+    /// <param name="amplitude">The starting amplitude of the noise.</param>
     /// <param name="persistence">Specifies the amplitude multiplier for successive octaves (usually between 0 and 1). Controls the roughness of the noise.</param>
     /// <param name="lacunarity">Specifies the frequency multiplier for successive octaves (usually greater than 1).</param>
     /// <returns>A float roughly between -1 and 1.</returns>
-    public static float Billow(Vector3 v, int octaves, float frequency, float persistence = 0.5f, float lacunarity = 2.0f) {
+    public static float Billow(Vector3 v, int octaves, float frequency, float amplitude = 1.0f, float persistence = 0.5f, float lacunarity = 2.0f) {
         float total = 0.0f;
-        float amplitude = 1.0f;
 
         for (int i = 0; i < octaves; ++i) {
             float noise = Simplex3(v * frequency);

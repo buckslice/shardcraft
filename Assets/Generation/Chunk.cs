@@ -86,7 +86,7 @@ public class Chunk {
         return true;
     }
 
-    // called once generate happens
+    // called only once all neighbors are generated
     public void BuildStructures() {
 
         // not sure here lol
