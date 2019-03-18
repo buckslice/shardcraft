@@ -11,19 +11,20 @@ public class Chunk {
     public const int CHUNK_WIDTH = SIZE;
     public const int CHUNK_HEIGHT = SIZE;
 
-    public Array3<Block> blocks = new Array3<Block>(SIZE);
+    public Array3<Block> blocks;
 
-    public HashSet<ushort> modifiedBlockIndices = new HashSet<ushort>(); // hashset to avoid duplicates
+    //public HashSet<ushort> modifiedBlockIndices = new HashSet<ushort>(); // hashset to avoid duplicates
 
     public World world;
     public GameObject gameObject;
     public Vector3i pos; // world space position
 
-    public bool generated { get; set; }
-    public bool update { get; set; }
-    public bool rendered { get; set; }
+    public bool generated { get; set; } // means u are generated or loaded
+    public bool update { get; set; }    // means need to update mesh
+    public bool rendered { get; set; }  // has a mesh
     public bool waitingForMesh { get; set; }
     public bool builtStructures { get; set; }
+    public bool modified { get; set; }
 
     public MeshRenderer mr { get; set; }
     MeshFilter filter;
@@ -46,6 +47,7 @@ public class Chunk {
         rendered = false;
         waitingForMesh = false;
         builtStructures = false;
+        modified = false;
 
         mr = gameObject.GetComponent<MeshRenderer>();
         filter = gameObject.GetComponent<MeshFilter>();
@@ -62,10 +64,10 @@ public class Chunk {
             }
         }
 
-        if (!builtStructures) {
-            BuildStructures();
-            builtStructures = true;
-        }
+        //if (!builtStructures) {
+        //    BuildStructures();
+        //    builtStructures = true;
+        //}
 
         if (update && !waitingForMesh) {
             waitingForMesh = true;
@@ -350,7 +352,8 @@ public class Chunk {
                 return;
             }
             blocks[x, y, z] = block;
-            modifiedBlockIndices.Add(CoordToUint(x, y, z));
+            //modifiedBlockIndices.Add(CoordToUint(x, y, z));
+            modified = true;
             update = true;
         } else {
             world.SetBlock(pos.x + x, pos.y + y, pos.z + z, block);

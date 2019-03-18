@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using System.IO;
 
 public class World : MonoBehaviour {
 
@@ -32,9 +33,16 @@ public class World : MonoBehaviour {
 
     public void OnApplicationQuit() {
         // save all chunks
+        //foreach (KeyValuePair<Vector3i, Chunk> entry in chunks) {
+        //    Serialization.SaveChunk(entry.Value);
+        //}
+
+
         foreach (KeyValuePair<Vector3i, Chunk> entry in chunks) {
-            Serialization.SaveChunk(entry.Value);
+            JobController.StartSaveJob(entry.Value);
         }
+
+        JobController.FinishJobs();
 
         Serialization.SavePlayer();
 
@@ -51,7 +59,15 @@ public class World : MonoBehaviour {
         newChunkObject.name = "Chunk " + chunkPos.ToString();
         Chunk chunk = new Chunk(this, worldPos, newChunkObject);
 
-        JobController.StartGenerationJob(chunk);
+        string saveFile = Serialization.SaveFileName(chunk);
+        if (File.Exists(saveFile)) {
+
+            JobController.StartLoadJob(chunk);
+
+            //Serialization.LoadChunk(chunk); // should become load job, also do region system and RLE this is so slow lol
+        } else {
+            JobController.StartGenerationJob(chunk);
+        }
 
         //Add it to the chunks dictionary with the position as the key
         chunks.Add(chunkPos, chunk);
@@ -76,8 +92,10 @@ public class World : MonoBehaviour {
 
     public void DestroyChunk(int x, int y, int z) {
         Chunk chunk = GetChunk(x, y, z);
-        if(chunk != null) {
-            Serialization.SaveChunk(chunk);
+        if (chunk != null) {
+            //Serialization.SaveChunk(chunk);
+
+            JobController.StartSaveJob(chunk);
 
             // notify neighbors
             for (int i = 0; i < 6; ++i) {

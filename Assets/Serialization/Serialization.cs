@@ -23,40 +23,45 @@ public static class Serialization {
 
     public static string FileName(Vector3i chunkLocation) {
         chunkLocation.Div(Chunk.SIZE);
-        string fileName = chunkLocation.x + "," + chunkLocation.y + "," + chunkLocation.z + ".bin";
+        string fileName = chunkLocation.x + "," + chunkLocation.y + "," + chunkLocation.z + ".scs";
         return fileName;
     }
 
+    public static string SaveFileName(Chunk chunk) {
+        return SaveLocation(chunk.world.worldName) + FileName(chunk.pos);
+    }
+
     public static void SaveChunk(Chunk chunk) {
-        ChunkSave save = new ChunkSave(chunk);
-        if (save.blocks.Count == 0) {
-            return;
-        }
+        //ChunkSave save = new ChunkSave(chunk);
+        //if (save.blocks.Count == 0) {
+        //    return;
+        //}
 
         string saveFile = SaveLocation(chunk.world.worldName) + FileName(chunk.pos);
 
         IFormatter formatter = new BinaryFormatter();
         Stream stream = new FileStream(saveFile, FileMode.Create, FileAccess.Write, FileShare.None);
-        formatter.Serialize(stream, save);
+        //formatter.Serialize(stream, save);
+        formatter.Serialize(stream, chunk.blocks.data);
         stream.Close();
 
     }
 
     public static bool LoadChunk(Chunk chunk) {
-        string saveFile = SaveLocation(chunk.world.worldName) + FileName(chunk.pos);
+        string saveFile = SaveFileName(chunk);
 
-        if (!File.Exists(saveFile)) {
-            return false;
-        }
+        Debug.Assert(File.Exists(saveFile));
 
         IFormatter formatter = new BinaryFormatter();
         FileStream stream = new FileStream(saveFile, FileMode.Open);
 
-        ChunkSave save = (ChunkSave)formatter.Deserialize(stream);
-        foreach (var block in save.blocks) {
-            chunk.blocks[block.Key] = new Block(block.Value.type);
-            chunk.modifiedBlockIndices.Add(block.Key);
-        }
+        //ChunkSave save = (ChunkSave)formatter.Deserialize(stream);
+        //foreach (var block in save.blocks) {
+        //    chunk.blocks[block.Key] = new Block(block.Value.type);
+        //    chunk.modifiedBlockIndices.Add(block.Key);
+        //}
+
+        chunk.blocks = new Array3<Block>((Block[])formatter.Deserialize(stream), Chunk.SIZE);
 
         stream.Close();
         return true;

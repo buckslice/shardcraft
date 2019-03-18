@@ -11,9 +11,9 @@ public class ChunkSave {
 
     public ChunkSave(Chunk chunk) {
 
-        foreach (ushort i in chunk.modifiedBlockIndices) {
-            blocks.Add(i, chunk.blocks[i]);
-        }
+        //foreach (ushort i in chunk.modifiedBlockIndices) {
+        //    blocks.Add(i, chunk.blocks[i]);
+        //}
 
     }
 

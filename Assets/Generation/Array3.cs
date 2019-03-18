@@ -5,14 +5,18 @@ using System.Collections;
 public class Array3<T> where T : struct {
 
     public int size;
-    public int sizeCubed;
 
-    private T[] data;
+    public T[] data;
 
     public Array3(int size) {
         this.size = size;
-        sizeCubed = size * size * size;
-        data = new T[sizeCubed];
+        data = new T[size * size * size];
+    }
+
+    public Array3(T[] data, int size) {
+        this.data = data;
+        this.size = size;
+        Debug.Assert(size * size * size == data.Length);
     }
 
     public T this[int x, int y, int z] {
@@ -41,10 +45,6 @@ public class Array3<T> where T : struct {
         set {
             this[v.x, v.y, v.z] = value;
         }
-    }
-
-    public T[] GetData() {
-        return data;
     }
 
 }
