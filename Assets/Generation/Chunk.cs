@@ -19,12 +19,12 @@ public class Chunk {
     public GameObject gameObject;
     public Vector3i pos; // world space position
 
-    public bool generated { get; set; } // means u are generated or loaded
+    public bool loaded { get; set; }    // means ur blocks are loaded
     public bool update { get; set; }    // means need to update mesh
     public bool rendered { get; set; }  // has a mesh
     public bool waitingForMesh { get; set; }
     public bool builtStructures { get; set; }
-    public bool modified { get; set; }
+    public bool updateSave { get; set; }
 
     public MeshRenderer mr { get; set; }
     MeshFilter filter;
@@ -42,12 +42,12 @@ public class Chunk {
         this.pos = pos;
         this.gameObject = gameObject;
 
-        generated = false;
+        loaded = false;
         update = false;
         rendered = false;
         waitingForMesh = false;
         builtStructures = false;
-        modified = false;
+        updateSave = false;
 
         mr = gameObject.GetComponent<MeshRenderer>();
         filter = gameObject.GetComponent<MeshFilter>();
@@ -59,7 +59,7 @@ public class Chunk {
     // Updates the chunk based on its contents
     public bool UpdateChunk() {
         for (int i = 0; i < 6; ++i) {
-            if (neighbors[i] == null || !neighbors[i].generated) {
+            if (neighbors[i] == null || !neighbors[i].loaded) {
                 return false;
             }
         }
@@ -336,7 +336,7 @@ public class Chunk {
     public Block GetBlock(int x, int y, int z) {
         // return block if its in range of this chunk
         if (InRange(x, y, z)) {
-            if (!generated) {
+            if (!loaded) {
                 return Blocks.AIR;
             }
 
@@ -348,12 +348,12 @@ public class Chunk {
     // sets block modified this way
     public void SetBlock(int x, int y, int z, Block block) {
         if (InRange(x, y, z)) {
-            if (!generated) {
+            if (!loaded) {
                 return;
             }
             blocks[x, y, z] = block;
             //modifiedBlockIndices.Add(CoordToUint(x, y, z));
-            modified = true;
+            updateSave = true; // block was modified so need to update save
             update = true;
         } else {
             world.SetBlock(pos.x + x, pos.y + y, pos.z + z, block);

@@ -13,12 +13,12 @@ public static class WorldGenerator {
         float amplitude = 1.0f;
 
         for (int i = 0; i < octaves; ++i) {
-            //float n = noise.snoise((v * frequency));
+            float n = noise.snoise((v * frequency));
 
             //float n = noise.cellular(v * frequency).y;
 
-            float2 n2 = noise.cellular(v * frequency);
-            float n = n2.y - n2.x;
+            //float2 n2 = noise.cellular(v * frequency);
+            //float n = n2.y - n2.x;
 
             total += n * amplitude;
 

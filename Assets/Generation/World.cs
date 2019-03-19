@@ -22,30 +22,42 @@ public class World : MonoBehaviour {
     void Start() {
         Debug.Assert(Chunk.CHUNK_HEIGHT >= Chunk.CHUNK_WIDTH);
 
+        Serialization.StartThread();
+
         if (loadPlayerSave) {
             Serialization.LoadPlayer();
         }
 
         Tests.Run();
 
+
         seed = 1000;
     }
 
     public void OnApplicationQuit() {
         // save all chunks
-        //foreach (KeyValuePair<Vector3i, Chunk> entry in chunks) {
-        //    Serialization.SaveChunk(entry.Value);
-        //}
 
 
         foreach (KeyValuePair<Vector3i, Chunk> entry in chunks) {
-            JobController.StartSaveJob(entry.Value);
+            Serialization.SaveChunk(entry.Value);
         }
+
+        //foreach (KeyValuePair<Vector3i, Chunk> entry in chunks) {
+        //    JobController.StartSaveJob(entry.Value);
+        //}
 
         JobController.FinishJobs();
 
         Serialization.SavePlayer();
 
+        //Serialization.KillThread();
+
+        //Serialization.serializationThread.Join();
+
+    }
+
+    void Update() {
+        Serialization.CheckNewLoaded();
     }
 
     public void CreateChunk(int x, int y, int z) {
@@ -62,7 +74,8 @@ public class World : MonoBehaviour {
         string saveFile = Serialization.SaveFileName(chunk);
         if (File.Exists(saveFile)) {
 
-            JobController.StartLoadJob(chunk);
+            Serialization.LoadChunk(chunk);
+            //JobController.StartLoadJob(chunk);
 
             //Serialization.LoadChunk(chunk); // should become load job, also do region system and RLE this is so slow lol
         } else {
@@ -93,9 +106,9 @@ public class World : MonoBehaviour {
     public void DestroyChunk(int x, int y, int z) {
         Chunk chunk = GetChunk(x, y, z);
         if (chunk != null) {
-            //Serialization.SaveChunk(chunk);
+            Serialization.SaveChunk(chunk);
 
-            JobController.StartSaveJob(chunk);
+            //JobController.StartSaveJob(chunk);
 
             // notify neighbors
             for (int i = 0; i < 6; ++i) {
@@ -132,7 +145,7 @@ public class World : MonoBehaviour {
     public Block GetBlock(int x, int y, int z) {
         Chunk containerChunk = GetChunkByWorldPos(x, y, z);
 
-        if (containerChunk != null && containerChunk.generated) {
+        if (containerChunk != null && containerChunk.loaded) {
             return containerChunk.GetBlock(x - containerChunk.pos.x, y - containerChunk.pos.y, z - containerChunk.pos.z);
         } else {
             return Blocks.AIR;

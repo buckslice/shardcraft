@@ -24,7 +24,7 @@ public struct GenerationJob : IJob {
 }
 
 //[BurstCompile]
-// need to get rid of all class references for burst...??? frick
+// need to get rid of all class references for burst...??? yeaaa...
 public struct MeshJob : IJob {
 
     [ReadOnly]
@@ -53,110 +53,6 @@ public struct LightingJob : IJob { // might need to be apart of mesh job tho bec
     }
 }
 
-public struct SaveJob : IJob {
-
-    [ReadOnly]
-    public NativeArray<Block> blocks;
-    [ReadOnly]
-    public NativeArray<char> saveChars; // strings dont work in job system yay
-
-    public void Execute() {
-        // do runlength encoding later...
-        // also might be better for this to be on just a single separate thread once region system is added
-
-        string saveFile = new string(saveChars.ToArray());
-        IFormatter formatter = new BinaryFormatter();
-        Stream stream = new FileStream(saveFile, FileMode.Create, FileAccess.Write, FileShare.None);
-        formatter.Serialize(stream, blocks);
-        stream.Close();
-    }
-}
-
-public struct LoadJob : IJob {
-
-    public NativeArray<Block> blocks;
-    [ReadOnly]
-    public NativeArray<char> saveChars; // strings dont work in job system yay
-
-    public void Execute() {
-        // do runlength encoding later...
-        // also might be better for this to be on just a single separate thread once region system is added
-
-        string saveFile = new string(saveChars.ToArray());
-
-        Debug.Assert(File.Exists(saveFile));
-
-        IFormatter formatter = new BinaryFormatter();
-        FileStream stream = new FileStream(saveFile, FileMode.Open);
-
-        blocks = (NativeArray<Block>)formatter.Deserialize(stream);
-
-        stream.Close();
-    }
-}
-
-public class SaveJobInfo {
-    public JobHandle handle;
-    public NativeArray<Block> blocks;
-    public NativeArray<char> saveChars;
-
-    public SaveJobInfo(Chunk chunk) {
-        blocks = new NativeArray<Block>(Chunk.SIZE * Chunk.SIZE * Chunk.SIZE, Allocator.TempJob);
-        blocks.CopyFrom(chunk.blocks.data);
-
-        string saveFile = Serialization.SaveFileName(chunk);
-
-        saveChars = new NativeArray<char>(saveFile.ToCharArray(), Allocator.TempJob);
-
-        SaveJob saveJob = new SaveJob {
-            blocks = blocks,
-            saveChars = saveChars,
-        };
-
-        handle = saveJob.Schedule();
-    }
-
-    public void Finish() {
-        blocks.Dispose();
-        saveChars.Dispose();
-        return;
-    }
-
-}
-
-public class LoadJobInfo {
-    public JobHandle handle;
-    public Chunk chunk;
-    public NativeArray<Block> blocks;
-    public NativeArray<char> saveChars;
-
-    public LoadJobInfo(Chunk chunk) {
-        this.chunk = chunk;
-        blocks = new NativeArray<Block>(Chunk.SIZE * Chunk.SIZE * Chunk.SIZE, Allocator.TempJob);
-
-        string saveFile = Serialization.SaveFileName(chunk);
-        saveChars = new NativeArray<char>(saveFile.ToCharArray(), Allocator.TempJob);
-
-        LoadJob loadJob = new LoadJob {
-            blocks = blocks,
-            saveChars = saveChars,
-        };
-
-        handle = loadJob.Schedule();
-    }
-
-    public void Finish() {
-        chunk.blocks.data = blocks.ToArray();
-        chunk.generated = true;
-
-        blocks.Dispose();
-        saveChars.Dispose();
-        return;
-    }
-
-}
-
-
 public class GenJobInfo {
     public JobHandle handle;
 
@@ -183,9 +79,9 @@ public class GenJobInfo {
 
         chunk.blocks = new Array3<Block>(blocks.ToArray(), Chunk.SIZE);
 
-        chunk.generated = true;
-
+        chunk.loaded = true;
         chunk.update = true;
+        chunk.updateSave = true; // save should be updated since this was newly generated
 
         blocks.Dispose();
     }
@@ -255,9 +151,6 @@ public class JobController : MonoBehaviour {
 
     static List<MeshJobInfo> meshJobInfos = new List<MeshJobInfo>();
 
-    static List<SaveJobInfo> saveJobInfos = new List<SaveJobInfo>();
-    static List<LoadJobInfo> loadJobInfos = new List<LoadJobInfo>();
-
     //static List<Task<Chunk>> genTasks = new List<Task<Chunk>>();
 
     public ShadowText text;
@@ -281,15 +174,6 @@ public class JobController : MonoBehaviour {
             meshJobInfos[i].Finish();
         }
 
-        for (int i = 0; i < saveJobInfos.Count; ++i) {
-            saveJobInfos[i].handle.Complete();
-            saveJobInfos[i].Finish();
-        }
-
-        for (int i = 0; i < loadJobInfos.Count; ++i) {
-            loadJobInfos[i].handle.Complete();
-            loadJobInfos[i].Finish();
-        }
     }
 
     // Update is called once per frame
@@ -322,28 +206,6 @@ public class JobController : MonoBehaviour {
                     return;
                 }
 
-            }
-        }
-
-        for (int i = 0; i < saveJobInfos.Count; ++i) {
-            if (saveJobInfos[i].handle.IsCompleted) {
-                saveJobInfos[i].handle.Complete();
-
-                saveJobInfos[i].Finish();
-
-                saveJobInfos.SwapAndPop(i);
-                --i;
-            }
-        }
-
-        for (int i = 0; i < loadJobInfos.Count; ++i) {
-            if (loadJobInfos[i].handle.IsCompleted) {
-                loadJobInfos[i].handle.Complete();
-
-                loadJobInfos[i].Finish();
-
-                loadJobInfos.SwapAndPop(i);
-                --i;
             }
         }
 
@@ -399,19 +261,6 @@ public class JobController : MonoBehaviour {
 
         scheduled++;
 
-    }
-
-    public static void StartSaveJob(Chunk chunk) {
-        SaveJobInfo info = new SaveJobInfo(chunk);
-
-        saveJobInfos.Add(info);
-
-    }
-
-    public static void StartLoadJob(Chunk chunk) {
-        LoadJobInfo info = new LoadJobInfo(chunk);
-
-        loadJobInfos.Add(info);
     }
 
     public static int GetRunningJobs() {
