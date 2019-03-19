@@ -12,11 +12,11 @@ public static class MeshBuilder {
         const int s2 = s + 2;
         NativeMeshData data = new NativeMeshData(s2, blocks, vertices, triangles, uvs);
 
-        for (int z = 0; z < s; z++) {
-            for (int y = 0; y < s; y++) {
+        for (int y = 0; y < s; y++) {
+            for (int z = 0; z < s; z++) {
                 for (int x = 0; x < s; x++) {
 
-                    Block b = blocks[(x+1) + (y+1) * s2 + (z+1) * s2 * s2];
+                    Block b = blocks[(x + 1) + (z + 1) * s2 + (y + 1) * s2 * s2];
                     BlockType bt = b.GetBlockType();
                     bt.AddDataNative(x, y, z, data);
 
@@ -99,8 +99,8 @@ public static class MeshBuilder {
                 n = 0;
                 for (x[d2] = 0; x[d2] < maxDim[d2]; x[d2]++) {
                     for (x[d1] = 0; x[d1] < maxDim[d1]; x[d1]++) {
-                        Block block1 = blocks[(x[0] + 1) + (x[1] + 1) * s2 + (x[2] + 1) * s2 * s2]; // block were at
-                        Block block2 = blocks[(x[0] + 1 + q[0]) + (x[1] + 1 + q[1]) * s2 + (x[2] + 1 + q[2]) * s2 * s2]; // block were going to
+                        Block block1 = blocks[(x[0] + 1) + (x[2] + 1) * s2 + (x[1] + 1) * s2 * s2]; // block were at
+                        Block block2 = blocks[(x[0] + 1 + q[0]) + (x[2] + 1 + q[2]) * s2 + (x[1] + 1 + q[1]) * s2 * s2]; // block were going to
 
                         // this isSolid is probably wrong in some cases but no blocks use yet cuz i dont rly get so figure out later lol
                         slice[n++] = block1.IsSolid(side) && block2.IsSolid(Dirs.Opp(side)) ?
@@ -201,50 +201,50 @@ public static class MeshBuilder {
         NativeArray<Block> blocks = new NativeArray<Block>(s2 * s2 * s2, Allocator.TempJob);
 
         // west
-        for (int z = 0; z < s; ++z) {
-            for (int y = 0; y < s; ++y) {
-                blocks[0 + (y + 1) * s2 + (z + 1) * s2 * s2] = chunk.neighbors[0].blocks[(s - 1) + y * s + z * s * s];
+        for (int y = 0; y < s; ++y) {
+            for (int z = 0; z < s; ++z) {
+                blocks[0 + (z + 1) * s2 + (y + 1) * s2 * s2] = chunk.neighbors[0].blocks[(s - 1) + z * s + y * s * s];
             }
         }
         // down
         for (int z = 0; z < s; ++z) {
             for (int x = 0; x < s; ++x) {
-                blocks[(x + 1) + 0 + (z + 1) * s2 * s2] = chunk.neighbors[1].blocks[x + (s - 1) * s + z * s * s];
+                blocks[(x + 1) + (z + 1) * s2 + 0] = chunk.neighbors[1].blocks[x + z * s + (s - 1) * s * s];
             }
         }
 
         // south
         for (int y = 0; y < s; ++y) {
             for (int x = 0; x < s; ++x) {
-                blocks[(x + 1) + (y + 1) * s2 + 0] = chunk.neighbors[2].blocks[x + y * s + (s - 1) * s * s];
+                blocks[(x + 1) + 0 + (y + 1) * s2 * s2] = chunk.neighbors[2].blocks[x + (s - 1) * s + y * s * s];
             }
         }
 
         // east
-        for (int z = 0; z < s; ++z) {
-            for (int y = 0; y < s; ++y) {
-                blocks[s1 + (y + 1) * s2 + (z + 1) * s2 * s2] = chunk.neighbors[3].blocks[0 + y * s + z * s * s];
+        for (int y = 0; y < s; ++y) {
+            for (int z = 0; z < s; ++z) {
+                blocks[s1 + (z + 1) * s2 + (y + 1) * s2 * s2] = chunk.neighbors[3].blocks[0 + z * s + y * s * s];
             }
         }
         // up
         for (int z = 0; z < s; ++z) {
             for (int x = 0; x < s; ++x) {
-                blocks[(x + 1) + s1 * s2 + (z + 1) * s2 * s2] = chunk.neighbors[4].blocks[x + 0 + z * s * s];
+                blocks[(x + 1) + (z + 1) * s2 + s1 * s2 * s2] = chunk.neighbors[4].blocks[x + z * s + 0];
             }
         }
 
         // north
         for (int y = 0; y < s; ++y) {
             for (int x = 0; x < s; ++x) {
-                blocks[(x + 1) + (y + 1) * s2 + s1 * s2 * s2] = chunk.neighbors[5].blocks[x + y * s + 0];
+                blocks[(x + 1) + s1 * s2 + (y + 1) * s2 * s2] = chunk.neighbors[5].blocks[x + 0 + y * s * s];
             }
         }
 
         // fill blocks array with padding
-        for (int z = 1; z < s1; z++) {
-            for (int y = 1; y < s1; y++) {
+        for (int y = 1; y < s1; y++) {
+            for (int z = 1; z < s1; z++) {
                 for (int x = 1; x < s1; x++) {
-                    blocks[x + y * s2 + z * s2 * s2] = chunk.blocks[(x - 1) + (y - 1) * s + (z - 1) * s * s];
+                    blocks[x + z * s2 + y * s2 * s2] = chunk.blocks[(x - 1) + (z - 1) * s + (y - 1) * s * s];
                 }
             }
         }

@@ -49,6 +49,7 @@ public static class Serialization {
         lock (killLock) {
             kill = true;
         }
+        newData.Set();
     }
 
     public static void StartThread() {
@@ -68,8 +69,8 @@ public static class Serialization {
 
         var watch = new System.Diagnostics.Stopwatch();
 
-        List<Chunk> loads = new List<Chunk>();
-        List<Chunk> saves = new List<Chunk>();
+        List<Chunk> newLoads = new List<Chunk>();
+        List<Chunk> newSaves = new List<Chunk>();
 
         while (true) {
 
@@ -86,54 +87,57 @@ public static class Serialization {
                 newData.WaitOne();
                 Debug.Log("ok going");
             } else {
-                Debug.Log("last run");
+                Debug.Log("last check");
             }
 
-            // copy over lists
+            // copy over new lists
             lock (chunksToLoad) {
                 for (int i = 0; i < chunksToLoad.Count; ++i) {
-                    loads.Add(chunksToLoad[i]);
+                    newLoads.Add(chunksToLoad[i]);
                 }
                 chunksToLoad.Clear();
             }
 
             lock (chunksToSave) {
                 for (int i = 0; i < chunksToSave.Count; ++i) {
-                    saves.Add(chunksToSave[i]);
+                    newSaves.Add(chunksToSave[i]);
                 }
                 chunksToSave.Clear();
             }
 
-            Debug.Log("loading " + loads.Count);
+            if (newLoads.Count > 0) {
+                Debug.Log("loading " + newLoads.Count);
 
-            watch.Restart();
-            // load chunks
-            for (int i = 0; i < loads.Count; ++i) {
-                _LoadChunk(loads[i]);
+                watch.Restart();
+                // load chunks
+                for (int i = 0; i < newLoads.Count; ++i) {
+                    _LoadChunk(newLoads[i]);
 
-                // tell main thread that this chunk was loaded
-                lock (chunksLoaded) {
-                    chunksLoaded.Add(loads[i]);
+                    // tell main thread that this chunk was loaded
+                    lock (chunksLoaded) {
+                        chunksLoaded.Add(newLoads[i]);
+                    }
                 }
+                watch.Stop();
+                Debug.Log("loaded in " + watch.ElapsedMilliseconds + " ms");
             }
 
-            watch.Stop();
-            Debug.Log("loaded in " + watch.ElapsedMilliseconds + " ms");
+            if (newSaves.Count > 0) {
+                Debug.Log("saving " + newSaves.Count);
 
-            Debug.Log("saving " + saves.Count);
+                watch.Restart();
 
-            watch.Restart();
+                // save chunks (dont need to tell main thread anything really)
+                for (int i = 0; i < newSaves.Count; ++i) {
+                    _SaveChunk(newSaves[i]);
+                }
 
-            // save chunks (dont need to tell main thread anything really)
-            for (int i = 0; i < saves.Count; ++i) {
-                _SaveChunk(saves[i]);
+                watch.Stop();
+                Debug.Log("saved in " + watch.ElapsedMilliseconds + " ms");
             }
 
-            watch.Stop();
-            Debug.Log("saved in " + watch.ElapsedMilliseconds + " ms");
-
-            loads.Clear();
-            saves.Clear();
+            newLoads.Clear();
+            newSaves.Clear();
 
             if (lastRun) {
                 lock (chunksToSave) {
@@ -177,13 +181,12 @@ public static class Serialization {
         // build save pack
         PacketWriter pack = new PacketWriter(writer, writeBuffer);
 
-        pack.Write(chunk.blocks.data.Length);
+        pack.Write(chunk.blocks.Length);
 
-        // next up try RLE, write a byte for length then a byte for type or somethin
-        // also need to first make each chunk store data in xz slices of y
-        // because more runs will be on the xz plane so we want to iterate thru 1D array in that order
-        for (int i = 0; i < chunk.blocks.data.Length; ++i) {
-            pack.Write(chunk.blocks.data[i].type);
+        // next up try RLE, write a byte for length then a byte for type or somethin!!! also were in xzy mode now very nice
+        var data = chunk.blocks;
+        for (int i = 0; i < data.Length; ++i) {
+            pack.Write(data[i].type);
         }
 
         byte[] bytes = pack.GetData();
@@ -207,7 +210,7 @@ public static class Serialization {
         for (int i = 0; i < count; ++i) {
             blocks[i] = new Block { type = pack.ReadByte() };
         }
-        chunk.blocks = new Array3<Block>(blocks, Chunk.SIZE);
+        chunk.blocks = blocks;
     }
 
     public static void SavePlayer() {

@@ -72,7 +72,7 @@ public class NativeMeshData {
     }
 
     public Block GetBlock(int x, int y, int z) {
-        return blocks[(x+1) + (y+1) * size + (z+1) * size * size];
+        return blocks[(x+1) + (z+1) * size + (y+1) * size * size];
     }
 
     public void AddVertex(Vector3 vertex) {

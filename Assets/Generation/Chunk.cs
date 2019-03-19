@@ -11,7 +11,7 @@ public class Chunk {
     public const int CHUNK_WIDTH = SIZE;
     public const int CHUNK_HEIGHT = SIZE;
 
-    public Array3<Block> blocks;
+    public Block[] blocks;
 
     //public HashSet<ushort> modifiedBlockIndices = new HashSet<ushort>(); // hashset to avoid duplicates
 
@@ -99,7 +99,7 @@ public class Chunk {
                 for (int x = 0; x < SIZE; ++x) {
 
                     if (GetBlock(x, y, z) == Blocks.AIR && GetBlock(x, y - 1, z) == Blocks.GRASS) {
-                        if(Random.value < 0.01f) {
+                        if (Random.value < 0.01f) {
                             SetBlock(x, y, z, Blocks.TORCH);
                         }
                     }
@@ -340,7 +340,7 @@ public class Chunk {
                 return Blocks.AIR;
             }
 
-            return blocks[x, y, z];
+            return blocks[x + z * SIZE + y * SIZE * SIZE];
         }
         return world.GetBlock(pos.x + x, pos.y + y, pos.z + z);
     }
@@ -351,7 +351,7 @@ public class Chunk {
             if (!loaded) {
                 return;
             }
-            blocks[x, y, z] = block;
+            blocks[x + z * SIZE + y * SIZE * SIZE] = block;
             //modifiedBlockIndices.Add(CoordToUint(x, y, z));
             needToUpdateSave = true; // block was modified so need to update save
             update = true;

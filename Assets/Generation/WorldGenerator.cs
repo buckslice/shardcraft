@@ -32,8 +32,8 @@ public static class WorldGenerator {
 
     public static void Generate(Vector3 chunkPos, NativeArray<Block> blocks) {
         // make this single loop instead and calculate x,y,z from index i
-        for (int z = 0; z < Chunk.SIZE; ++z) {
-            for (int y = 0; y < Chunk.SIZE; ++y) {
+        for (int y = 0; y < Chunk.SIZE; ++y) {
+            for (int z = 0; z < Chunk.SIZE; ++z) {
                 for (int x = 0; x < Chunk.SIZE; ++x) {
                     Vector3 wp = new Vector3(x, y, z) + chunkPos;
                     float n = 0.0f;
@@ -62,7 +62,7 @@ public static class WorldGenerator {
                         //}
                     }
 
-                    blocks[x + y * Chunk.SIZE + z * Chunk.SIZE * Chunk.SIZE] = b;
+                    blocks[x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE] = b;
 
                 }
             }

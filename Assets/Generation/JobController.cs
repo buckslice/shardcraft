@@ -77,7 +77,7 @@ public class GenJobInfo {
 
         //blocks.CopyTo(chunk.blocks.data);
 
-        chunk.blocks = new Array3<Block>(blocks.ToArray(), Chunk.SIZE);
+        chunk.blocks = blocks.ToArray();
 
         chunk.loaded = true;
         chunk.update = true;
