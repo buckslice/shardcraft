@@ -36,8 +36,6 @@ public class World : MonoBehaviour {
 
     public void OnApplicationQuit() {
         // save all chunks
-
-
         foreach (KeyValuePair<Vector3i, Chunk> entry in chunks) {
             Serialization.SaveChunk(entry.Value);
         }

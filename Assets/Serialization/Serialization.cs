@@ -2,6 +2,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System;
 using System.Threading;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Runtime.Serialization;
@@ -57,7 +58,15 @@ public static class Serialization {
 
     static EventWaitHandle newData = new EventWaitHandle(false, EventResetMode.AutoReset);
 
+    static GafferNet.WriteStream writer = new GafferNet.WriteStream();
+    static GafferNet.ReadStream reader = new GafferNet.ReadStream();
+    const int buffMax = 32768;
+    static uint[] writeBuffer = new uint[buffMax];
+    static byte[] readBuffer = new byte[buffMax];
+
     static void SerializationThread() {
+
+        var watch = new System.Diagnostics.Stopwatch();
 
         List<Chunk> loads = new List<Chunk>();
         List<Chunk> saves = new List<Chunk>();
@@ -97,6 +106,7 @@ public static class Serialization {
 
             Debug.Log("loading " + loads.Count);
 
+            watch.Restart();
             // load chunks
             for (int i = 0; i < loads.Count; ++i) {
                 _LoadChunk(loads[i]);
@@ -107,12 +117,20 @@ public static class Serialization {
                 }
             }
 
+            watch.Stop();
+            Debug.Log("loaded in " + watch.ElapsedMilliseconds + " ms");
+
             Debug.Log("saving " + saves.Count);
+
+            watch.Restart();
 
             // save chunks (dont need to tell main thread anything really)
             for (int i = 0; i < saves.Count; ++i) {
                 _SaveChunk(saves[i]);
             }
+
+            watch.Stop();
+            Debug.Log("saved in " + watch.ElapsedMilliseconds + " ms");
 
             loads.Clear();
             saves.Clear();
@@ -156,29 +174,40 @@ public static class Serialization {
     }
 
     static void _SaveChunk(Chunk chunk) {
+        // build save pack
+        PacketWriter pack = new PacketWriter(writer, writeBuffer);
+
+        pack.Write(chunk.blocks.data.Length);
+
+        // next up try RLE, write a byte for length then a byte for type or somethin
+        // also need to first make each chunk store data in xz slices of y
+        // because more runs will be on the xz plane so we want to iterate thru 1D array in that order
+        for (int i = 0; i < chunk.blocks.data.Length; ++i) {
+            pack.Write(chunk.blocks.data[i].type);
+        }
+
+        byte[] bytes = pack.GetData();
+
         string saveFile = SaveLocation(chunk.world.worldName) + FileName(chunk.pos);
-
-        IFormatter formatter = new BinaryFormatter();
-        Stream stream = new FileStream(saveFile, FileMode.Create, FileAccess.Write, FileShare.None);
-        //formatter.Serialize(stream, save);
-        formatter.Serialize(stream, chunk.blocks.data);
-
-        stream.Close();
+        File.WriteAllBytes(saveFile, bytes);
 
     }
 
-    static bool _LoadChunk(Chunk chunk) {
+    static void _LoadChunk(Chunk chunk) {
         string saveFile = SaveFileName(chunk);
-
         Debug.Assert(File.Exists(saveFile));
 
-        IFormatter formatter = new BinaryFormatter();
-        FileStream stream = new FileStream(saveFile, FileMode.Open);
+        byte[] bytes = File.ReadAllBytes(saveFile);
+        PacketReader pack = new PacketReader(reader, bytes);
+        int count = pack.ReadInt();
 
-        chunk.blocks = new Array3<Block>((Block[])formatter.Deserialize(stream), Chunk.SIZE);
-
-        stream.Close();
-        return true;
+        // read into block array
+        Block[] blocks = new Block[Chunk.SIZE * Chunk.SIZE * Chunk.SIZE];
+        Debug.Assert(count == blocks.Length);
+        for (int i = 0; i < count; ++i) {
+            blocks[i] = new Block { type = pack.ReadByte() };
+        }
+        chunk.blocks = new Array3<Block>(blocks, Chunk.SIZE);
     }
 
     public static void SavePlayer() {
