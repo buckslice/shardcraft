@@ -81,7 +81,7 @@ public class GenJobInfo {
 
         chunk.loaded = true;
         chunk.update = true;
-        chunk.updateSave = true; // save should be updated since this was newly generated
+        chunk.needToUpdateSave = true; // save should be updated since this was newly generated
 
         blocks.Dispose();
     }

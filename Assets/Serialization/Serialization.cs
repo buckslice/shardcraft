@@ -11,53 +11,47 @@ using System.Collections.Concurrent;
 
 public static class Serialization {
 
-    static Mutex loadListMutex = new Mutex();
-    static Mutex chunksLoadedMutex = new Mutex();
-    static Mutex saveListMutex = new Mutex();
-    static Mutex killMutex = new Mutex();
-
     static List<Chunk> chunksToLoad = new List<Chunk>();
     static List<Chunk> chunksLoaded = new List<Chunk>();
     static List<Chunk> chunksToSave = new List<Chunk>();
 
     public static void LoadChunk(Chunk chunk) {
-        loadListMutex.WaitOne();
-        chunksToLoad.Add(chunk);
-        loadListMutex.ReleaseMutex();
+        lock (chunksToLoad) {
+            chunksToLoad.Add(chunk);
+        }
         newData.Set();
     }
 
     public static void SaveChunk(Chunk chunk) {
-        if (!chunk.updateSave) {
+        if (!chunk.needToUpdateSave) {
             return;
         }
-        saveListMutex.WaitOne();
-        chunksToSave.Add(chunk);
-        saveListMutex.ReleaseMutex();
+        lock (chunksToSave) {
+            chunksToSave.Add(chunk);
+        }
         newData.Set();
     }
 
+    public static void CheckNewLoaded() {
+        lock (chunksLoaded) {
+            for (int i = 0; i < chunksLoaded.Count; ++i) {
+                chunksLoaded[i].loaded = true;
+                chunksLoaded[i].update = true;
+            }
+            chunksLoaded.Clear();
+        }
+    }
+
+    static readonly object killLock = new object();
     static bool kill = false;
     public static void KillThread() {
-        killMutex.WaitOne();
-        kill = true;
-        killMutex.ReleaseMutex();
-    }
-
-    public static void CheckNewLoaded() {
-        // tell main thread that these chunks were loaded
-        chunksLoadedMutex.WaitOne();
-        for (int i = 0; i < chunksLoaded.Count; ++i) {
-            chunksLoaded[i].loaded = true;
-            chunksLoaded[i].update = true;
+        lock (killLock) {
+            kill = true;
         }
-        chunksLoaded.Clear();
-        chunksLoadedMutex.ReleaseMutex();
     }
 
-    static Thread serializationThread;
     public static void StartThread() {
-        serializationThread = new Thread(SerializationThread);
+        Thread serializationThread = new Thread(SerializationThread);
         serializationThread.Start();
     }
 
@@ -69,56 +63,72 @@ public static class Serialization {
         List<Chunk> saves = new List<Chunk>();
 
         while (true) {
-            // check if thread should quit
-            killMutex.WaitOne();
-            if (kill) {
-                return;
-            }
-            killMutex.ReleaseMutex();
 
-            // wait for new data signal on main thread
-            Debug.Log("waiting for data");
-            newData.WaitOne();
-            Debug.Log("ok going");
+            bool lastRun = false;
+            lock (killLock) {
+                if (kill) {
+                    lastRun = true;
+                }
+            }
+
+            if (!lastRun) { // if last run just blast through to double check
+                Debug.Log("waiting for data");
+                // wait for new data signal on main thread
+                newData.WaitOne();
+                Debug.Log("ok going");
+            } else {
+                Debug.Log("last run");
+            }
 
             // copy over lists
-            loadListMutex.WaitOne();
-            for (int i = 0; i < chunksToLoad.Count; ++i) {
-                loads.Add(chunksToLoad[i]);
+            lock (chunksToLoad) {
+                for (int i = 0; i < chunksToLoad.Count; ++i) {
+                    loads.Add(chunksToLoad[i]);
+                }
+                chunksToLoad.Clear();
             }
-            chunksToLoad.Clear();
-            loadListMutex.ReleaseMutex();
 
-            saveListMutex.WaitOne();
-            for (int i = 0; i < chunksToSave.Count; ++i) {
-                saves.Add(chunksToSave[i]);
+            lock (chunksToSave) {
+                for (int i = 0; i < chunksToSave.Count; ++i) {
+                    saves.Add(chunksToSave[i]);
+                }
+                chunksToSave.Clear();
             }
-            chunksToSave.Clear();
-            saveListMutex.ReleaseMutex();
 
             Debug.Log("loading " + loads.Count);
 
             // load chunks
             for (int i = 0; i < loads.Count; ++i) {
                 _LoadChunk(loads[i]);
-            }
 
-            // tell main thread that these chunks were loaded
-            chunksLoadedMutex.WaitOne();
-            for (int i = 0; i < loads.Count; ++i) {
-                chunksLoaded.Add(loads[i]);
+                // tell main thread that this chunk was loaded
+                lock (chunksLoaded) {
+                    chunksLoaded.Add(loads[i]);
+                }
             }
-            chunksLoadedMutex.ReleaseMutex();
 
             Debug.Log("saving " + saves.Count);
 
-            // save chunks
+            // save chunks (dont need to tell main thread anything really)
             for (int i = 0; i < saves.Count; ++i) {
                 _SaveChunk(saves[i]);
             }
 
             loads.Clear();
             saves.Clear();
+
+            if (lastRun) {
+                lock (chunksToSave) {
+                    Debug.Assert(chunksToSave.Count == 0);
+                }
+                lock (chunksToLoad) {
+                    Debug.Assert(chunksToLoad.Count == 0);
+                }
+
+                Debug.Log("IO thread shutting down");
+                return;
+            }
+
         }
     }
 

@@ -50,9 +50,7 @@ public class World : MonoBehaviour {
 
         Serialization.SavePlayer();
 
-        //Serialization.KillThread();
-
-        //Serialization.serializationThread.Join();
+        Serialization.KillThread();
 
     }
 

@@ -24,7 +24,7 @@ public class Chunk {
     public bool rendered { get; set; }  // has a mesh
     public bool waitingForMesh { get; set; }
     public bool builtStructures { get; set; }
-    public bool updateSave { get; set; }
+    public bool needToUpdateSave { get; set; }
 
     public MeshRenderer mr { get; set; }
     MeshFilter filter;
@@ -47,7 +47,7 @@ public class Chunk {
         rendered = false;
         waitingForMesh = false;
         builtStructures = false;
-        updateSave = false;
+        needToUpdateSave = false;
 
         mr = gameObject.GetComponent<MeshRenderer>();
         filter = gameObject.GetComponent<MeshFilter>();
@@ -353,7 +353,7 @@ public class Chunk {
             }
             blocks[x, y, z] = block;
             //modifiedBlockIndices.Add(CoordToUint(x, y, z));
-            updateSave = true; // block was modified so need to update save
+            needToUpdateSave = true; // block was modified so need to update save
             update = true;
         } else {
             world.SetBlock(pos.x + x, pos.y + y, pos.z + z, block);
