@@ -1,5 +1,6 @@
 ﻿
 // based on this glorious source code
+// adapted and simplified code to my liking
 //https://github.com/fbsamples/oculus-networked-physics-sample/blob/master/Networked%20Physics/Assets/Scripts/Network.cs
 //https://github.com/fbsamples/oculus-networked-physics-sample/blob/master/Networked%20Physics/Assets/Scripts/PacketSerializer.cs
 
@@ -7,53 +8,6 @@ using System;
 using UnityEngine;
 using UnityEngine.Assertions;
 using System.Collections.Generic;
-
-
-// problem with this is you cant ref a rigidbodys parameters so kinda annoying
-// also he was using c++ template witchcraft in his example
-//public class StateUpdate {
-//    public int id; // id for object were editing
-//    public byte prefab;
-//    public Vector3 position;
-//    public Quaternion rotation;
-//    public bool atRest;
-//    public Vector3 velocity;
-//    public Vector3 angularVelocity;
-
-//    public StateUpdate() {
-//    }
-//}
-
-//public class StateUpdateBatch {
-//    public StateUpdate[] states;
-//    public StateUpdateBatch(Packet packet) {
-//        int num = packet.ReadInt();
-//        states = new StateUpdate[num];
-//        for (int i = 0; i < num; ++i) {
-//            states[i] = new StateUpdate();
-//            NetCommon.SerializeState(packet, ref states[i]);
-//        }
-//    }
-//}
-
-//public class NetCommon {
-//    // reason this is written using ref stuff is so same function can be used for both reading and writing
-//    // so you will never mess that up basically hell yea
-//    public static void SerializeState(Packet p, ref StateUpdate state) {
-//        p.SerializeInt(ref state.id);
-//        p.SerializeByte(ref state.prefab);
-//        p.SerializeVector3(ref state.position);
-//        p.SerializeQuaternion(ref state.rotation);
-//        p.SerializeBool(ref state.atRest);
-//        if (!state.atRest) {
-//            p.SerializeVector3(ref state.velocity);
-//            p.SerializeVector3(ref state.angularVelocity);
-//        } else {
-//            state.velocity = Vector3.zero;
-//            state.angularVelocity = Vector3.zero;
-//        }
-//    }
-//}
 
 
 namespace GafferNet {
@@ -302,9 +256,8 @@ namespace GafferNet {
                 data[i] = (byte)ReadBits(8);
         }
 
-        public void Finish() {
-            // ...
-        }
+        //public void Finish() {
+        //}
 
         public int GetAlignBits() {
             return (8 - m_bitsRead % 8) % 8;
@@ -327,6 +280,11 @@ namespace GafferNet {
         }
     }
 
+    public class SerializeException : Exception {
+        public SerializeException() {
+        }
+    };
+
     public class WriteStream {
         BitWriter m_writer = new BitWriter();
         int m_error = Constants.STREAM_ERROR_NONE;
@@ -335,7 +293,7 @@ namespace GafferNet {
             m_writer.Start(buffer);
         }
 
-        public void SerializeSignedInteger(int value, int min, int max) {
+        public void Write(int value, int min = int.MinValue, int max = int.MaxValue) {
             Assert.IsTrue(min < max);
             Assert.IsTrue(value >= min);
             Assert.IsTrue(value <= max);
@@ -344,7 +302,7 @@ namespace GafferNet {
             m_writer.WriteBits(unsigned_value, bits);
         }
 
-        public void SerializeUnsignedInteger(uint value, uint min, uint max) {
+        public void WriteUInt(uint value, uint min = uint.MinValue, uint max = uint.MaxValue) {
             Assert.IsTrue(min < max);
             Assert.IsTrue(value >= min);
             Assert.IsTrue(value <= max);
@@ -353,28 +311,28 @@ namespace GafferNet {
             m_writer.WriteBits(unsigned_value, bits);
         }
 
-        public void SerializeBits(byte value, int bits) {
+        public void Write(byte value, int bits = 8) {
             Assert.IsTrue(bits > 0);
             Assert.IsTrue(bits <= 8);
             Assert.IsTrue(bits == 8 || (value < (1 << bits)));
             m_writer.WriteBits(value, bits);
         }
 
-        public void SerializeBits(ushort value, int bits) {
+        public void Write(ushort value, int bits = 16) {
             Assert.IsTrue(bits > 0);
             Assert.IsTrue(bits <= 16);
             Assert.IsTrue(bits == 16 || (value < (1 << bits)));
             m_writer.WriteBits(value, bits);
         }
 
-        public void SerializeBits(uint value, int bits) {
+        public void Write(uint value, int bits = 32) {
             Assert.IsTrue(bits > 0);
             Assert.IsTrue(bits <= 32);
             Assert.IsTrue(bits == 32 || (value < (1 << bits)));
             m_writer.WriteBits(value, bits);
         }
 
-        public void SerializeBits(ulong value, int bits) {
+        public void Write(ulong value, int bits = 64) {
             Assert.IsTrue(bits > 0);
             Assert.IsTrue(bits <= 64);
             Assert.IsTrue(bits == 64 || (value < (1UL << bits)));
@@ -390,14 +348,14 @@ namespace GafferNet {
             }
         }
 
-        public void SerializeBytes(byte[] data, int bytes) {
+        public void WriteBytes(byte[] data, int bytes) {
             Assert.IsTrue(data != null);
             Assert.IsTrue(bytes >= 0);
             SerializeAlign();
             m_writer.WriteBytes(data, bytes);
         }
 
-        public void SerializeString(string s) {
+        public void Write(string s) {
             SerializeAlign();
             int stringLength = (int)s.Length;
             Assert.IsTrue(stringLength <= GafferNet.Constants.MaxStringLength);
@@ -408,7 +366,12 @@ namespace GafferNet {
             }
         }
 
-        public void SerializeFloat(float f) {
+        public void Write(bool b) {
+            uint unsigned_value = b ? 1U : 0U;
+            Write(unsigned_value, 1);
+        }
+
+        public void Write(float f) {
             byte[] byteArray = BitConverter.GetBytes(f);
             for (int i = 0; i < 4; ++i)
                 m_writer.WriteBits(byteArray[i], 8);
@@ -453,126 +416,107 @@ namespace GafferNet {
             m_reader.Start(data);
         }
 
-        public bool SerializeSignedInteger(out int value, int min, int max) {
+        public int ReadInt(int min = int.MinValue, int max = int.MaxValue) {
             Assert.IsTrue(min < max);
             int bits = Util.BitsRequired(min, max);
             if (m_reader.WouldOverflow(bits)) {
                 m_error = Constants.STREAM_ERROR_OVERFLOW;
-                value = 0;
-                return false;
+                throw new SerializeException();
             }
             uint unsigned_value = m_reader.ReadBits(bits);
-            value = (int)(unsigned_value + min);
             m_bitsRead += bits;
-            return true;
+            return (int)(unsigned_value + min);
         }
 
-        public bool SerializeUnsignedInteger(out uint value, uint min, uint max) {
+        public uint ReadUInt(uint min = uint.MinValue, uint max = uint.MaxValue) {
             Assert.IsTrue(min < max);
             int bits = Util.BitsRequired(min, max);
             if (m_reader.WouldOverflow(bits)) {
                 m_error = Constants.STREAM_ERROR_OVERFLOW;
-                value = 0;
-                return false;
+                throw new SerializeException();
             }
             uint unsigned_value = m_reader.ReadBits(bits);
-            value = unsigned_value + min;
             m_bitsRead += bits;
-            return true;
+            return unsigned_value + min;
         }
 
-        public bool SerializeBits(out byte value, int bits) {
+        public byte ReadByte(int bits = 8) {
             Assert.IsTrue(bits > 0);
             Assert.IsTrue(bits <= 8);
             if (m_reader.WouldOverflow(bits)) {
                 m_error = Constants.STREAM_ERROR_OVERFLOW;
-                value = 0;
-                return false;
+                throw new SerializeException();
             }
             byte read_value = (byte)m_reader.ReadBits(bits);
-            value = read_value;
             m_bitsRead += bits;
-            return true;
+            return read_value;
         }
 
-        public bool SerializeBits(out ushort value, int bits) {
+        public ushort ReadUShort(int bits = 16) {
             Assert.IsTrue(bits > 0);
             Assert.IsTrue(bits <= 16);
             if (m_reader.WouldOverflow(bits)) {
                 m_error = Constants.STREAM_ERROR_OVERFLOW;
-                value = 0;
-                return false;
+                throw new SerializeException();
             }
             ushort read_value = (ushort)m_reader.ReadBits(bits);
-            value = read_value;
             m_bitsRead += bits;
-            return true;
+            return read_value;
         }
 
-        public bool SerializeBits(out uint value, int bits) {
+        public uint ReadUInt(int bits = 32) {
             Assert.IsTrue(bits > 0);
             Assert.IsTrue(bits <= 32);
             if (m_reader.WouldOverflow(bits)) {
                 m_error = Constants.STREAM_ERROR_OVERFLOW;
-                value = 0;
-                return false;
+                throw new SerializeException();
             }
             uint read_value = m_reader.ReadBits(bits);
-            value = read_value;
             m_bitsRead += bits;
-            return true;
+            return read_value;
         }
 
-        public bool SerializeBits(out ulong value, int bits) {
+        public ulong ReadULong(int bits = 64) {
             Assert.IsTrue(bits > 0);
             Assert.IsTrue(bits <= 64);
 
             if (m_reader.WouldOverflow(bits)) {
                 m_error = Constants.STREAM_ERROR_OVERFLOW;
-                value = 0;
-                return false;
+                throw new SerializeException();
             }
 
             if (bits <= 32) {
                 uint loword = m_reader.ReadBits(bits);
-                value = (ulong)loword;
+                return (ulong)loword;
             } else {
                 uint loword = m_reader.ReadBits(32);
                 uint hiword = m_reader.ReadBits(bits - 32);
-                value = ((ulong)loword) | (((ulong)hiword) << 32);
+                return ((ulong)loword) | (((ulong)hiword) << 32);
             }
-
-            return true;
         }
 
-        public bool SerializeBytes(byte[] data, int bytes) {
-            if (!SerializeAlign())
-                return false;
-            if (m_reader.WouldOverflow(bytes * 8)) {
-                m_error = Constants.STREAM_ERROR_OVERFLOW;
-                return false;
-            }
-            m_reader.ReadBytes(data, bytes);
-            m_bitsRead += bytes * 8;
-            return true;
-        }
+        //public bool ReadBytes(byte[] data, int bytes) {
+        //    if (!SerializeAlign())
+        //        return false;
+        //    if (m_reader.WouldOverflow(bytes * 8)) {
+        //        m_error = Constants.STREAM_ERROR_OVERFLOW;
+        //        return false;
+        //    }
+        //    m_reader.ReadBytes(data, bytes);
+        //    m_bitsRead += bytes * 8;
+        //    return true;
+        //}
 
-        public bool SerializeString(out string s) {
+        public string ReadString() {
             if (!SerializeAlign()) {
-                s = null;
-                return false;
+                throw new SerializeException();
             }
 
-            int stringLength;
-            if (!SerializeSignedInteger(out stringLength, 0, GafferNet.Constants.MaxStringLength)) {
-                s = null;
-                return false;
-            }
+            int stringLength = ReadInt(0, GafferNet.Constants.MaxStringLength);
 
             if (m_reader.WouldOverflow((int)(stringLength * 16))) {
                 m_error = Constants.STREAM_ERROR_OVERFLOW;
-                s = null;
-                return false;
+                throw new SerializeException();
             }
 
             char[] stringData = new char[GafferNet.Constants.MaxStringLength];
@@ -581,24 +525,19 @@ namespace GafferNet {
                 stringData[i] = (char)m_reader.ReadBits(16);
             }
 
-            s = new string(stringData, 0, stringLength);
-
-            return true;
+            return new string(stringData, 0, stringLength);
         }
 
-        public bool SerializeFloat(out float f) {
+        public float ReadFloat() {
             if (m_reader.WouldOverflow(32)) {
                 m_error = Constants.STREAM_ERROR_OVERFLOW;
-                f = 0.0f;
-                return false;
+                throw new SerializeException();
             }
 
             for (int i = 0; i < 4; ++i)
                 m_floatBytes[i] = (byte)m_reader.ReadBits(8);
 
-            f = BitConverter.ToSingle(m_floatBytes, 0);
-
-            return true;
+            return BitConverter.ToSingle(m_floatBytes, 0);
         }
 
         public bool SerializeAlign() {
@@ -615,9 +554,9 @@ namespace GafferNet {
             return true;
         }
 
-        public void Finish() {
-            m_reader.Finish();
-        }
+        //public void Finish() {
+        //    m_reader.Finish();
+        //}
 
         public int GetAlignBits() {
             return m_reader.GetAlignBits();
@@ -635,9 +574,4 @@ namespace GafferNet {
             return m_error;
         }
     }
-
-    public class SerializeException : Exception {
-        public SerializeException() { }
-    };
-
 }

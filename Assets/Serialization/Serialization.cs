@@ -61,9 +61,7 @@ public static class Serialization {
 
     static GafferNet.WriteStream writer = new GafferNet.WriteStream();
     static GafferNet.ReadStream reader = new GafferNet.ReadStream();
-    const int buffMax = 32768;
-    static uint[] writeBuffer = new uint[buffMax];
-    static byte[] readBuffer = new byte[buffMax];
+    static uint[] writeBuffer = new uint[32768];
 
     static void SerializationThread() {
 
@@ -178,18 +176,31 @@ public static class Serialization {
     }
 
     static void _SaveChunk(Chunk chunk) {
-        // build save pack
-        PacketWriter pack = new PacketWriter(writer, writeBuffer);
 
-        pack.Write(chunk.blocks.Length);
+        // run length encoding, a byte for type followed by byte for runcount
+        // rewrote project to access data in xzy order, because i assume there will be more horizontal than vertical structures in the world gen (and thus more runs)
+        // WWWWWBWWWBWWWW  - example
+        // W5B1W3B1W4   - type followed by run count (up to length 256)
+        // WW5BWW3BWW4  - alternate way where double type indicates a run
+        // runs cost one byte extra but singles cost one byte less? not sure if worth
 
-        // next up try RLE, write a byte for length then a byte for type or somethin!!! also were in xzy mode now very nice
+        // todo: investigate whether using ushort is better for runs and types eventually maybe
+
+        writer.Start(writeBuffer);
+
         var data = chunk.blocks;
-        for (int i = 0; i < data.Length; ++i) {
-            pack.Write(data[i].type);
+
+        int i = 0;
+        while (i < data.Length) {
+            byte type = data[i].type;
+            byte run = 1;
+            while (++i < data.Length && data[i].type == type && run < byte.MaxValue) { run++; }
+            writer.Write(type);
+            writer.Write(run);
         }
 
-        byte[] bytes = pack.GetData();
+        writer.Finish();
+        byte[] bytes = writer.GetData();
 
         string saveFile = SaveLocation(chunk.world.worldName) + FileName(chunk.pos);
         File.WriteAllBytes(saveFile, bytes);
@@ -201,15 +212,18 @@ public static class Serialization {
         Debug.Assert(File.Exists(saveFile));
 
         byte[] bytes = File.ReadAllBytes(saveFile);
-        PacketReader pack = new PacketReader(reader, bytes);
-        int count = pack.ReadInt();
+        reader.Start(bytes);
 
-        // read into block array
         Block[] blocks = new Block[Chunk.SIZE * Chunk.SIZE * Chunk.SIZE];
-        Debug.Assert(count == blocks.Length);
-        for (int i = 0; i < count; ++i) {
-            blocks[i] = new Block { type = pack.ReadByte() };
+        int i = 0;
+        while (i < blocks.Length) {
+            byte type = reader.ReadByte();
+            byte run = reader.ReadByte();
+            while (run-- > 0) {
+                blocks[i++] = new Block { type = type };
+            }
         }
+
         chunk.blocks = blocks;
     }
 
