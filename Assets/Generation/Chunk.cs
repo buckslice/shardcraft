@@ -5,7 +5,7 @@ using Unity.Collections;
 
 
 public class Chunk {
-    public const int SIZE = 16;
+    public const int SIZE = 32;
     // equal for now but keeping if u want to change this later. would have to change away from array3 tho actually
     // also very untested lol so prob will megachoke
     public const int CHUNK_WIDTH = SIZE;
@@ -377,7 +377,7 @@ public class Chunk {
 
     // linearize vector3i based on chunk size
     public static ushort CoordToUint(int x, int y, int z) {
-        Debug.Assert(x >= 0 && x < 16 && y >= 0 && y < 16 && z >= 0 && z < 16);
+        Debug.Assert(x >= 0 && x < SIZE && y >= 0 && y < SIZE && z >= 0 && z < SIZE);
         return (ushort)(x + y * SIZE + z * SIZE * SIZE);
     }
 

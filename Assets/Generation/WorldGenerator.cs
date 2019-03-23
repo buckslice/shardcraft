@@ -35,7 +35,7 @@ public static class WorldGenerator {
         for (int y = 0; y < Chunk.SIZE; ++y) {
             for (int z = 0; z < Chunk.SIZE; ++z) {
                 for (int x = 0; x < Chunk.SIZE; ++x) {
-                    Vector3 wp = new Vector3(x, y, z) + chunkPos;
+                    Vector3 wp = new Vector3(x, y, z) + chunkPos + new Vector3(55.0f, 12.4f, 87.5f);
                     float n = 0.0f;
 
                     // experiment with catlike coding noise some more
@@ -43,10 +43,10 @@ public static class WorldGenerator {
                     //float n = samp.value * 3.0f;
 
                     // TODO: convert shapes.cginc into c# equiv, and or get gen going on multiple thread (try job system!!!)
-                    n -= Vector3.Dot(wp, Vector3.up) * 0.05f;
+                    n -= Vector3.Dot(wp, Vector3.up) * 0.03f;
 
                     //n += Fractal(wp, 5, 0.01f);
-                    n += Fractal(wp, 5, 0.02f);
+                    n += Fractal(wp, 5, 0.01f);
 
                     Block b = Blocks.AIR;
                     if (n > 0.3f) {

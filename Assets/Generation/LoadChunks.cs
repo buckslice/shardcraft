@@ -4,12 +4,13 @@ using UnityEngine;
 
 public class LoadChunks : MonoBehaviour {
 
-    int loadRadius = 8; // render radius will be 1 minus this
+    int loadRadius = 4; // render radius will be 1 minus this
     World world;
 
     Vector3i[] neighborChunks; // list of chunk offsets to generate in order of closeness
 
-    public const int maxUpdatesPerFrame = 20;
+    public const int maxUpdatesPerFrame = 4; // how many mesh jobs are sent among other things
+    public const int genJobLimit = 16; // limit on number of active generation jobs
 
     public ShadowText text;
 
@@ -137,7 +138,6 @@ public class LoadChunks : MonoBehaviour {
 
     int neighborIndex = 0;
     Vector3i lastPlayerChunk = new Vector3i(1000000, 1000000, 1000000);
-    const int neighborsCheckedPerFrame = 20;
 
     // generates all chunks that need to be generated
     void GenerateChunks() {
@@ -149,15 +149,13 @@ public class LoadChunks : MonoBehaviour {
         }
         lastPlayerChunk = playerChunk;
 
-        const int jobLimit = 32;
-
         // queue up chunks that failed to load
-        while (JobController.GetRunningJobs() < jobLimit && chunkGenQueue.Count > 0) {
+        while (JobController.GetRunningJobs() < genJobLimit && chunkGenQueue.Count > 0) {
             JobController.StartGenerationJob(chunkGenQueue.Dequeue());
         }
 
         while (neighborIndex < neighborChunks.Length) {
-            if (JobController.GetRunningJobs() >= jobLimit) {
+            if (JobController.GetRunningJobs() >= genJobLimit) {
                 return;
             }
 
