@@ -65,7 +65,7 @@ public class GenJobInfo {
 
         GenerationJob job = new GenerationJob {
             blocks = blocks,
-            chunkPos = chunk.pos.ToVector3()
+            chunkPos = chunk.wp.ToVector3()
         };
 
         handle = job.Schedule();
@@ -153,8 +153,6 @@ public class JobController : MonoBehaviour {
 
     //static List<Task<Chunk>> genTasks = new List<Task<Chunk>>();
 
-    public ShadowText text;
-
     World world;
 
     // Start is called before the first frame update
@@ -184,7 +182,7 @@ public class JobController : MonoBehaviour {
                 genJobInfos[i].handle.Complete();
 
                 genJobInfos[i].Finish();
-
+                genJobFinished++;
                 genJobInfos.SwapAndPop(i);
                 --i;
             }
@@ -197,7 +195,7 @@ public class JobController : MonoBehaviour {
 
                 meshJobInfos[i].Finish();
                 meshFinishedPer++;
-                finished++;
+                meshJobFinished++;
 
                 meshJobInfos.SwapAndPop(i);
                 --i;
@@ -228,27 +226,20 @@ public class JobController : MonoBehaviour {
         //    }
 
         //}
-
-
-        text.SetText(string.Format(
-            "Scheduled: {0}\n" +
-            "Finished:  {1}\n" +
-            "Chunks:    {2}\n" +
-            "ToUpdate:  {3}\n" +
-            "NeedGen:   {4}\n" +
-            "Greedy:    {5}",
-            scheduled, finished, world.chunks.Count, LoadChunks.needUpdates, LoadChunks.needGeneration, Chunk.beGreedy));
-
     }
 
-    static int scheduled = 0;
-    static int finished = 0;
+    public static int meshJobScheduled = 0;
+    public static int meshJobFinished = 0;
+    public static int genJobScheduled = 0;
+    public static int genJobFinished = 0;
 
     public static void StartGenerationJob(Chunk chunk) {
 
         GenJobInfo info = new GenJobInfo(chunk);
 
         genJobInfos.Add(info);
+
+        genJobScheduled++;
 
 
     }
@@ -259,12 +250,13 @@ public class JobController : MonoBehaviour {
 
         meshJobInfos.Add(info);
 
-        scheduled++;
+        meshJobScheduled++;
 
     }
 
     public static int GetRunningJobs() {
         return genJobInfos.Count;
+
     }
 
     //public static void StartGenerationTask(Chunk chunk) {

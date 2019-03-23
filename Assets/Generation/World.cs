@@ -52,10 +52,6 @@ public class World : MonoBehaviour {
 
     }
 
-    void Update() {
-        Serialization.CheckNewLoaded();
-    }
-
     public void CreateChunk(int x, int y, int z) {
         Debug.Assert(GetChunk(x, y, z) == null);
 
@@ -65,18 +61,9 @@ public class World : MonoBehaviour {
         //Instantiate the chunk at the coordinates using the chunk prefab
         GameObject newChunkObject = Instantiate(chunkPrefab, worldPos.ToVector3(), Quaternion.Euler(Vector3.zero), transform) as GameObject;
         newChunkObject.name = "Chunk " + chunkPos.ToString();
-        Chunk chunk = new Chunk(this, worldPos, newChunkObject);
+        Chunk chunk = new Chunk(this, worldPos, chunkPos, newChunkObject);
 
-        string saveFile = Serialization.SaveFileName(chunk);
-        if (File.Exists(saveFile)) {
-
-            Serialization.LoadChunk(chunk);
-            //JobController.StartLoadJob(chunk);
-
-            //Serialization.LoadChunk(chunk); // should become load job, also do region system and RLE this is so slow lol
-        } else {
-            JobController.StartGenerationJob(chunk);
-        }
+        Serialization.LoadChunk(chunk);
 
         //Add it to the chunks dictionary with the position as the key
         chunks.Add(chunkPos, chunk);
@@ -142,7 +129,7 @@ public class World : MonoBehaviour {
         Chunk containerChunk = GetChunkByWorldPos(x, y, z);
 
         if (containerChunk != null && containerChunk.loaded) {
-            return containerChunk.GetBlock(x - containerChunk.pos.x, y - containerChunk.pos.y, z - containerChunk.pos.z);
+            return containerChunk.GetBlock(x - containerChunk.wp.x, y - containerChunk.wp.y, z - containerChunk.wp.z);
         } else {
             return Blocks.AIR;
         }
@@ -154,15 +141,15 @@ public class World : MonoBehaviour {
         Chunk chunk = GetChunkByWorldPos(x, y, z);
 
         if (chunk != null) {
-            chunk.SetBlock(x - chunk.pos.x, y - chunk.pos.y, z - chunk.pos.z, block);
+            chunk.SetBlock(x - chunk.wp.x, y - chunk.wp.y, z - chunk.wp.z, block);
 
             // if block is on a chunk edge then update neighbor chunks
-            UpdateIfEqual(x - chunk.pos.x, 0, new Vector3i(x - 1, y, z));
-            UpdateIfEqual(x - chunk.pos.x, Chunk.SIZE - 1, new Vector3i(x + 1, y, z));
-            UpdateIfEqual(y - chunk.pos.y, 0, new Vector3i(x, y - 1, z));
-            UpdateIfEqual(y - chunk.pos.y, Chunk.SIZE - 1, new Vector3i(x, y + 1, z));
-            UpdateIfEqual(z - chunk.pos.z, 0, new Vector3i(x, y, z - 1));
-            UpdateIfEqual(z - chunk.pos.z, Chunk.SIZE - 1, new Vector3i(x, y, z + 1));
+            UpdateIfEqual(x - chunk.wp.x, 0, new Vector3i(x - 1, y, z));
+            UpdateIfEqual(x - chunk.wp.x, Chunk.SIZE - 1, new Vector3i(x + 1, y, z));
+            UpdateIfEqual(y - chunk.wp.y, 0, new Vector3i(x, y - 1, z));
+            UpdateIfEqual(y - chunk.wp.y, Chunk.SIZE - 1, new Vector3i(x, y + 1, z));
+            UpdateIfEqual(z - chunk.wp.z, 0, new Vector3i(x, y, z - 1));
+            UpdateIfEqual(z - chunk.wp.z, Chunk.SIZE - 1, new Vector3i(x, y, z + 1));
         }
     }
 

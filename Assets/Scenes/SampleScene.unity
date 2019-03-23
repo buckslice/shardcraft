@@ -563,6 +563,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 99464b2b9eb0f8c4199c837dd4112ee5, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+  text: {fileID: 251957286}
 --- !u!114 &534669908
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -756,6 +757,7 @@ MonoBehaviour:
   TileMat: {fileID: 2100000, guid: 83cbd086011c43e48ae352c10450dcb7, type: 2}
   TileMatGreedy: {fileID: 2100000, guid: 6ae6299ab8b0b1f4497f2441949cf86b, type: 2}
   loadPlayerSave: 0
+  seed: 0
 --- !u!114 &753073628
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -768,7 +770,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a7d62cbc94ea42644b31f4c89fa5caf4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  text: {fileID: 251957286}
 --- !u!1 &771070656
 GameObject:
   m_ObjectHideFlags: 0

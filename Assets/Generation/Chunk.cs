@@ -17,7 +17,8 @@ public class Chunk {
 
     public World world;
     public GameObject gameObject;
-    public Vector3i pos; // world space position
+    public readonly Vector3i wp; // world space position
+    public readonly Vector3i cp;
 
     public bool loaded { get; set; }    // means ur blocks are loaded
     public bool update { get; set; }    // means need to update mesh
@@ -37,9 +38,10 @@ public class Chunk {
 
     public static bool generateColliders = true;
 
-    public Chunk(World world, Vector3i pos, GameObject gameObject) {
+    public Chunk(World world, Vector3i wp, Vector3i cp, GameObject gameObject) {
         this.world = world;
-        this.pos = pos;
+        this.wp = wp;
+        this.cp = cp;
         this.gameObject = gameObject;
 
         loaded = false;
@@ -92,7 +94,7 @@ public class Chunk {
     public void BuildStructures() {
 
         // not sure here lol
-        Random.InitState(pos.GetHashCode() + world.seed);
+        Random.InitState(wp.GetHashCode() + world.seed);
 
         for (int z = 0; z < SIZE; ++z) {
             for (int y = 0; y < SIZE; ++y) {
@@ -342,7 +344,7 @@ public class Chunk {
 
             return blocks[x + z * SIZE + y * SIZE * SIZE];
         }
-        return world.GetBlock(pos.x + x, pos.y + y, pos.z + z);
+        return world.GetBlock(wp.x + x, wp.y + y, wp.z + z);
     }
 
     // sets block modified this way
@@ -356,7 +358,7 @@ public class Chunk {
             needToUpdateSave = true; // block was modified so need to update save
             update = true;
         } else {
-            world.SetBlock(pos.x + x, pos.y + y, pos.z + z, block);
+            world.SetBlock(wp.x + x, wp.y + y, wp.z + z, block);
         }
     }
 

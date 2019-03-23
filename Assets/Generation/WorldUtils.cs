@@ -3,11 +3,11 @@ using System.Collections;
 
 public static class WorldUtils {
 
-
+    // given a position in world space get the world space block coordinates
     public static Vector3i GetBlockPos(Vector3 pos) {
         //return new Vector3i(Mathf.RoundToInt(pos.x), Mathf.RoundToInt(pos.y), Mathf.RoundToInt(pos.z));
         //return new Vector3i((int)pos.x, (int)pos.y, (int)pos.z); // THIS TRUNCATES but we need FLOOORING REEEEEEEEEEEE
-        return new Vector3i((int)Mathf.Floor(pos.x), (int)Mathf.Floor(pos.y), (int)Mathf.Floor(pos.z));
+        return new Vector3i(Mathf.FloorToInt(pos.x), Mathf.FloorToInt(pos.y), Mathf.FloorToInt(pos.z));
     }
 
     public static Vector3i GetBlockPos(RaycastHit hit, bool adjacent = false) {

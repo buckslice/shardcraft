@@ -4,12 +4,14 @@ using UnityEngine;
 
 public class LoadChunks : MonoBehaviour {
 
-    int loadRadius = 4; // render radius will be 1 minus this
+    int loadRadius = 8; // render radius will be 1 minus this
     World world;
 
     Vector3i[] neighborChunks; // list of chunk offsets to generate in order of closeness
 
     public const int maxUpdatesPerFrame = 20;
+
+    public ShadowText text;
 
     // Start is called before the first frame update
     void Start() {
@@ -80,14 +82,22 @@ public class LoadChunks : MonoBehaviour {
         }
     }
 
-    public static int needUpdates = 0;
-    public static int needGeneration = 0;
+    //static int needUpdates = 0;
+    //static int needGeneration = 0;
+    static int chunksLoaded = 0;
+
+    Queue<Chunk> chunkGenQueue = new Queue<Chunk>();
+
     void LateUpdate() {
 
-        UpdateChunks();
+        chunksLoaded += Serialization.CheckNewLoaded(chunkGenQueue);
 
-        needUpdates = 0;
-        needGeneration = 0;
+        UnityEngine.Profiling.Profiler.BeginSample("Update Chunks");
+        UpdateChunks();
+        UnityEngine.Profiling.Profiler.EndSample();
+
+        //needUpdates = 0;
+        //needGeneration = 0;
         //foreach (var chunk in world.chunks.Values) {
         //    if (chunk.update && chunk.generated) {
         //        needUpdates++;
@@ -96,6 +106,16 @@ public class LoadChunks : MonoBehaviour {
         //        needGeneration++;
         //    }
         //}
+
+        text.SetText(string.Format(
+            "Generat: {0}/{1}\n" +
+            "Meshing: {2}/{3}\n" +
+            "Chunks:  {4}\n" +
+            "Loaded:  {5}\n" +
+            "Greedy:  {6}\n",
+            JobController.genJobFinished, JobController.genJobScheduled,
+            JobController.meshJobFinished, JobController.meshJobScheduled,
+            world.chunks.Count, chunksLoaded, Chunk.beGreedy));
 
     }
 
@@ -129,8 +149,15 @@ public class LoadChunks : MonoBehaviour {
         }
         lastPlayerChunk = playerChunk;
 
+        const int jobLimit = 32;
+
+        // queue up chunks that failed to load
+        while (JobController.GetRunningJobs() < jobLimit && chunkGenQueue.Count > 0) {
+            JobController.StartGenerationJob(chunkGenQueue.Dequeue());
+        }
+
         while (neighborIndex < neighborChunks.Length) {
-            if (JobController.GetRunningJobs() >= 32) {
+            if (JobController.GetRunningJobs() >= jobLimit) {
                 return;
             }
 
@@ -154,7 +181,7 @@ public class LoadChunks : MonoBehaviour {
 
         List<Vector3i> chunksToDelete = new List<Vector3i>();
         foreach (var chunk in world.chunks) {
-            float sqrDist = Vector3.SqrMagnitude(chunk.Value.pos.ToVector3() + Vector3.one * Chunk.SIZE - transform.position);
+            float sqrDist = Vector3.SqrMagnitude(chunk.Value.wp.ToVector3() + Vector3.one * Chunk.SIZE - transform.position);
 
             if (sqrDist > maxDist * maxDist) {
                 chunksToDelete.Add(chunk.Key);

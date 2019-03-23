@@ -1,4 +1,6 @@
-﻿using UnityEngine;
+﻿#define _DEBUG
+
+using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
@@ -12,13 +14,26 @@ using System.Collections.Concurrent;
 
 public static class Serialization {
 
-    static List<Chunk> chunksToLoad = new List<Chunk>();
-    static List<Chunk> chunksLoaded = new List<Chunk>();
-    static List<Chunk> chunksToSave = new List<Chunk>();
+    // public methods add to these dictionaries
+    static Dictionary<Vector3i, Queue<Chunk>> chunksToLoad = new Dictionary<Vector3i, Queue<Chunk>>();
+    static Dictionary<Vector3i, Queue<Chunk>> chunksToSave = new Dictionary<Vector3i, Queue<Chunk>>();
+    // these ones are used internally while thread works
+    static Dictionary<Vector3i, Queue<Chunk>> _chunksToLoad = new Dictionary<Vector3i, Queue<Chunk>>();
+    static Dictionary<Vector3i, Queue<Chunk>> _chunksToSave = new Dictionary<Vector3i, Queue<Chunk>>();
+
+    static Queue<Chunk> chunksLoaded = new Queue<Chunk>();
+    static Queue<Chunk> chunksFailed = new Queue<Chunk>();
 
     public static void LoadChunk(Chunk chunk) {
+        Vector3i rc = GetRegionCoord(chunk.cp);
         lock (chunksToLoad) {
-            chunksToLoad.Add(chunk);
+            if (chunksToLoad.TryGetValue(rc, out Queue<Chunk> q)) {
+                q.Enqueue(chunk);
+            } else {
+                q = new Queue<Chunk>();
+                q.Enqueue(chunk);
+                chunksToLoad[rc] = q;
+            }
         }
         newData.Set();
     }
@@ -27,20 +42,38 @@ public static class Serialization {
         if (!chunk.needToUpdateSave) {
             return;
         }
+        Vector3i rc = GetRegionCoord(chunk.cp);
         lock (chunksToSave) {
-            chunksToSave.Add(chunk);
+            if (chunksToSave.TryGetValue(rc, out Queue<Chunk> q)) {
+                q.Enqueue(chunk);
+            } else {
+                q = new Queue<Chunk>();
+                q.Enqueue(chunk);
+                chunksToSave[rc] = q;
+            }
         }
         newData.Set();
     }
 
-    public static void CheckNewLoaded() {
+    // sets new chunk variables and collects load failed chunks to be generated
+    public static int CheckNewLoaded(Queue<Chunk> failed) {
+        int loaded = 0;
         lock (chunksLoaded) {
-            for (int i = 0; i < chunksLoaded.Count; ++i) {
-                chunksLoaded[i].loaded = true;
-                chunksLoaded[i].update = true;
+            loaded = chunksLoaded.Count;
+            while (chunksLoaded.Count > 0) {
+                Chunk c = chunksLoaded.Dequeue();
+                c.loaded = true;
+                c.update = true;
             }
-            chunksLoaded.Clear();
         }
+
+        lock (chunksFailed) {
+            while (chunksFailed.Count > 0) {
+                failed.Enqueue(chunksFailed.Dequeue());
+            }
+        }
+
+        return loaded;
     }
 
     static readonly object killLock = new object();
@@ -48,8 +81,10 @@ public static class Serialization {
     public static void KillThread() {
         lock (killLock) {
             kill = true;
+            killWatch.Start();
         }
         newData.Set();
+        Debug.Log("IO thread shutting down...");
     }
 
     public static void StartThread() {
@@ -62,13 +97,11 @@ public static class Serialization {
     static GafferNet.WriteStream writer = new GafferNet.WriteStream();
     static GafferNet.ReadStream reader = new GafferNet.ReadStream();
     static uint[] writeBuffer = new uint[32768];
+    static System.Diagnostics.Stopwatch killWatch = new System.Diagnostics.Stopwatch();
 
     static void SerializationThread() {
 
         var watch = new System.Diagnostics.Stopwatch();
-
-        List<Chunk> newLoads = new List<Chunk>();
-        List<Chunk> newSaves = new List<Chunk>();
 
         while (true) {
 
@@ -80,72 +113,106 @@ public static class Serialization {
             }
 
             if (!lastRun) { // if last run just blast through to double check
+#if _DEBUG
                 Debug.Log("waiting for data");
+#endif
                 // wait for new data signal on main thread
                 newData.WaitOne();
+#if _DEBUG
                 Debug.Log("ok going");
+#endif
             } else {
+#if _DEBUG
                 Debug.Log("last check");
+#endif
+
             }
 
-            // copy over new lists
+            // swap references with internal lists
+            Dictionary<Vector3i, Queue<Chunk>> tmp;
             lock (chunksToLoad) {
-                for (int i = 0; i < chunksToLoad.Count; ++i) {
-                    newLoads.Add(chunksToLoad[i]);
-                }
-                chunksToLoad.Clear();
+                tmp = chunksToLoad;
+                chunksToLoad = _chunksToLoad;
+                _chunksToLoad = tmp;
             }
-
             lock (chunksToSave) {
-                for (int i = 0; i < chunksToSave.Count; ++i) {
-                    newSaves.Add(chunksToSave[i]);
-                }
-                chunksToSave.Clear();
+                tmp = chunksToSave;
+                chunksToSave = _chunksToSave;
+                _chunksToSave = tmp;
             }
 
-            if (newLoads.Count > 0) {
-                Debug.Log("loading " + newLoads.Count);
 
+            foreach (var entry in _chunksToLoad) {
+                var chunks = entry.Value;
+                if (chunks.Count <= 0) {
+                    continue;
+                }
+#if _DEBUG
+                Debug.Log("loading " + chunks.Count + " chunks from region " + entry.Key);
                 watch.Restart();
-                // load chunks
-                for (int i = 0; i < newLoads.Count; ++i) {
-                    _LoadChunk(newLoads[i]);
+#endif
 
-                    // tell main thread that this chunk was loaded
-                    lock (chunksLoaded) {
-                        chunksLoaded.Add(newLoads[i]);
+                // open region file then load each chunk from it
+
+
+                while (chunks.Count > 0) {
+                    Chunk c = chunks.Dequeue();
+
+                    string saveFile = SaveFileName(c);
+
+                    if (!File.Exists(saveFile)) {
+                        lock (chunksFailed) {
+                            chunksFailed.Enqueue(c);
+                        }
+                    } else {
+
+                        _LoadChunk(c);
+
+                        lock (chunksLoaded) {
+                            chunksLoaded.Enqueue(c);
+                        }
                     }
                 }
-                watch.Stop();
+
+#if _DEBUG
                 Debug.Log("loaded in " + watch.ElapsedMilliseconds + " ms");
+#endif
             }
 
-            if (newSaves.Count > 0) {
-                Debug.Log("saving " + newSaves.Count);
-
-                watch.Restart();
-
-                // save chunks (dont need to tell main thread anything really)
-                for (int i = 0; i < newSaves.Count; ++i) {
-                    _SaveChunk(newSaves[i]);
+            foreach (var entry in _chunksToSave) {
+                var chunks = entry.Value;
+                if (chunks.Count <= 0) {
+                    continue;
                 }
+#if _DEBUG
+                Debug.Log("saving " + chunks.Count + " chunks from region " + entry.Key);
+                watch.Restart();
+#endif
 
-                watch.Stop();
+                // open region file then save each chunk to it
+
+                while (chunks.Count > 0) {
+                    _SaveChunk(chunks.Dequeue());
+                }
+#if _DEBUG
                 Debug.Log("saved in " + watch.ElapsedMilliseconds + " ms");
+#endif
             }
-
-            newLoads.Clear();
-            newSaves.Clear();
 
             if (lastRun) {
+                // verify that lists are all empty before quiting
                 lock (chunksToSave) {
-                    Debug.Assert(chunksToSave.Count == 0);
+                    foreach (var entry in chunksToSave) {
+                        Debug.Assert(entry.Value.Count == 0);
+                    }
                 }
                 lock (chunksToLoad) {
-                    Debug.Assert(chunksToLoad.Count == 0);
+                    foreach (var entry in chunksToLoad) {
+                        Debug.Assert(entry.Value.Count == 0);
+                    }
                 }
 
-                Debug.Log("IO thread shutting down");
+                Debug.Log("IO thread shut down " + killWatch.ElapsedMilliseconds + " ms post kill");
                 return;
             }
 
@@ -172,7 +239,7 @@ public static class Serialization {
     }
 
     public static string SaveFileName(Chunk chunk) {
-        return SaveLocation(chunk.world.worldName) + FileName(chunk.pos);
+        return SaveLocation(chunk.world.worldName) + FileName(chunk.wp);
     }
 
     static void _SaveChunk(Chunk chunk) {
@@ -202,7 +269,7 @@ public static class Serialization {
         writer.Finish();
         byte[] bytes = writer.GetData();
 
-        string saveFile = SaveLocation(chunk.world.worldName) + FileName(chunk.pos);
+        string saveFile = SaveLocation(chunk.world.worldName) + FileName(chunk.wp);
         File.WriteAllBytes(saveFile, bytes);
 
     }
@@ -226,6 +293,16 @@ public static class Serialization {
 
         chunk.blocks = blocks;
     }
+
+    // regions are 16x16x16 chunks
+    // todo: add chunk and region border line rendering
+    public static Vector3i GetRegionCoord(Vector3i cp) {
+
+        //return chunkPos / 16; // doesnt deal with negatives as smoothly as bit shifting
+        return new Vector3i(cp.x >> 4, cp.y >> 4, cp.z >> 4);
+
+    }
+
 
     public static void SavePlayer() {
         string saveFile = saveFolderName + "/" + "player.bin";
