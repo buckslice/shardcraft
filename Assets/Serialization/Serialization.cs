@@ -9,6 +9,8 @@ using System.Threading;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Runtime.Serialization;
 using System.Collections.Concurrent;
+using Unity.Collections;
+using Unity.Collections.LowLevel.Unsafe;
 
 public static class Serialization {
 
@@ -21,6 +23,7 @@ public static class Serialization {
 
     static Queue<Chunk> chunksLoaded = new Queue<Chunk>();
     static Queue<Chunk> chunksFailed = new Queue<Chunk>();
+    static Queue<Chunk> chunksFreed = new Queue<Chunk>();
 
     public static void LoadChunk(Chunk chunk) {
         Vector3i rc = GetRegionCoord(chunk.cp);
@@ -33,11 +36,14 @@ public static class Serialization {
                 chunksToLoad[rc] = q;
             }
         }
-        newData.Set();
+        newWork.Set();
     }
 
-    public static void SaveChunk(Chunk chunk) {
+    public static void SaveChunk(Chunk chunk, bool manualSet = false) {
         if (!chunk.needToUpdateSave) {
+            lock (chunksFreed) {
+                chunksFreed.Enqueue(chunk);
+            }
             return;
         }
         Vector3i rc = GetRegionCoord(chunk.cp);
@@ -50,7 +56,13 @@ public static class Serialization {
                 chunksToSave[rc] = q;
             }
         }
-        newData.Set();
+        if (!manualSet) {
+            newWork.Set();
+        }
+    }
+
+    public static void SetNewWork() {
+        newWork.Set();
     }
 
     // sets new chunk variables and collects load failed chunks to be generated
@@ -74,6 +86,14 @@ public static class Serialization {
         return loaded;
     }
 
+    public static void CheckChunkFreed(ChunkPool pool) {
+        lock (chunksFreed) {
+            while (chunksFreed.Count > 0) {
+                pool.Return(chunksFreed.Dequeue());
+            }
+        }
+    }
+
     static readonly object killLock = new object();
     static bool kill = false;
     public static void KillThread() {
@@ -81,16 +101,17 @@ public static class Serialization {
             kill = true;
             killWatch.Start();
         }
-        newData.Set();
+        newWork.Set();
         Debug.Log("IO thread shutting down...");
     }
 
+    public static Thread thread;
     public static void StartThread() {
-        Thread serializationThread = new Thread(SerializationThread);
-        serializationThread.Start();
+        thread = new Thread(SerializationThread);
+        thread.Start();
     }
 
-    static EventWaitHandle newData = new EventWaitHandle(false, EventResetMode.AutoReset);
+    static EventWaitHandle newWork = new EventWaitHandle(false, EventResetMode.AutoReset);
 
     static GafferNet.WriteStream writer = new GafferNet.WriteStream();
     static GafferNet.ReadStream reader = new GafferNet.ReadStream();
@@ -114,8 +135,8 @@ public static class Serialization {
 #if _DEBUG
                 Debug.Log("waiting for data");
 #endif
-                // wait for new data signal on main thread
-                newData.WaitOne();
+                // wait for new work signal on main thread
+                newWork.WaitOne();
 #if _DEBUG
                 Debug.Log("ok going");
 #endif
@@ -152,7 +173,6 @@ public static class Serialization {
 
                 // open region file then load each chunk from it
 
-
                 while (chunks.Count > 0) {
                     Chunk c = chunks.Dequeue();
 
@@ -163,12 +183,7 @@ public static class Serialization {
                             chunksFailed.Enqueue(c);
                         }
                     } else {
-
                         _LoadChunk(c);
-
-                        lock (chunksLoaded) {
-                            chunksLoaded.Enqueue(c);
-                        }
                     }
                 }
 
@@ -253,13 +268,23 @@ public static class Serialization {
 
         writer.Start(writeBuffer);
 
-        var data = chunk.blocks;
+        var blocks = chunk.blocks;
+
+        // circumvent the safety check here because it gets mad for some reason when trying to save
+        // even though i am quite sure it is safe. Saving is only called when a chunk is being destroyed
+        // and only if it was either already generated new or loaded and then modified
+        // in both cases the generation job is finished editing the blocks
+        // i think it doesnt trust the fact that its in a separate thread
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+        var handle = AtomicSafetyHandle.Create();
+        NativeArrayUnsafeUtility.SetAtomicSafetyHandle(ref blocks, handle);
+#endif
 
         int i = 0;
-        while (i < data.Length) {
-            byte type = data[i].type;
+        while (i < blocks.Length) {
+            byte type = blocks[i].type;
             byte run = 1;
-            while (++i < data.Length && data[i].type == type && run < byte.MaxValue) { run++; }
+            while (++i < blocks.Length && blocks[i].type == type && run < byte.MaxValue) { run++; }
             writer.Write(type);
             writer.Write(run);
         }
@@ -270,6 +295,13 @@ public static class Serialization {
         string saveFile = SaveLocation(chunk.world.worldName) + FileName(chunk.wp);
         File.WriteAllBytes(saveFile, bytes);
 
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+        AtomicSafetyHandle.Release(handle);
+#endif
+
+        lock (chunksFreed) {
+            chunksFreed.Enqueue(chunk);
+        }
     }
 
     static void _LoadChunk(Chunk chunk) {
@@ -279,7 +311,12 @@ public static class Serialization {
         byte[] bytes = File.ReadAllBytes(saveFile);
         reader.Start(bytes);
 
-        Block[] blocks = new Block[Chunk.SIZE * Chunk.SIZE * Chunk.SIZE];
+        var blocks = chunk.blocks;
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+        var handle = AtomicSafetyHandle.Create();
+        NativeArrayUnsafeUtility.SetAtomicSafetyHandle(ref blocks, handle);
+#endif
+
         int i = 0;
         while (i < blocks.Length) {
             byte type = reader.ReadByte();
@@ -289,7 +326,13 @@ public static class Serialization {
             }
         }
 
-        chunk.blocks = blocks;
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+        AtomicSafetyHandle.Release(handle);
+#endif
+
+        lock (chunksLoaded) {
+            chunksLoaded.Enqueue(chunk);
+        }
     }
 
     // regions are 16x16x16 chunks

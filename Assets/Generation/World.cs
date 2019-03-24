@@ -14,6 +14,8 @@ public class World : MonoBehaviour {
 
     public Dictionary<Vector3i, Chunk> chunks = new Dictionary<Vector3i, Chunk>();
 
+    public ChunkPool chunkPool;
+
     public bool loadPlayerSave = false;
 
     public int seed; // todo: make world generator use seed with some offset or something
@@ -21,6 +23,8 @@ public class World : MonoBehaviour {
     // Use this for initialization
     void Start() {
         Debug.Assert(Chunk.CHUNK_HEIGHT >= Chunk.CHUNK_WIDTH);
+
+        chunkPool = new ChunkPool(InstantiateChunk);
 
         Serialization.StartThread();
 
@@ -34,22 +38,9 @@ public class World : MonoBehaviour {
         seed = 1000;
     }
 
-    public void OnApplicationQuit() {
-        // save all chunks
-        foreach (KeyValuePair<Vector3i, Chunk> entry in chunks) {
-            Serialization.SaveChunk(entry.Value);
-        }
-
-        //foreach (KeyValuePair<Vector3i, Chunk> entry in chunks) {
-        //    JobController.StartSaveJob(entry.Value);
-        //}
-
-        JobController.FinishJobs();
-
-        Serialization.SavePlayer();
-
-        Serialization.KillThread();
-
+    public Chunk InstantiateChunk() {
+        GameObject newChunkObject = Instantiate(chunkPrefab, Vector3.zero, Quaternion.identity, transform) as GameObject;
+        return new Chunk(newChunkObject);
     }
 
     public void CreateChunk(int x, int y, int z) {
@@ -58,26 +49,24 @@ public class World : MonoBehaviour {
         Vector3i chunkPos = new Vector3i(x, y, z);
         Vector3i worldPos = chunkPos * Chunk.SIZE;
 
-        //Instantiate the chunk at the coordinates using the chunk prefab
-        GameObject newChunkObject = Instantiate(chunkPrefab, worldPos.ToVector3(), Quaternion.Euler(Vector3.zero), transform) as GameObject;
-        newChunkObject.name = "Chunk " + chunkPos.ToString();
-        Chunk chunk = new Chunk(this, worldPos, chunkPos, newChunkObject);
+        Chunk chunk = chunkPool.Get();
+        chunk.Initialize(this, worldPos, chunkPos);
 
         Serialization.LoadChunk(chunk);
 
         //Add it to the chunks dictionary with the position as the key
         chunks.Add(chunkPos, chunk);
 
-        // setup chunk neighbors
-        SetNeighbor(chunk, GetChunk(x - 1, y, z), Dir.west);
-        SetNeighbor(chunk, GetChunk(x, y - 1, z), Dir.down);
-        SetNeighbor(chunk, GetChunk(x, y, z - 1), Dir.south);
-        SetNeighbor(chunk, GetChunk(x + 1, y, z), Dir.east);
-        SetNeighbor(chunk, GetChunk(x, y + 1, z), Dir.up);
-        SetNeighbor(chunk, GetChunk(x, y, z + 1), Dir.north);
+        // setup chunk neighbors (need to do after add it to dict)
+        ConnectNeighbors(chunk, GetChunk(x - 1, y, z), Dir.west);
+        ConnectNeighbors(chunk, GetChunk(x, y - 1, z), Dir.down);
+        ConnectNeighbors(chunk, GetChunk(x, y, z - 1), Dir.south);
+        ConnectNeighbors(chunk, GetChunk(x + 1, y, z), Dir.east);
+        ConnectNeighbors(chunk, GetChunk(x, y + 1, z), Dir.up);
+        ConnectNeighbors(chunk, GetChunk(x, y, z + 1), Dir.north);
     }
 
-    void SetNeighbor(Chunk c, Chunk n, Dir dir) {
+    void ConnectNeighbors(Chunk c, Chunk n, Dir dir) {
         if (n == null) {
             return;
         }
@@ -86,13 +75,9 @@ public class World : MonoBehaviour {
         n.neighbors[Dirs.Opp(d)] = c;
     }
 
-    public void DestroyChunk(int x, int y, int z) {
+    public bool DestroyChunk(int x, int y, int z) {
         Chunk chunk = GetChunk(x, y, z);
         if (chunk != null) {
-            Serialization.SaveChunk(chunk);
-
-            //JobController.StartSaveJob(chunk);
-
             // notify neighbors
             for (int i = 0; i < 6; ++i) {
                 Chunk n = chunk.neighbors[i];
@@ -101,12 +86,28 @@ public class World : MonoBehaviour {
                 }
             }
 
-            Destroy(chunk.gameObject);
+            chunk.gameObject.SetActive(false);
+            chunk.FreeMeshes();
             chunks.Remove(new Vector3i(x, y, z));
-        } else {
-            Debug.LogWarning("trying to destroy chunk that doesn't exist...");
+            Serialization.SaveChunk(chunk);
+            return true;
         }
+        return false;
+    }
 
+    public void SaveChunks() {
+        foreach (KeyValuePair<Vector3i, Chunk> entry in chunks) {
+            Serialization.SaveChunk(entry.Value, true);
+        }
+        Serialization.SetNewWork();
+    }
+
+    public void DisposeChunks() {
+        // first return all the chunks so the chunkPool contains one reference to every chunk it made
+        foreach (KeyValuePair<Vector3i, Chunk> entry in chunks) {
+            chunkPool.Return(entry.Value);
+        }
+        chunkPool.DisposeChunks();
     }
 
     // gets chunk using world coordinates

@@ -61,7 +61,7 @@ public class GenJobInfo {
 
     public GenJobInfo(Chunk chunk) {
         this.chunk = chunk;
-        blocks = new NativeArray<Block>(Chunk.SIZE * Chunk.SIZE * Chunk.SIZE, Allocator.TempJob);
+        blocks = chunk.blocks;
 
         GenerationJob job = new GenerationJob {
             blocks = blocks,
@@ -75,15 +75,10 @@ public class GenJobInfo {
 
     public void Finish() {
 
-        //blocks.CopyTo(chunk.blocks.data);
-
-        chunk.blocks = blocks.ToArray();
-
         chunk.loaded = true;
         chunk.update = true;
         chunk.needToUpdateSave = true; // save should be updated since this was newly generated
 
-        blocks.Dispose();
     }
 }
 

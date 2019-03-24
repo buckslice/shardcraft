@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Unity.Jobs;
 
 public class LoadChunks : MonoBehaviour {
 
@@ -59,12 +60,25 @@ public class LoadChunks : MonoBehaviour {
         //}
     }
 
-    Vector3i SumNeighborChunks() {
-        Vector3i val = new Vector3i();
-        for (int i = 0; i < neighborChunks.Length; ++i) {
-            val += neighborChunks[i];
-        }
-        return val;
+    public void OnApplicationQuit() {
+        JobController.FinishJobs();
+
+        // save all chunks
+        world.SaveChunks();
+
+        //foreach (KeyValuePair<Vector3i, Chunk> entry in chunks) {
+        //    JobController.StartSaveJob(entry.Value);
+        //}
+
+        Serialization.SavePlayer();
+
+        Serialization.KillThread();
+
+        Serialization.thread.Join();
+        Debug.Log("main thread joined!");
+
+        world.DisposeChunks();
+
     }
 
 
@@ -81,6 +95,8 @@ public class LoadChunks : MonoBehaviour {
         if (Input.GetKeyDown(KeyCode.F)) {
             TestFillChunk(new Vector3i(-2, 0, 2), Blocks.STONE);
         }
+
+        JobHandle.ScheduleBatchedJobs();
     }
 
     //static int needUpdates = 0;
@@ -92,6 +108,8 @@ public class LoadChunks : MonoBehaviour {
     void LateUpdate() {
 
         chunksLoaded += Serialization.CheckNewLoaded(chunkGenQueue);
+
+        Serialization.CheckChunkFreed(world.chunkPool);
 
         UnityEngine.Profiling.Profiler.BeginSample("Update Chunks");
         UpdateChunks();
@@ -108,14 +126,18 @@ public class LoadChunks : MonoBehaviour {
         //    }
         //}
 
+        JobHandle.ScheduleBatchedJobs();
+
         text.SetText(string.Format(
             "Generat: {0}/{1}\n" +
             "Meshing: {2}/{3}\n" +
-            "Chunks:  {4}\n" +
-            "Loaded:  {5}\n" +
-            "Greedy:  {6}\n",
+            "Free/C : {4}/{5}\n" +
+            "Chunks:  {6}\n" +
+            "Loaded:  {7}\n" +
+            "Greedy:  {8}\n",
             JobController.genJobFinished, JobController.genJobScheduled,
             JobController.meshJobFinished, JobController.meshJobScheduled,
+            world.chunkPool.CountFree(), world.chunkPool.Count(),
             world.chunks.Count, chunksLoaded, Chunk.beGreedy));
 
     }
@@ -187,16 +209,16 @@ public class LoadChunks : MonoBehaviour {
         }
 
         // cant delete in upper loop cuz iterating over dict
+        int destroyed = 0;
         foreach (var cp in chunksToDelete) {
-            world.DestroyChunk(cp.x, cp.y, cp.z);
+            destroyed += world.DestroyChunk(cp.x, cp.y, cp.z) ? 1 : 0;
         }
         if (chunksToDelete.Count > 0) {
-            Debug.Log("deleted: " + chunksToDelete.Count);
+            Debug.Log("destroyed: " + destroyed);
         }
     }
 
-
-
+    // nice do one in checkerboard pattern too for testing encoding and sector stuff
     void TestFillChunk(Vector3i chunkPos, Block toFill) {
         Chunk c = world.GetChunk(chunkPos);
         if (c == null) {
@@ -213,4 +235,12 @@ public class LoadChunks : MonoBehaviour {
         }
     }
 
+
+    Vector3i SumNeighborChunks() {
+        Vector3i val = new Vector3i();
+        for (int i = 0; i < neighborChunks.Length; ++i) {
+            val += neighborChunks[i];
+        }
+        return val;
+    }
 }

@@ -40,4 +40,11 @@ public static class ListExtensions {
         list.RemoveAt(list.Count - 1);
     }
 
+    // remove item from back of list and return it
+    public static T Pop<T>(this IList<T> list) {
+        T ret = list[list.Count - 1];
+        list.RemoveAt(list.Count - 1);
+        return ret;
+    }
+
 }

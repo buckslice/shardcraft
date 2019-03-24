@@ -11,21 +11,23 @@ public class Chunk {
     public const int CHUNK_WIDTH = SIZE;
     public const int CHUNK_HEIGHT = SIZE;
 
-    public Block[] blocks;
+    //public Block[] blocks;
+
+    public NativeArray<Block> blocks;
 
     //public HashSet<ushort> modifiedBlockIndices = new HashSet<ushort>(); // hashset to avoid duplicates
 
     public World world;
     public GameObject gameObject;
-    public readonly Vector3i wp; // world space position
-    public readonly Vector3i cp;
+    public Vector3i wp { get; private set; } // world space position
+    public Vector3i cp { get; private set; } // chunk space
 
     public bool loaded { get; set; }    // means ur blocks are loaded
     public bool update { get; set; }    // means need to update mesh
     public bool rendered { get; set; }  // has a mesh
     public bool waitingForMesh { get; set; }
     public bool builtStructures { get; set; }
-    public bool needToUpdateSave { get; set; }
+    public bool needToUpdateSave { get; set; } // only gets set when generated or modified a block
 
     public MeshRenderer mr { get; set; }
     MeshFilter filter;
@@ -38,11 +40,21 @@ public class Chunk {
 
     public static bool generateColliders = true;
 
-    public Chunk(World world, Vector3i wp, Vector3i cp, GameObject gameObject) {
-        this.world = world;
+    public Chunk(GameObject gameObject) {
+        this.gameObject = gameObject;
+
+        blocks = new NativeArray<Block>(Chunk.SIZE * Chunk.SIZE * Chunk.SIZE, Allocator.Persistent);
+
+        mr = gameObject.GetComponent<MeshRenderer>();
+        filter = gameObject.GetComponent<MeshFilter>();
+        coll = gameObject.GetComponent<MeshCollider>();
+
+    }
+
+    public void Initialize(World world, Vector3i wp, Vector3i cp) {
+        this.world = world; // maybe world can change? i dunno would prob have its own pool
         this.wp = wp;
         this.cp = cp;
-        this.gameObject = gameObject;
 
         loaded = false;
         update = false;
@@ -51,11 +63,20 @@ public class Chunk {
         builtStructures = false;
         needToUpdateSave = false;
 
-        mr = gameObject.GetComponent<MeshRenderer>();
-        filter = gameObject.GetComponent<MeshFilter>();
-        coll = gameObject.GetComponent<MeshCollider>();
+        gameObject.transform.position = wp.ToVector3();
+        gameObject.name = "Chunk " + cp;
+        gameObject.SetActive(true);
+
+        for (int i = 0; i < 6; ++i) {
+            neighbors[i] = null;
+        }
 
         mr.material = Chunk.beGreedy ? world.TileMatGreedy : world.TileMat;
+    }
+
+    public void FreeMeshes() {
+        filter.mesh.Clear();
+        coll.sharedMesh = null;
     }
 
     // Updates the chunk based on its contents
@@ -328,7 +349,7 @@ public class Chunk {
 
     public void UpdateColliderNative(NativeList<Vector3> vertices, NativeList<int> triangles) {
         coll.sharedMesh = null;
-        Mesh mesh = new Mesh();
+        Mesh mesh = new Mesh(); // maybe reuse this?
         mesh.vertices = vertices.ToArray();
         mesh.triangles = triangles.ToArray();
         mesh.RecalculateNormals();
