@@ -57,7 +57,14 @@ public class MeshData {
 }
 
 public class NativeMeshData {
-    NativeArray<Block> blocks;
+    public NativeArray<Block> blocks;
+    public NativeArray<Block> west;
+    public NativeArray<Block> down;
+    public NativeArray<Block> south;
+    public NativeArray<Block> east;
+    public NativeArray<Block> up;
+    public NativeArray<Block> north;
+
     public NativeList<Vector3> vertices;
     public NativeList<int> triangles;
     public NativeList<Vector2> uvs;
@@ -72,7 +79,23 @@ public class NativeMeshData {
     }
 
     public Block GetBlock(int x, int y, int z) {
-        return blocks[(x+1) + (z+1) * size + (y+1) * size * size];
+        // only one of these will ever be true at once
+        if (x < 0) {
+            return west[(size - 1) + z * size + y * size * size];
+        } else if (y < 0) {
+            return down[x + z * size + (size - 1) * size * size];
+        } else if (z < 0) {
+            return south[x + (size - 1) * size + y * size * size];
+        } else if (x >= size) {
+            return east[0 + z * size + y * size * size];
+        } else if (y >= size) {
+            return up[x + z * size + 0];
+        } else if (z >= size) {
+            return north[x + 0 + y * size * size];
+        } else {
+            return blocks[x + z * size + y * size * size];
+        }
+
     }
 
     public void AddVertex(Vector3 vertex) {

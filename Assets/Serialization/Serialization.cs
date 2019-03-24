@@ -86,7 +86,7 @@ public static class Serialization {
         return loaded;
     }
 
-    public static void CheckChunkFreed(ChunkPool pool) {
+    public static void CheckChunkFreed(Pool<Chunk> pool) {
         lock (chunksFreed) {
             while (chunksFreed.Count > 0) {
                 pool.Return(chunksFreed.Dequeue());

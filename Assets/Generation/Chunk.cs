@@ -16,6 +16,7 @@ public class Chunk {
     public NativeArray<Block> blocks;
 
     //public HashSet<ushort> modifiedBlockIndices = new HashSet<ushort>(); // hashset to avoid duplicates
+    public Queue<BlockEdit> pendingEdits = new Queue<BlockEdit>();
 
     public World world;
     public GameObject gameObject;
@@ -24,9 +25,9 @@ public class Chunk {
 
     public bool loaded { get; set; }    // means ur blocks are loaded
     public bool update { get; set; }    // means need to update mesh
-    public bool rendered { get; set; }  // has a mesh
-    public bool waitingForMesh { get; set; }
-    public bool builtStructures { get; set; }
+    public bool rendered { get; private set; }  // has a mesh
+    bool waitingForMesh; // waiting for new mesh (cant write to blocks during this time)
+    bool builtStructures;
     public bool needToUpdateSave { get; set; } // only gets set when generated or modified a block
 
     public MeshRenderer mr { get; set; }
@@ -39,6 +40,7 @@ public class Chunk {
     public static bool beGreedy = false;
 
     public static bool generateColliders = true;
+
 
     public Chunk(GameObject gameObject) {
         this.gameObject = gameObject;
@@ -74,18 +76,23 @@ public class Chunk {
         mr.material = Chunk.beGreedy ? world.TileMatGreedy : world.TileMat;
     }
 
-    public void FreeMeshes() {
+    public void ClearMeshes() {
         filter.mesh.Clear();
         coll.sharedMesh = null;
     }
 
     // Updates the chunk based on its contents
     public bool UpdateChunk() {
+        if (!loaded) {
+            return false;
+        }
+
         for (int i = 0; i < 6; ++i) {
             if (neighbors[i] == null || !neighbors[i].loaded) {
                 return false;
             }
         }
+
 
         //if (!builtStructures) {
         //    BuildStructures();
@@ -337,14 +344,19 @@ public class Chunk {
         filter.mesh.triangles = triangles.ToArray();
         filter.mesh.RecalculateNormals();
 
-        //// generate collider
-        //MeshData colData = GreedyMesh(true);
-        //coll.sharedMesh = null;
-        //Mesh mesh = new Mesh();
-        //mesh.vertices = colData.vertices.ToArray();
-        //mesh.triangles = colData.triangles.ToArray();
-        //mesh.RecalculateNormals();
-        //coll.sharedMesh = mesh;
+        rendered = true;
+        waitingForMesh = false;
+
+        // if waiting on pending edits then apply them now
+        if (pendingEdits.Count > 0) {
+            while (pendingEdits.Count > 0) {
+                BlockEdit e = pendingEdits.Dequeue();
+                blocks[e.x + e.z * SIZE + e.y * SIZE * SIZE] = e.block;
+            }
+            // just slam out another job asap (could try manually completing too? or give highest prio to chunks near player somehow)
+            JobController.StartMeshJob(this);
+            waitingForMesh = true;
+        }
     }
 
     public void UpdateColliderNative(NativeList<Vector3> vertices, NativeList<int> triangles) {
@@ -362,22 +374,24 @@ public class Chunk {
             if (!loaded) {
                 return Blocks.AIR;
             }
-
             return blocks[x + z * SIZE + y * SIZE * SIZE];
         }
         return world.GetBlock(wp.x + x, wp.y + y, wp.z + z);
     }
 
-    // sets block modified this way
+    // standard way to safely set the block in this chunk
     public void SetBlock(int x, int y, int z, Block block) {
         if (InRange(x, y, z)) {
             if (!loaded) {
                 return;
             }
-            blocks[x + z * SIZE + y * SIZE * SIZE] = block;
-            //modifiedBlockIndices.Add(CoordToUint(x, y, z));
-            needToUpdateSave = true; // block was modified so need to update save
-            update = true;
+            if (waitingForMesh) {
+                pendingEdits.Enqueue(new BlockEdit { x = x, y = y, z = z, block = block });
+            } else {
+                blocks[x + z * SIZE + y * SIZE * SIZE] = block;
+                needToUpdateSave = true; // block was modified so need to update save
+                update = true;
+            }
         } else {
             world.SetBlock(wp.x + x, wp.y + y, wp.z + z, block);
         }

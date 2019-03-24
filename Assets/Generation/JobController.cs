@@ -29,6 +29,18 @@ public struct MeshJob : IJob {
 
     [ReadOnly]
     public NativeArray<Block> blocks;
+    [ReadOnly]
+    public NativeArray<Block> west;
+    [ReadOnly]
+    public NativeArray<Block> down;
+    [ReadOnly]
+    public NativeArray<Block> south;
+    [ReadOnly]
+    public NativeArray<Block> east;
+    [ReadOnly]
+    public NativeArray<Block> up;
+    [ReadOnly]
+    public NativeArray<Block> north;
 
     public NativeList<Vector3> vertices;
     public NativeList<int> triangles;
@@ -40,9 +52,17 @@ public struct MeshJob : IJob {
 
     public void Execute() {
 
-        MeshBuilder.BuildNaive(blocks, vertices, triangles, uvs);
+        NativeMeshData data = new NativeMeshData(Chunk.SIZE, blocks, vertices, triangles, uvs);
+        data.west = west;
+        data.down = down;
+        data.south = south;
+        data.east = east;
+        data.up = up;
+        data.north = north;
 
-        MeshBuilder.BuildGreedyCollider(blocks, colliderVerts, colliderTris);
+        MeshBuilder.BuildNaive(data);
+
+        MeshBuilder.BuildGreedyCollider(data, colliderVerts, colliderTris);
     }
 
 }
@@ -87,8 +107,6 @@ public class MeshJobInfo {
 
     Chunk chunk;
 
-    NativeArray<Block> blocks; // has 1 block padding on edges
-
     NativeList<Vector3> vertices;
     NativeList<int> triangles;
     NativeList<Vector2> uvs;
@@ -97,21 +115,31 @@ public class MeshJobInfo {
     NativeList<int> colliderTris;
 
     public MeshJobInfo(Chunk chunk) {
-        UnityEngine.Profiling.Profiler.BeginSample("BuildPaddedBlockArray");
-        blocks = MeshBuilder.BuildPaddedBlockArray(chunk);
-        UnityEngine.Profiling.Profiler.EndSample();
 
-        vertices = new NativeList<Vector3>(Allocator.TempJob);
-        triangles = new NativeList<int>(Allocator.TempJob);
-        uvs = new NativeList<Vector2>(Allocator.TempJob);
+        vertices = Pools.v3Pool.Get();
+        triangles = Pools.intPool.Get();
+        uvs = Pools.v2Pool.Get();
 
-        colliderVerts = new NativeList<Vector3>(Allocator.TempJob);
-        colliderTris = new NativeList<int>(Allocator.TempJob);
+        colliderVerts = Pools.v3Pool.Get();
+        colliderTris = Pools.intPool.Get();
+
+        vertices.Clear();
+        triangles.Clear();
+        uvs.Clear();
+        colliderVerts.Clear();
+        colliderTris.Clear();
 
         this.chunk = chunk;
 
         MeshJob job = new MeshJob();
-        job.blocks = blocks;
+        job.blocks = chunk.blocks;
+        job.west = chunk.neighbors[0].blocks;
+        job.down = chunk.neighbors[1].blocks;
+        job.south = chunk.neighbors[2].blocks;
+        job.east = chunk.neighbors[3].blocks;
+        job.up = chunk.neighbors[4].blocks;
+        job.north = chunk.neighbors[5].blocks;
+
         job.vertices = vertices;
         job.triangles = triangles;
         job.uvs = uvs;
@@ -128,16 +156,13 @@ public class MeshJobInfo {
 
         chunk.UpdateColliderNative(colliderVerts, colliderTris);
 
-        chunk.waitingForMesh = false;
-        chunk.rendered = true;
+        Pools.v3Pool.Return(vertices);
+        Pools.intPool.Return(triangles);
+        Pools.v2Pool.Return(uvs);
 
-        blocks.Dispose();
-        vertices.Dispose();
-        triangles.Dispose();
-        uvs.Dispose();
+        Pools.v3Pool.Return(colliderVerts);
+        Pools.intPool.Return(colliderTris);
 
-        colliderVerts.Dispose();
-        colliderTris.Dispose();
     }
 }
 

@@ -6,17 +6,17 @@ using Unity.Collections;
 public static class MeshBuilder {
 
 
-    public static void BuildNaive(NativeArray<Block> blocks, NativeList<Vector3> vertices, NativeList<int> triangles, NativeList<Vector2> uvs) {
+    public static void BuildNaive(NativeMeshData data) {
 
         const int s = Chunk.SIZE;
-        const int s2 = s + 2;
-        NativeMeshData data = new NativeMeshData(s2, blocks, vertices, triangles, uvs);
+        //const int s2 = s + 2;
 
         for (int y = 0; y < s; y++) {
             for (int z = 0; z < s; z++) {
                 for (int x = 0; x < s; x++) {
 
-                    Block b = blocks[(x + 1) + (z + 1) * s2 + (y + 1) * s2 * s2];
+                    //Block b = blocks[(x + 1) + (z + 1) * s2 + (y + 1) * s2 * s2];
+                    Block b = data.blocks[x + z * s + y * s * s];
                     BlockType bt = b.GetBlockType();
                     bt.AddDataNative(x, y, z, data);
 
@@ -25,7 +25,7 @@ public static class MeshBuilder {
         }
     }
 
-    public static void BuildGreedyCollider(NativeArray<Block> blocks, NativeList<Vector3> vertices, NativeList<int> triangles) {
+    public static void BuildGreedyCollider(NativeMeshData data, NativeList<Vector3> vertices, NativeList<int> triangles) {
 
         void AddQuadTrianglesGreedy(bool clockwise) {
             if (!clockwise) {
@@ -48,10 +48,7 @@ public static class MeshBuilder {
 
             }
         }
-
-
-        int s2 = Chunk.SIZE + 2;
-
+        
         // setup variables for algo
         int i, j, k, l, w, h, d1, d2, n = 0;
         Dir side = Dir.south;
@@ -99,8 +96,11 @@ public static class MeshBuilder {
                 n = 0;
                 for (x[d2] = 0; x[d2] < maxDim[d2]; x[d2]++) {
                     for (x[d1] = 0; x[d1] < maxDim[d1]; x[d1]++) {
-                        Block block1 = blocks[(x[0] + 1) + (x[2] + 1) * s2 + (x[1] + 1) * s2 * s2]; // block were at
-                        Block block2 = blocks[(x[0] + 1 + q[0]) + (x[2] + 1 + q[2]) * s2 + (x[1] + 1 + q[1]) * s2 * s2]; // block were going to
+                        //Block block1 = blocks[(x[0] + 1) + (x[2] + 1) * s2 + (x[1] + 1) * s2 * s2]; // block were at
+                        //Block block2 = blocks[(x[0] + 1 + q[0]) + (x[2] + 1 + q[2]) * s2 + (x[1] + 1 + q[1]) * s2 * s2]; // block were going to
+
+                        Block block1 = data.GetBlock(x[0], x[1], x[2]);
+                        Block block2 = data.GetBlock(x[0] + q[0], x[1] + q[1], x[2] + q[2]);
 
                         // this isSolid is probably wrong in some cases but no blocks use yet cuz i dont rly get so figure out later lol
                         slice[n++] = block1.IsSolid(side) && block2.IsSolid(Dirs.Opp(side)) ?

@@ -14,7 +14,7 @@ public class World : MonoBehaviour {
 
     public Dictionary<Vector3i, Chunk> chunks = new Dictionary<Vector3i, Chunk>();
 
-    public ChunkPool chunkPool;
+    public Pool<Chunk> chunkPool;
 
     public bool loadPlayerSave = false;
 
@@ -24,7 +24,14 @@ public class World : MonoBehaviour {
     void Start() {
         Debug.Assert(Chunk.CHUNK_HEIGHT >= Chunk.CHUNK_WIDTH);
 
-        chunkPool = new ChunkPool(InstantiateChunk);
+        Chunk InstantiateChunk() {
+            GameObject newChunkObject = Instantiate(chunkPrefab, Vector3.zero, Quaternion.identity, transform) as GameObject;
+            return new Chunk(newChunkObject);
+        }
+        void ChunkDispose(Chunk chunk) {
+            chunk.blocks.Dispose();
+        }
+        chunkPool = new Pool<Chunk>(InstantiateChunk, ChunkDispose);
 
         Serialization.StartThread();
 
@@ -38,10 +45,7 @@ public class World : MonoBehaviour {
         seed = 1000;
     }
 
-    public Chunk InstantiateChunk() {
-        GameObject newChunkObject = Instantiate(chunkPrefab, Vector3.zero, Quaternion.identity, transform) as GameObject;
-        return new Chunk(newChunkObject);
-    }
+
 
     public void CreateChunk(int x, int y, int z) {
         Debug.Assert(GetChunk(x, y, z) == null);
@@ -87,7 +91,7 @@ public class World : MonoBehaviour {
             }
 
             chunk.gameObject.SetActive(false);
-            chunk.FreeMeshes();
+            chunk.ClearMeshes();
             chunks.Remove(new Vector3i(x, y, z));
             Serialization.SaveChunk(chunk);
             return true;
@@ -107,7 +111,7 @@ public class World : MonoBehaviour {
         foreach (KeyValuePair<Vector3i, Chunk> entry in chunks) {
             chunkPool.Return(entry.Value);
         }
-        chunkPool.DisposeChunks();
+        chunkPool.Dispose();
     }
 
     // gets chunk using world coordinates
@@ -145,25 +149,23 @@ public class World : MonoBehaviour {
             chunk.SetBlock(x - chunk.wp.x, y - chunk.wp.y, z - chunk.wp.z, block);
 
             // if block is on a chunk edge then update neighbor chunks
-            UpdateIfEqual(x - chunk.wp.x, 0, new Vector3i(x - 1, y, z));
-            UpdateIfEqual(x - chunk.wp.x, Chunk.SIZE - 1, new Vector3i(x + 1, y, z));
-            UpdateIfEqual(y - chunk.wp.y, 0, new Vector3i(x, y - 1, z));
-            UpdateIfEqual(y - chunk.wp.y, Chunk.SIZE - 1, new Vector3i(x, y + 1, z));
-            UpdateIfEqual(z - chunk.wp.z, 0, new Vector3i(x, y, z - 1));
-            UpdateIfEqual(z - chunk.wp.z, Chunk.SIZE - 1, new Vector3i(x, y, z + 1));
-        }
-    }
-
-
-    void UpdateIfEqual(int value1, int value2, Vector3i pos) {
-        if (value1 == value2) {
-            Chunk chunk = GetChunkByWorldPos(pos.x, pos.y, pos.z);
-            if (chunk != null) {
-                chunk.update = true;
+            if (x - chunk.wp.x == 0 && chunk.neighbors[0] != null) {
+                chunk.neighbors[0].update = true;
+            } else if (x - chunk.wp.x == Chunk.SIZE - 1 && chunk.neighbors[3] != null) {
+                chunk.neighbors[3].update = true;
+            }
+            if (y - chunk.wp.y == 0 && chunk.neighbors[1] != null) {
+                chunk.neighbors[1].update = true;
+            } else if (y - chunk.wp.y == Chunk.SIZE - 1 && chunk.neighbors[4] != null) {
+                chunk.neighbors[4].update = true;
+            }
+            if (z - chunk.wp.z == 0 && chunk.neighbors[2] != null) {
+                chunk.neighbors[2].update = true;
+            } else if (z - chunk.wp.z == Chunk.SIZE - 1 && chunk.neighbors[5] != null) {
+                chunk.neighbors[5].update = true;
             }
         }
     }
-
 
     public void SwapGreedy() {
         Chunk.beGreedy = !Chunk.beGreedy;

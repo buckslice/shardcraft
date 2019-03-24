@@ -2,44 +2,64 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using Unity.Collections;
 
-public class ChunkPool {
+public static class Pools {
 
-    List<Chunk> chunks = new List<Chunk>();
+    public static NativeList<T> NLBuilder<T>() where T : struct {
+        return new NativeList<T>(Allocator.Persistent);
+    }
+
+    public static void NLDisposer<T>(NativeList<T> list) where T : struct {
+        list.Dispose();
+    }
+
+    public static Pool<NativeList<Vector3>> v3Pool = new Pool<NativeList<Vector3>>(NLBuilder<Vector3>, NLDisposer);
+    public static Pool<NativeList<Vector2>> v2Pool = new Pool<NativeList<Vector2>>(NLBuilder<Vector2>, NLDisposer);
+    public static Pool<NativeList<int>> intPool = new Pool<NativeList<int>>(NLBuilder<int>, NLDisposer);
+
+}
+
+
+public class Pool<T> {
+
+    List<T> pool = new List<T>();
 
     int free = 0;
+    readonly Func<T> buildFunc;
+    readonly Action<T> disposeAction;
 
-    Func<Chunk> buildChunkFunction;
-
-    public ChunkPool(Func<Chunk> f) {
-        buildChunkFunction = f;
+    public Pool(Func<T> buildFunc, Action<T> disposeAction) {
+        this.buildFunc = buildFunc;
+        this.disposeAction = disposeAction;
     }
 
-    public void Return(Chunk chunk) {
+    public void Return(T t) {
         if (free <= 0) {
-            throw new InvalidOperationException();
+            throw new InvalidOperationException(); // returned more than you got
         }
-        chunks[--free] = chunk;
+        pool[--free] = t;
     }
 
-    public Chunk Get() {
-        if (free >= chunks.Count) {
-            chunks.Add(buildChunkFunction());
+    public T Get() {
+        if (free >= pool.Count) {
+            pool.Add(buildFunc());
         }
-        return chunks[free++];
+        return pool[free++];
     }
 
-    public void DisposeChunks() {
-        for (int i = 0; i < chunks.Count; ++i) {
-            chunks[i].blocks.Dispose();
+    public void Dispose() {
+        Debug.Assert(free == 0); // make sure everything is returned before calling this
+        for (int i = 0; i < pool.Count; ++i) {
+            disposeAction(pool[i]);
         }
     }
 
     public int Count() {
-        return chunks.Count;
+        return pool.Count;
     }
     public int CountFree() {
-        return chunks.Count - free;
+        return pool.Count - free;
     }
 
 }

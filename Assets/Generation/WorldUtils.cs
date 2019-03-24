@@ -56,3 +56,10 @@ public static class WorldUtils {
         return block;
     }
 }
+
+public struct BlockEdit {
+    public int x; // local coordinates of block in chunk
+    public int y;
+    public int z;
+    public Block block; // block to set there
+}
