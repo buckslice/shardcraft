@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using Unity.Jobs;
+using UnityEngine.UI;
 
 public class LoadChunks : MonoBehaviour {
 
@@ -13,7 +14,7 @@ public class LoadChunks : MonoBehaviour {
     public const int maxUpdatesPerFrame = 4; // how many mesh jobs are sent among other things
     public const int genJobLimit = 16; // limit on number of active generation jobs
 
-    public ShadowText text;
+    public Text text;
 
     // Start is called before the first frame update
     void Start() {
@@ -128,7 +129,7 @@ public class LoadChunks : MonoBehaviour {
 
         JobHandle.ScheduleBatchedJobs();
 
-        text.SetText(string.Format(
+        text.text = string.Format(
             "Generat: {0}/{1}\n" +
             "Meshing: {2}/{3}\n" +
             "Free/C : {4}/{5}\n" +
@@ -138,7 +139,7 @@ public class LoadChunks : MonoBehaviour {
             JobController.genJobFinished, JobController.genJobScheduled,
             JobController.meshJobFinished, JobController.meshJobScheduled,
             world.chunkPool.CountFree(), world.chunkPool.Count(),
-            world.chunks.Count, chunksLoaded, Chunk.beGreedy));
+            world.chunks.Count, chunksLoaded, Chunk.beGreedy);
 
     }
 
