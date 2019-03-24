@@ -97,7 +97,9 @@ public class MeshJobInfo {
     NativeList<int> colliderTris;
 
     public MeshJobInfo(Chunk chunk) {
+        UnityEngine.Profiling.Profiler.BeginSample("BuildPaddedBlockArray");
         blocks = MeshBuilder.BuildPaddedBlockArray(chunk);
+        UnityEngine.Profiling.Profiler.EndSample();
 
         vertices = new NativeList<Vector3>(Allocator.TempJob);
         triangles = new NativeList<int>(Allocator.TempJob);
