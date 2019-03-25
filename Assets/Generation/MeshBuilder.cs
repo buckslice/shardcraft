@@ -9,13 +9,10 @@ public static class MeshBuilder {
     public static void BuildNaive(NativeMeshData data) {
 
         const int s = Chunk.SIZE;
-        //const int s2 = s + 2;
 
         for (int y = 0; y < s; y++) {
             for (int z = 0; z < s; z++) {
                 for (int x = 0; x < s; x++) {
-
-                    //Block b = blocks[(x + 1) + (z + 1) * s2 + (y + 1) * s2 * s2];
                     Block b = data.blocks[x + z * s + y * s * s];
                     BlockType bt = b.GetBlockType();
                     bt.AddDataNative(x, y, z, data);
@@ -24,6 +21,10 @@ public static class MeshBuilder {
             }
         }
     }
+
+    //public const int VOXEL_SIZE = 1;
+    //https://github.com/roboleary/GreedyMesh/blob/master/src/mygame/Main.java
+    //https://github.com/darkedge/starlight/blob/master/starlight/starlight_game.cpp
 
     public static void BuildGreedyCollider(NativeMeshData data, NativeList<Vector3> vertices, NativeList<int> triangles) {
 
@@ -96,11 +97,8 @@ public static class MeshBuilder {
                 n = 0;
                 for (x[d2] = 0; x[d2] < maxDim[d2]; x[d2]++) {
                     for (x[d1] = 0; x[d1] < maxDim[d1]; x[d1]++) {
-                        //Block block1 = blocks[(x[0] + 1) + (x[2] + 1) * s2 + (x[1] + 1) * s2 * s2]; // block were at
-                        //Block block2 = blocks[(x[0] + 1 + q[0]) + (x[2] + 1 + q[2]) * s2 + (x[1] + 1 + q[1]) * s2 * s2]; // block were going to
-
-                        Block block1 = data.GetBlock(x[0], x[1], x[2]);
-                        Block block2 = data.GetBlock(x[0] + q[0], x[1] + q[1], x[2] + q[2]);
+                        Block block1 = data.GetBlock(x[0], x[1], x[2]); // block were at
+                        Block block2 = data.GetBlock(x[0] + q[0], x[1] + q[1], x[2] + q[2]); // block were going to
 
                         // this isSolid is probably wrong in some cases but no blocks use yet cuz i dont rly get so figure out later lol
                         slice[n++] = block1.IsSolid(side) && block2.IsSolid(Dirs.Opp(side)) ?
@@ -121,6 +119,9 @@ public static class MeshBuilder {
                             ++n;
                             continue;
                         }
+
+                        // normal equality check can split on type and more like AO and stuff later if want to change this back
+                        // just need to change this below line and the line like 8 lines down
 
                         // compute width
                         for (w = 1; i + w < maxDim[d1] && slice[n + w].ColliderSolid() == slice[n].ColliderSolid(); ++w) { }
@@ -170,10 +171,6 @@ public static class MeshBuilder {
                         vertices.Add(topRight);
 
                         AddQuadTrianglesGreedy(d0 == 2 ? backFace : !backFace);
-
-                        //if (!forCollision) {
-                        //    slice[n].GetBlockType().FaceUVsGreedy(side, data, w, h);
-                        //}
 
                         // zero out the quad in the mask
                         for (l = 0; l < h; ++l) {

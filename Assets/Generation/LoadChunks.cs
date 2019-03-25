@@ -11,7 +11,7 @@ public class LoadChunks : MonoBehaviour {
 
     Vector3i[] neighborChunks; // list of chunk offsets to generate in order of closeness
 
-    public const int maxUpdatesPerFrame = 4; // how many mesh jobs are sent among other things
+    public const int maxUpdatesPerFrame = 2; // how many mesh jobs are sent among other things
     public const int genJobLimit = 16; // limit on number of active generation jobs
 
     public Text text;
@@ -67,10 +67,6 @@ public class LoadChunks : MonoBehaviour {
         // save all chunks
         world.SaveChunks();
 
-        //foreach (KeyValuePair<Vector3i, Chunk> entry in chunks) {
-        //    JobController.StartSaveJob(entry.Value);
-        //}
-
         Serialization.SavePlayer();
 
         Serialization.KillThread();
@@ -104,8 +100,6 @@ public class LoadChunks : MonoBehaviour {
         JobHandle.ScheduleBatchedJobs();
     }
 
-    //static int needUpdates = 0;
-    //static int needGeneration = 0;
     static int chunksLoaded = 0;
 
     Queue<Chunk> chunkGenQueue = new Queue<Chunk>();
@@ -119,17 +113,6 @@ public class LoadChunks : MonoBehaviour {
         UnityEngine.Profiling.Profiler.BeginSample("Update Chunks");
         UpdateChunks();
         UnityEngine.Profiling.Profiler.EndSample();
-
-        //needUpdates = 0;
-        //needGeneration = 0;
-        //foreach (var chunk in world.chunks.Values) {
-        //    if (chunk.update && chunk.generated) {
-        //        needUpdates++;
-        //    }
-        //    if (!chunk.generated) {
-        //        needGeneration++;
-        //    }
-        //}
 
         JobHandle.ScheduleBatchedJobs();
 

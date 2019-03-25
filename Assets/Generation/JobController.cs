@@ -67,11 +67,11 @@ public struct MeshJob : IJob {
 
 }
 
-public struct LightingJob : IJob { // might need to be apart of mesh job tho because its using vertex colors...
-    public void Execute() {
-        throw new System.NotImplementedException();
-    }
-}
+//public struct LightingJob : IJob { // might need to be apart of mesh job tho because its using vertex colors...
+//    public void Execute() {
+//        throw new System.NotImplementedException();
+//    }
+//}
 
 public class GenJobInfo {
     public JobHandle handle;
@@ -140,6 +140,11 @@ public class MeshJobInfo {
         job.up = chunk.neighbors[4].blocks;
         job.north = chunk.neighbors[5].blocks;
 
+        chunk.LockData();
+        for (int i = 0; i < 6; ++i) {
+            chunk.neighbors[i].LockData();
+        }
+
         job.vertices = vertices;
         job.triangles = triangles;
         job.uvs = uvs;
@@ -152,6 +157,11 @@ public class MeshJobInfo {
     }
 
     public void Finish() {
+        chunk.UnlockData();
+        for (int i = 0; i < 6; ++i) {
+            chunk.neighbors[i].UnlockData();
+        }
+
         chunk.UpdateMeshNative(vertices, triangles, uvs);
 
         chunk.UpdateColliderNative(colliderVerts, colliderTris);
@@ -229,25 +239,6 @@ public class JobController : MonoBehaviour {
             }
         }
 
-        //for (int i = 0; i < genTasks.Count; ++i) {
-        //    if (genTasks[i].IsCompleted) {
-        //        Chunk chunk = genTasks[i].Result;
-        //        chunk.generated = true;
-        //        // could also set unmodified after loading and then if theres no new modified blocks leave save file alone
-        //        chunk.SetBlocksUnmodified();
-        //        Serialization.LoadChunk(chunk);
-
-        //        chunk.update = true;
-
-        //        totalGen++;
-
-        //        //genTasks[i].Dispose();
-        //        genTasks[i] = genTasks[genTasks.Count - 1];
-        //        genTasks.RemoveAt(genTasks.Count - 1);
-        //        --i;
-        //    }
-
-        //}
     }
 
     public static int meshJobScheduled = 0;
@@ -281,16 +272,5 @@ public class JobController : MonoBehaviour {
 
     }
 
-    //public static void StartGenerationTask(Chunk chunk) {
-
-    //    Task<Chunk> t = Task<Chunk>.Factory.StartNew(() => {
-
-    //        WorldGenerator.Generate(chunk);
-
-    //        return chunk;
-    //    }, TaskCreationOptions.PreferFairness);
-
-    //    genTasks.Add(t);
-    //}
 
 }
