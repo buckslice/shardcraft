@@ -5,10 +5,7 @@ using Unity.Collections;
 using Unity.Jobs;
 using UnityEngine;
 using System.Threading.Tasks;
-using UnityEngine.UI;
-using System.Runtime.Serialization.Formatters.Binary;
-using System.Runtime.Serialization;
-using System.IO;
+
 
 [BurstCompile]
 public struct GenerationJob : IJob {
@@ -232,7 +229,7 @@ public class JobController : MonoBehaviour {
                 meshJobInfos.SwapAndPop(i);
                 --i;
 
-                if (meshFinishedPer >= 20) {
+                if (meshFinishedPer >= LoadChunks.meshLoadsPerFrame) {
                     return;
                 }
 

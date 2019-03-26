@@ -129,14 +129,6 @@ public class Chunk {
             return false;
         }
 
-        //if (beGreedy) {
-        //    UpdateMesh(GreedyMesh(), true);
-        //} else {
-        //    UpdateMesh(NaiveMesh(), false);
-        //}
-        //rendered = true;
-        //update = false;
-
         return true;
     }
 

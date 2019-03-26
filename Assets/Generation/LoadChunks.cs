@@ -11,8 +11,9 @@ public class LoadChunks : MonoBehaviour {
 
     Vector3i[] neighborChunks; // list of chunk offsets to generate in order of closeness
 
-    public const int maxUpdatesPerFrame = 2; // how many mesh jobs are sent among other things
+    public const int maxUpdatesPerFrame = 8; // how many mesh jobs are sent among other things
     public const int genJobLimit = 16; // limit on number of active generation jobs
+    public const int meshLoadsPerFrame = 8; // number of mesh datas and colliders uploaded
 
     public Text text;
 
@@ -105,10 +106,10 @@ public class LoadChunks : MonoBehaviour {
     Queue<Chunk> chunkGenQueue = new Queue<Chunk>();
 
     void LateUpdate() {
-
+        // check how many chunks loaded and queue the ones that couldnt up for generation
         chunksLoaded += Serialization.CheckNewLoaded(chunkGenQueue);
 
-        Serialization.CheckChunkFreed(world.chunkPool);
+        Serialization.FreeSavedChunks(world.chunkPool);
 
         UnityEngine.Profiling.Profiler.BeginSample("Update Chunks");
         UpdateChunks();
@@ -225,7 +226,14 @@ public class LoadChunks : MonoBehaviour {
         for (int x = 0; x < Chunk.SIZE; ++x) {
             for (int y = 0; y < Chunk.SIZE; ++y) {
                 for (int z = 0; z < Chunk.SIZE; ++z) {
-                    c.SetBlock(x, y, z, Blocks.STONE);
+                    //c.SetBlock(x, y, z, Blocks.STONE);
+
+                    // checkerboard
+                    if ((x + y + z) % 2 == 0) {
+                        c.SetBlock(x, y, z, Blocks.STONE);
+                    } else {
+                        c.SetBlock(x, y, z, Blocks.AIR);
+                    }
                 }
             }
         }

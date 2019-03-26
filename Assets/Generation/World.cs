@@ -5,7 +5,8 @@ using System.IO;
 
 public class World : MonoBehaviour {
 
-    public string worldName = "world";
+    // can add support for multiple worlds down the line. will need to change saving and loading a bit
+    public const string worldName = "world";
 
     public GameObject chunkPrefab;
 

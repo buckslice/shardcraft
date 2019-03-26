@@ -53,14 +53,8 @@ namespace GafferNet {
                    ((value & 0xFF000000) >> 24);
         }
 
-        public static uint HostToNetwork(uint value) {
-            if (BitConverter.IsLittleEndian)
-                return value;
-            else
-                return SwapBytes(value);
-        }
-
-        public static uint NetworkToHost(uint value) {
+        // little endian is most common these days so lets work in that
+        public static uint EnsureLittleEndian(uint value) {
             if (BitConverter.IsLittleEndian)
                 return value;
             else
@@ -126,7 +120,7 @@ namespace GafferNet {
 
             if (m_scratchBits >= 32) {
                 Assert.IsTrue(m_wordIndex < m_numWords);
-                m_data[m_wordIndex] = Util.HostToNetwork((uint)(m_scratch & 0xFFFFFFFF));
+                m_data[m_wordIndex] = Util.EnsureLittleEndian((uint)(m_scratch & 0xFFFFFFFF));
                 m_scratch >>= 32;
                 m_scratchBits -= 32;
                 m_wordIndex++;
@@ -153,7 +147,7 @@ namespace GafferNet {
         public void Finish() {
             if (m_scratchBits != 0) {
                 Assert.IsTrue(m_wordIndex < m_numWords);
-                m_data[m_wordIndex] = Util.HostToNetwork((uint)(m_scratch & 0xFFFFFFFF));
+                m_data[m_wordIndex] = Util.EnsureLittleEndian((uint)(m_scratch & 0xFFFFFFFF));
                 m_scratch >>= 32;
                 m_scratchBits -= 32;
                 m_wordIndex++;
@@ -179,6 +173,13 @@ namespace GafferNet {
             return output;
         }
 
+        public int GetData(byte[] buffer) {
+            int bytesWritten = GetBytesWritten();
+            Assert.IsTrue(buffer.Length >= bytesWritten);
+            Buffer.BlockCopy(m_data, 0, buffer, 0, bytesWritten);
+            return bytesWritten;
+        }
+
         public int GetBytesWritten() {
             return (m_bitsWritten + 7) / 8;
         }
@@ -199,7 +200,7 @@ namespace GafferNet {
 
         public void Start(byte[] data) {
             int bytes = data.Length;
-            m_numWords = (bytes + 3) / 4;
+            m_numWords = (bytes + 3) / 4; // so if just 1 extra byte it will become whole word
             m_numBits = bytes * 8;
             m_bitsRead = 0;
             m_scratch = 0;
@@ -207,6 +208,17 @@ namespace GafferNet {
             m_wordIndex = 0;
             m_data = new uint[m_numWords];
             Buffer.BlockCopy(data, 0, m_data, 0, bytes);
+        }
+
+        public void Start(byte[] data, int srcPos, int bytes) {
+            m_numWords = (bytes + 3) / 4; // so if just 1 extra byte it will become whole word
+            m_numBits = bytes * 8;
+            m_bitsRead = 0;
+            m_scratch = 0;
+            m_scratchBits = 0;
+            m_wordIndex = 0;
+            m_data = new uint[m_numWords];
+            Buffer.BlockCopy(data, srcPos, m_data, 0, bytes);
         }
 
         public bool WouldOverflow(int bits) {
@@ -224,7 +236,7 @@ namespace GafferNet {
 
             if (m_scratchBits < bits) {
                 Assert.IsTrue(m_wordIndex < m_numWords);
-                m_scratch |= ((ulong)(Util.NetworkToHost(m_data[m_wordIndex]))) << m_scratchBits;
+                m_scratch |= ((ulong)(Util.EnsureLittleEndian(m_data[m_wordIndex]))) << m_scratchBits;
                 m_scratchBits += 32;
                 m_wordIndex++;
             }
@@ -392,12 +404,15 @@ namespace GafferNet {
         public byte[] GetData() {
             return m_writer.GetData();
         }
+        public int GetData(byte[] buffer) {
+            return m_writer.GetData(buffer);
+        }
 
-        public int GetBytesProcessed() {
+        public int GetBytesWritten() {
             return m_writer.GetBytesWritten();
         }
 
-        public int GetBitsProcessed() {
+        public int GetBitsWritten() {
             return m_writer.GetBitsWritten();
         }
 
@@ -416,6 +431,10 @@ namespace GafferNet {
             m_reader.Start(data);
         }
 
+        public void Start(byte[] data, int srcPos, int bytes) {
+            m_reader.Start(data, srcPos, bytes);
+        }
+
         public int ReadInt(int min = int.MinValue, int max = int.MaxValue) {
             Assert.IsTrue(min < max);
             int bits = Util.BitsRequired(min, max);
@@ -428,17 +447,17 @@ namespace GafferNet {
             return (int)(unsigned_value + min);
         }
 
-        public uint ReadUInt(uint min = uint.MinValue, uint max = uint.MaxValue) {
-            Assert.IsTrue(min < max);
-            int bits = Util.BitsRequired(min, max);
-            if (m_reader.WouldOverflow(bits)) {
-                m_error = Constants.STREAM_ERROR_OVERFLOW;
-                throw new SerializeException();
-            }
-            uint unsigned_value = m_reader.ReadBits(bits);
-            m_bitsRead += bits;
-            return unsigned_value + min;
-        }
+        //public uint ReadUInt(uint min = uint.MinValue, uint max = uint.MaxValue) {
+        //    Assert.IsTrue(min < max);
+        //    int bits = Util.BitsRequired(min, max);
+        //    if (m_reader.WouldOverflow(bits)) {
+        //        m_error = Constants.STREAM_ERROR_OVERFLOW;
+        //        throw new SerializeException();
+        //    }
+        //    uint unsigned_value = m_reader.ReadBits(bits);
+        //    m_bitsRead += bits;
+        //    return unsigned_value + min;
+        //}
 
         public byte ReadByte(int bits = 8) {
             Assert.IsTrue(bits > 0);

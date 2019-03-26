@@ -14,6 +14,8 @@ using Unity.Collections.LowLevel.Unsafe;
 
 public static class Serialization {
 
+    public static string saveFolderName = "saves";
+
     // public methods add to these dictionaries
     static Dictionary<Vector3i, Queue<Chunk>> chunksToLoad = new Dictionary<Vector3i, Queue<Chunk>>();
     static Dictionary<Vector3i, Queue<Chunk>> chunksToSave = new Dictionary<Vector3i, Queue<Chunk>>();
@@ -22,8 +24,33 @@ public static class Serialization {
     static Dictionary<Vector3i, Queue<Chunk>> _chunksToSave = new Dictionary<Vector3i, Queue<Chunk>>();
 
     static Queue<Chunk> chunksLoaded = new Queue<Chunk>();
-    static Queue<Chunk> chunksFailed = new Queue<Chunk>();
-    static Queue<Chunk> chunksFreed = new Queue<Chunk>();
+    static Queue<Chunk> chunkLoadFailures = new Queue<Chunk>();
+    static Queue<Chunk> chunksSaved = new Queue<Chunk>();
+
+
+    // explaining table size: 3 bytes for sector offset, 2 bytes would hit up to 65K 
+    // so in case where each chunk hits 2^3=65K / 4K chunks per region, so around 12 sectors each
+    // which is probably rare but maybe possible, so 3 bumps up to 16 mill which is def enough room
+    // then 1 byte for sector count, so up to 256 sectors each chunk can have
+    const int TABLE_SIZE = 16384; // 4 bytes per chunk * 16*16*16 chunks per region
+    const int SECTOR_SIZE = 4096; // in bytes
+    static uint[] writeBuffer = new uint[32768]; // buffer for writing to writeStream
+    static byte[] byteBuffer = new byte[65536]; // buffer for copying data from writeStream
+    static byte[] uintBytes = new byte[4]; // buffer for copying data from writeStream
+    static byte[] padBuffer = new byte[SECTOR_SIZE]; // buffer to help write padding at end of file
+    static byte[] table = new byte[TABLE_SIZE]; // todo: cache these tables for each chunk so u dont need to read them everytime
+
+    static GafferNet.WriteStream writer = new GafferNet.WriteStream();
+    static GafferNet.ReadStream reader = new GafferNet.ReadStream();
+
+    public static Thread thread;
+    static EventWaitHandle newWork = new EventWaitHandle(false, EventResetMode.AutoReset);
+    static readonly object killLock = new object();
+    static bool kill = false;
+
+    static System.Diagnostics.Stopwatch killWatch = new System.Diagnostics.Stopwatch();
+    static System.Diagnostics.Stopwatch watch = new System.Diagnostics.Stopwatch();
+
 
     public static void LoadChunk(Chunk chunk) {
         Vector3i rc = GetRegionCoord(chunk.cp);
@@ -41,8 +68,8 @@ public static class Serialization {
 
     public static void SaveChunk(Chunk chunk, bool manualSet = false) {
         if (!chunk.needToUpdateSave) {
-            lock (chunksFreed) {
-                chunksFreed.Enqueue(chunk);
+            lock (chunksSaved) {
+                chunksSaved.Enqueue(chunk);
             }
             return;
         }
@@ -66,7 +93,7 @@ public static class Serialization {
     }
 
     // sets new chunk variables and collects load failed chunks to be generated
-    public static int CheckNewLoaded(Queue<Chunk> failed) {
+    public static int CheckNewLoaded(Queue<Chunk> loadFails) {
         int loaded = 0;
         lock (chunksLoaded) {
             loaded = chunksLoaded.Count;
@@ -77,25 +104,23 @@ public static class Serialization {
             }
         }
 
-        lock (chunksFailed) {
-            while (chunksFailed.Count > 0) {
-                failed.Enqueue(chunksFailed.Dequeue());
+        lock (chunkLoadFailures) {
+            while (chunkLoadFailures.Count > 0) {
+                loadFails.Enqueue(chunkLoadFailures.Dequeue());
             }
         }
 
         return loaded;
     }
 
-    public static void CheckChunkFreed(Pool<Chunk> pool) {
-        lock (chunksFreed) {
-            while (chunksFreed.Count > 0) {
-                pool.Return(chunksFreed.Dequeue());
+    public static void FreeSavedChunks(Pool<Chunk> pool) {
+        lock (chunksSaved) {
+            while (chunksSaved.Count > 0) {
+                pool.Return(chunksSaved.Dequeue());
             }
         }
     }
 
-    static readonly object killLock = new object();
-    static bool kill = false;
     public static void KillThread() {
         lock (killLock) {
             kill = true;
@@ -105,22 +130,13 @@ public static class Serialization {
         Debug.Log("IO thread shutting down...");
     }
 
-    public static Thread thread;
     public static void StartThread() {
         thread = new Thread(SerializationThread);
         thread.Start();
     }
 
-    static EventWaitHandle newWork = new EventWaitHandle(false, EventResetMode.AutoReset);
-
-    static GafferNet.WriteStream writer = new GafferNet.WriteStream();
-    static GafferNet.ReadStream reader = new GafferNet.ReadStream();
-    static uint[] writeBuffer = new uint[32768];
-    static System.Diagnostics.Stopwatch killWatch = new System.Diagnostics.Stopwatch();
 
     static void SerializationThread() {
-
-        var watch = new System.Diagnostics.Stopwatch();
 
         while (true) {
 
@@ -160,56 +176,13 @@ public static class Serialization {
                 _chunksToSave = tmp;
             }
 
-
+            // loop over each pair of region and list of chunks in that region
             foreach (var entry in _chunksToLoad) {
-                var chunks = entry.Value;
-                if (chunks.Count <= 0) {
-                    continue;
-                }
-#if _DEBUG
-                Debug.Log("loading " + chunks.Count + " chunks from region " + entry.Key);
-                watch.Restart();
-#endif
-
-                // open region file then load each chunk from it
-
-                while (chunks.Count > 0) {
-                    Chunk c = chunks.Dequeue();
-
-                    string saveFile = SaveFileName(c);
-
-                    if (!File.Exists(saveFile)) {
-                        lock (chunksFailed) {
-                            chunksFailed.Enqueue(c);
-                        }
-                    } else {
-                        _LoadChunk(c);
-                    }
-                }
-
-#if _DEBUG
-                Debug.Log("loaded in " + watch.ElapsedMilliseconds + " ms");
-#endif
+                LoadChunksFromRegion(entry.Key, entry.Value);
             }
 
             foreach (var entry in _chunksToSave) {
-                var chunks = entry.Value;
-                if (chunks.Count <= 0) {
-                    continue;
-                }
-#if _DEBUG
-                Debug.Log("saving " + chunks.Count + " chunks from region " + entry.Key);
-                watch.Restart();
-#endif
-
-                // open region file then save each chunk to it
-
-                while (chunks.Count > 0) {
-                    _SaveChunk(chunks.Dequeue());
-                }
-#if _DEBUG
-                Debug.Log("saved in " + watch.ElapsedMilliseconds + " ms");
-#endif
+                SaveChunksFromRegion(entry.Key, entry.Value);
             }
 
             if (lastRun) {
@@ -232,31 +205,177 @@ public static class Serialization {
         }
     }
 
-
-    public static string saveFolderName = "saves";
-
-    static string SaveLocation(string worldName) {
-        string saveLocation = saveFolderName + "/" + worldName + "/";
-
-        if (!Directory.Exists(saveLocation)) {
-            Directory.CreateDirectory(saveLocation);
+    static void LoadChunksFromRegion(Vector3i regionCoord, Queue<Chunk> chunks) {
+        if (chunks.Count <= 0) {
+            return;
         }
 
-        return saveLocation;
+        string regionFile = RegionFileName(regionCoord);
+        if (!File.Exists(regionFile)) { // if no region file then all these chunks need to be generated fresh
+            lock (chunkLoadFailures) {
+                while (chunks.Count > 0) {
+                    chunkLoadFailures.Enqueue(chunks.Dequeue());
+                }
+            }
+            return;
+        }
+
+#if _DEBUG
+        Debug.Log("loading " + chunks.Count + " chunks from region " + regionCoord);
+        watch.Restart();
+#endif
+
+        FileStream stream = File.Open(regionFile, FileMode.Open); // will open or create if not there
+        int c = stream.Read(table, 0, TABLE_SIZE);
+        Debug.Assert(c == TABLE_SIZE);
+        while (chunks.Count > 0) {
+            Chunk chunk = chunks.Dequeue();
+
+            uint sectorOffset;
+            uint sectorCount;
+            GetTableEntry(chunk.cp, out sectorOffset, out sectorCount);
+
+            if (sectorOffset == 0 && sectorCount == 0) { // no entry in table
+                lock (chunkLoadFailures) {
+                    chunkLoadFailures.Enqueue(chunk);
+                }
+                continue;
+            }
+
+            // seek to start of sector
+            stream.Seek(TABLE_SIZE + sectorOffset * SECTOR_SIZE, SeekOrigin.Begin);
+
+            // read count to get length of chunk data
+            stream.Read(uintBytes, 0, 4);
+            reader.Start(uintBytes, 0, 4);
+            int bytes = (int)reader.ReadUInt();
+
+            // read from stream into byte buffer
+            stream.Read(byteBuffer, 0, bytes);
+
+            DecodeBlocks(byteBuffer, bytes, chunk.blocks);
+
+            lock (chunksLoaded) {
+                chunksLoaded.Enqueue(chunk);
+            }
+
+        }
+
+#if _DEBUG
+        Debug.Log("loaded in " + watch.ElapsedMilliseconds + " ms");
+#endif
     }
 
-    static string FileName(Vector3i chunkPos) {
-        chunkPos.Div(Chunk.SIZE);
-        //string fileName = chunkLocation.x + "," + chunkLocation.y + "," + chunkLocation.z + ".scs";
-        return string.Format("{0},{1},{2}.scs", chunkPos.x, chunkPos.y, chunkPos.z);
+    static void SaveChunksFromRegion(Vector3i regionCoord, Queue<Chunk> chunks) {
+        if (chunks.Count <= 0) {
+            return;
+        }
+#if _DEBUG
+        Debug.Log("saving " + chunks.Count + " chunks from region " + regionCoord);
+        watch.Restart();
+#endif
+
+        // check if region file exists
+        string regionFile = RegionFileName(regionCoord);
+
+        bool alreadyExisted = File.Exists(regionFile);
+        FileStream stream = File.Open(regionFile, FileMode.OpenOrCreate); // will open or create if not there
+        if (alreadyExisted) { // load lookup table if file was there already
+            int c = stream.Read(table, 0, TABLE_SIZE);
+            Debug.Assert(c == TABLE_SIZE);
+        } else {
+            Array.Clear(table, 0, 0);   // make sure its 0s
+            stream.Write(table, 0, TABLE_SIZE); // write empty table to file
+        }
+
+        while (chunks.Count > 0) {
+            Chunk chunk = chunks.Dequeue();
+
+            // get encoded chunk bytes
+            int count = EncodeBlocks(byteBuffer, chunk.blocks);
+            if (count > SECTOR_SIZE - 4) {
+                Debug.Log(count);
+                Debug.Log(chunk.cp);
+            }
+
+            Debug.Assert(count <= SECTOR_SIZE - 4); // will deal with multiple sectors after getting basics working
+
+            writer.Start(writeBuffer);
+            writer.Write((uint)count);
+            writer.Finish();
+            writer.GetData(uintBytes);
+
+            // get position in lookup table (region chunk size is hardcoded as 16)
+            uint sectorOffset;
+            uint sectorCount;
+            GetTableEntry(chunk.cp, out sectorOffset, out sectorCount);
+
+            int requiredSectors = 1; //need to expand eventually but not sure if should contract if less sectors needed
+            // detect if we need to update the table entry
+            if ((sectorOffset == 0 && sectorCount == 0) || sectorCount != requiredSectors) {
+                sectorOffset = (uint)((stream.Length - TABLE_SIZE) / SECTOR_SIZE);
+                sectorCount = (uint)requiredSectors;
+
+                SetTableEntry(chunk.cp, sectorOffset, sectorCount); // update table entry
+            }
+
+            // now write
+            stream.Seek(TABLE_SIZE + sectorOffset * SECTOR_SIZE, SeekOrigin.Begin);
+
+            long streamPos = stream.Position;
+
+            // write data length followed by chunk data and then padding
+            stream.Write(uintBytes, 0, 4);
+            stream.Write(byteBuffer, 0, count);
+            stream.Write(padBuffer, 0, SECTOR_SIZE - count - 4); // may be faster to add padding to end of bytes instead..?
+
+            Debug.Assert(stream.Position - streamPos == SECTOR_SIZE);
+
+            lock (chunksSaved) {
+                chunksSaved.Enqueue(chunk);
+            }
+        }
+
+        stream.Close();
+
+#if _DEBUG
+        Debug.Log("saved in " + watch.ElapsedMilliseconds + " ms");
+#endif
     }
 
-    public static string SaveFileName(Chunk chunk) {
-        return SaveLocation(chunk.world.worldName) + FileName(chunk.wp);
+    // returns lookup byte position to sector table
+    public static int GetLookUpPos(Vector3i cp) {
+        return 4 * (Mod16(cp.x) + Mod16(cp.z) * 16 + Mod16(cp.y) * 256);
     }
 
-    static void _SaveChunk(Chunk chunk) {
+    public static int Mod16(int c) {  // true mod implementation
+        int r = c % 16;
+        return r < 0 ? r + 16 : r;
+    }
 
+    static void SetTableEntry(Vector3i cp, uint sectorOffset, uint sectorCount) {
+        int lookupPos = GetLookUpPos(cp);
+
+        writer.Start(writeBuffer);
+        writer.Write(sectorOffset, 24);
+        writer.Write(sectorCount, 8);
+        writer.Finish();
+        writer.GetData(uintBytes);
+
+        Buffer.BlockCopy(uintBytes, 0, table, lookupPos, 4);
+
+    }
+
+    static void GetTableEntry(Vector3i cp, out uint sectorOffset, out uint sectorCount) {
+        int lookupPos = GetLookUpPos(cp);
+
+        reader.Start(table, lookupPos, 4);
+        sectorOffset = reader.ReadUInt(24);
+        sectorCount = reader.ReadUInt(8);
+    }
+
+    // todo: try not making new array and just write from position and length of write buffer
+    static int EncodeBlocks(byte[] buffer, NativeArray<Block> blocks) {
         // run length encoding, a byte for type followed by byte for runcount
         // rewrote project to access data in xzy order, because i assume there will be more horizontal than vertical structures in the world gen (and thus more runs)
         // WWWWWBWWWBWWWW  - example
@@ -267,8 +386,6 @@ public static class Serialization {
         // todo: investigate whether using ushort is better for runs and types eventually maybe
 
         writer.Start(writeBuffer);
-
-        var blocks = chunk.blocks;
 
         // circumvent the safety check here because it gets mad for some reason when trying to save
         // even though i am quite sure it is safe. Saving is only called when a chunk is being destroyed
@@ -289,29 +406,18 @@ public static class Serialization {
             writer.Write(run);
         }
 
-        writer.Finish();
-        byte[] bytes = writer.GetData();
-
-        string saveFile = SaveLocation(chunk.world.worldName) + FileName(chunk.wp);
-        File.WriteAllBytes(saveFile, bytes);
-
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
         AtomicSafetyHandle.Release(handle);
 #endif
 
-        lock (chunksFreed) {
-            chunksFreed.Enqueue(chunk);
-        }
+        writer.Finish();
+        return writer.GetData(buffer);
     }
 
-    static void _LoadChunk(Chunk chunk) {
-        string saveFile = SaveFileName(chunk);
-        Debug.Assert(File.Exists(saveFile));
+    // decode given byte array into nativearray for chunk
+    static void DecodeBlocks(byte[] buffer, int bytes, NativeArray<Block> blocks) {
+        reader.Start(buffer, 0, bytes);
 
-        byte[] bytes = File.ReadAllBytes(saveFile);
-        reader.Start(bytes);
-
-        var blocks = chunk.blocks;
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
         var handle = AtomicSafetyHandle.Create();
         NativeArrayUnsafeUtility.SetAtomicSafetyHandle(ref blocks, handle);
@@ -329,20 +435,59 @@ public static class Serialization {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
         AtomicSafetyHandle.Release(handle);
 #endif
-
-        lock (chunksLoaded) {
-            chunksLoaded.Enqueue(chunk);
-        }
     }
 
+    //static void _SaveChunk(Chunk chunk) {
+
+    //    var bytes = EncodeBlocks(chunk.blocks);
+
+    //    File.WriteAllBytes(SaveFileName(chunk), bytes);
+
+    //    lock (chunksSaved) {
+    //        chunksSaved.Enqueue(chunk);
+    //    }
+    //}
+
+    //static void _LoadChunk(Chunk chunk) {
+    //    string saveFile = SaveFileName(chunk);
+    //    Debug.Assert(File.Exists(saveFile));
+
+    //    byte[] bytes = File.ReadAllBytes(saveFile);
+    //    DecodeBlocks(bytes, chunk.blocks);
+
+    //    lock (chunksLoaded) {
+    //        chunksLoaded.Enqueue(chunk);
+    //    }
+    //}
+
     // regions are 16x16x16 chunks
-    // todo: add chunk and region border line rendering
     public static Vector3i GetRegionCoord(Vector3i cp) {
 
         //return chunkPos / 16; // doesnt deal with negatives as smoothly as bit shifting
         return new Vector3i(cp.x >> 4, cp.y >> 4, cp.z >> 4);
 
     }
+
+
+    static string SaveLocation(string worldName) {
+        string saveLocation = saveFolderName + "/" + worldName + "/";
+
+        if (!Directory.Exists(saveLocation)) {
+            Directory.CreateDirectory(saveLocation);
+        }
+
+        return saveLocation;
+    }
+
+    //public static string SaveFileName(Chunk chunk) {
+    //    return SaveLocation(World.worldName) + string.Format("{0},{1},{2}.scs", chunk.cp.x, chunk.cp.y, chunk.cp.z);
+    //}
+
+    // get region name given region coord
+    static string RegionFileName(Vector3i rc) {
+        return SaveLocation(World.worldName) + string.Format("{0},{1},{2}.screg", rc.x, rc.y, rc.z);
+    }
+
 
 
     public static void SavePlayer() {

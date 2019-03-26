@@ -65,7 +65,22 @@ public static class Tests {
             TestEqual(Chunk.GetChunkPosition(new Vector3(-1.0f, 0, 0)), new Vector3i(-1, 0, 0), "ChunkPos2");
             //TestEqual(Chunk.GetChunkPosition(new Vector3(-16.01f, 0, 0)), new Vector3i(-2, 0, 0), "ChunkPos3");
             //TestEqual(Chunk.GetChunkPosition(new Vector3(25, 35, -5)), new Vector3i(1, 2, -1), "ChunkPos4");
+        }
 
+        {
+            TestEqual(Serialization.GetLookUpPos(new Vector3i(0, 0, 0)), 0, "LookUpPos1");
+            TestEqual(Serialization.GetLookUpPos(new Vector3i(1, 0, 0)), 4, "LookUpPos2");
+            TestEqual(Serialization.GetLookUpPos(new Vector3i(0, 1, 0)), 1024, "LookUpPos3");
+            TestEqual(Serialization.GetLookUpPos(new Vector3i(-1, 0, 0)), 60, "LookUpPos4");
+        }
+        {
+            TestEqual(Serialization.Mod16(0), 0, "Mod16_1");
+            TestEqual(Serialization.Mod16(15), 15, "Mod16_2");
+            TestEqual(Serialization.Mod16(16), 0, "Mod16_3");
+            TestEqual(Serialization.Mod16(35), 3, "Mod16_4");
+            TestEqual(Serialization.Mod16(-1), 15, "Mod16_5");
+            TestEqual(Serialization.Mod16(-16), 0, "Mod16_6");
+            TestEqual(Serialization.Mod16(-5), 11, "Mod16_7");
         }
 
         string msg = string.Format("{0}/{1} tests passed", passes, passes + failures);
