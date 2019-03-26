@@ -155,6 +155,12 @@ public class Chunk {
     }
 
     public void UpdateMeshNative(NativeList<Vector3> vertices, NativeList<int> triangles, NativeList<Vector2> uvs) {
+        if (triangles.Length < short.MaxValue) {
+            filter.mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt16;
+        } else {
+            filter.mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+        }
+
         filter.mesh.Clear();
         filter.mesh.vertices = vertices.ToArray();
         filter.mesh.uv = uvs.ToArray();
@@ -169,6 +175,12 @@ public class Chunk {
     public void UpdateColliderNative(NativeList<Vector3> vertices, NativeList<int> triangles) {
         coll.sharedMesh = null;
         Mesh mesh = new Mesh(); // maybe reuse this?
+        if (triangles.Length < short.MaxValue) {
+            mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt16;
+        } else {
+            mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+        }
+
         mesh.vertices = vertices.ToArray();
         mesh.triangles = triangles.ToArray();
         mesh.RecalculateNormals();

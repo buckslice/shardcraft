@@ -68,10 +68,10 @@ public static class Tests {
         }
 
         {
-            TestEqual(Serialization.GetLookUpPos(new Vector3i(0, 0, 0)), 0, "LookUpPos1");
-            TestEqual(Serialization.GetLookUpPos(new Vector3i(1, 0, 0)), 4, "LookUpPos2");
-            TestEqual(Serialization.GetLookUpPos(new Vector3i(0, 1, 0)), 1024, "LookUpPos3");
-            TestEqual(Serialization.GetLookUpPos(new Vector3i(-1, 0, 0)), 60, "LookUpPos4");
+            TestEqual(Serialization.GetTablePos(new Vector3i(0, 0, 0)), 0, "LookUpPos1");
+            TestEqual(Serialization.GetTablePos(new Vector3i(1, 0, 0)), 4, "LookUpPos2");
+            TestEqual(Serialization.GetTablePos(new Vector3i(0, 1, 0)), 1024, "LookUpPos3");
+            TestEqual(Serialization.GetTablePos(new Vector3i(-1, 0, 0)), 60, "LookUpPos4");
         }
         {
             TestEqual(Serialization.Mod16(0), 0, "Mod16_1");

@@ -35,9 +35,9 @@ public static class Serialization {
     const int TABLE_SIZE = 16384; // 4 bytes per chunk * 16*16*16 chunks per region
     const int SECTOR_SIZE = 4096; // in bytes
     static uint[] writeBuffer = new uint[32768]; // buffer for writing to writeStream
-    static byte[] byteBuffer = new byte[65536]; // buffer for copying data from writeStream
-    static byte[] uintBytes = new byte[4]; // buffer for copying data from writeStream
-    static byte[] padBuffer = new byte[SECTOR_SIZE]; // buffer to help write padding at end of file
+    static byte[] byteBuffer = new byte[131072]; // equal sized buffer for copying data from writeStream
+    static byte[] fourBytes = new byte[4]; // buffer for copying data from writeStream
+    static byte[] sectorBuffer = new byte[SECTOR_SIZE]; // buffer to help write padding at end of file
     static byte[] table = new byte[TABLE_SIZE]; // todo: cache these tables for each chunk so u dont need to read them everytime
 
     static GafferNet.WriteStream writer = new GafferNet.WriteStream();
@@ -231,8 +231,8 @@ public static class Serialization {
         while (chunks.Count > 0) {
             Chunk chunk = chunks.Dequeue();
 
-            uint sectorOffset;
-            uint sectorCount;
+            int sectorOffset;
+            byte sectorCount;
             GetTableEntry(chunk.cp, out sectorOffset, out sectorCount);
 
             if (sectorOffset == 0 && sectorCount == 0) { // no entry in table
@@ -246,8 +246,8 @@ public static class Serialization {
             stream.Seek(TABLE_SIZE + sectorOffset * SECTOR_SIZE, SeekOrigin.Begin);
 
             // read count to get length of chunk data
-            stream.Read(uintBytes, 0, 4);
-            reader.Start(uintBytes, 0, 4);
+            stream.Read(fourBytes, 0, 4);
+            reader.Start(fourBytes, 0, 4);
             int bytes = (int)reader.ReadUInt();
 
             // read from stream into byte buffer
@@ -260,6 +260,8 @@ public static class Serialization {
             }
 
         }
+
+        stream.Close();
 
 #if _DEBUG
         Debug.Log("loaded in " + watch.ElapsedMilliseconds + " ms");
@@ -284,57 +286,71 @@ public static class Serialization {
             int c = stream.Read(table, 0, TABLE_SIZE);
             Debug.Assert(c == TABLE_SIZE);
         } else {
-            Array.Clear(table, 0, 0);   // make sure its 0s
-            stream.Write(table, 0, TABLE_SIZE); // write empty table to file
+            Array.Clear(table, 0, TABLE_SIZE);   // make sure its 0s
+            stream.Write(table, 0, TABLE_SIZE);  // write table at beginning of new file (will get updated at end as well)
         }
 
         while (chunks.Count > 0) {
             Chunk chunk = chunks.Dequeue();
 
-            // get encoded chunk bytes
-            int count = EncodeBlocks(byteBuffer, chunk.blocks);
-            if (count > SECTOR_SIZE - 4) {
-                Debug.Log(count);
-                Debug.Log(chunk.cp);
+            if (chunk.cp == new Vector3i(1, -1, 1)) {
+                Debug.Log("stop!");
             }
 
-            Debug.Assert(count <= SECTOR_SIZE - 4); // will deal with multiple sectors after getting basics working
+            // get encoded chunk bytes
+            int bytes = EncodeBlocks(byteBuffer, chunk.blocks);
 
-            writer.Start(writeBuffer);
-            writer.Write((uint)count);
-            writer.Finish();
-            writer.GetData(uintBytes);
+            int requiredSectors = (bytes + 4) / SECTOR_SIZE + 1; // +4 for length uint
+            Debug.Assert(requiredSectors < 256); // max for 1 byte sector count
 
-            // get position in lookup table (region chunk size is hardcoded as 16)
-            uint sectorOffset;
-            uint sectorCount;
+            // get position in lookup table
+            int sectorOffset; // starting point of this chunk in terms of number of sectors from front
+            byte sectorCount; // how many sectors this chunk takes up
             GetTableEntry(chunk.cp, out sectorOffset, out sectorCount);
 
-            int requiredSectors = 1; //need to expand eventually but not sure if should contract if less sectors needed
-            // detect if we need to update the table entry
-            if ((sectorOffset == 0 && sectorCount == 0) || sectorCount != requiredSectors) {
-                sectorOffset = (uint)((stream.Length - TABLE_SIZE) / SECTOR_SIZE);
-                sectorCount = (uint)requiredSectors;
+            // if no entry in table, add one to the end
+            if (sectorOffset == 0 && sectorCount == 0) {
+                sectorOffset = (int)((stream.Length - TABLE_SIZE) / SECTOR_SIZE);
+                sectorCount = (byte)requiredSectors;
 
-                SetTableEntry(chunk.cp, sectorOffset, sectorCount); // update table entry
+                SetTableEntry(chunk.cp, sectorOffset, sectorCount); // append new table entry
+            } else if (requiredSectors != sectorCount) {
+                Debug.Assert(requiredSectors > 0 && sectorCount > 0);
+
+                SetTableEntry(chunk.cp, sectorOffset, (byte)requiredSectors); // update table entry
+
+                int endOfSectorPos = TABLE_SIZE + (sectorOffset + sectorCount) * SECTOR_SIZE;
+                ShiftRegionData(stream, requiredSectors - sectorCount, endOfSectorPos);
             }
 
-            // now write
+            writer.Start(writeBuffer);
+            writer.Write((uint)bytes);
+            writer.Finish();
+            writer.GetData(fourBytes);
+
+            // add padding to end of byteBuffer
+            int pad = SECTOR_SIZE * requiredSectors - bytes - 4;
+            Debug.Assert(pad >= 0 && pad <= SECTOR_SIZE);
+            Buffer.BlockCopy(sectorBuffer, 0, byteBuffer, bytes, pad);
+
+            // seek to correct spot in file
             stream.Seek(TABLE_SIZE + sectorOffset * SECTOR_SIZE, SeekOrigin.Begin);
 
             long streamPos = stream.Position;
-
-            // write data length followed by chunk data and then padding
-            stream.Write(uintBytes, 0, 4);
-            stream.Write(byteBuffer, 0, count);
-            stream.Write(padBuffer, 0, SECTOR_SIZE - count - 4); // may be faster to add padding to end of bytes instead..?
-
-            Debug.Assert(stream.Position - streamPos == SECTOR_SIZE);
+            // write data length followed by padded chunk data
+            stream.Write(fourBytes, 0, 4);
+            stream.Write(byteBuffer, 0, bytes + pad);
+            Debug.Assert(stream.Position - streamPos == SECTOR_SIZE * requiredSectors);
 
             lock (chunksSaved) {
                 chunksSaved.Enqueue(chunk);
             }
         }
+
+        stream.Seek(0, SeekOrigin.Begin);
+        stream.Write(table, 0, TABLE_SIZE); // write updated table back and close stream
+
+        Debug.Assert((stream.Length - TABLE_SIZE) % SECTOR_SIZE == 0);
 
         stream.Close();
 
@@ -343,8 +359,56 @@ public static class Serialization {
 #endif
     }
 
+    // moves all data after position back or forward a certain number of sectors
+    // this is an expensive but rare operation when chunks need more storage space
+    static void ShiftRegionData(FileStream stream, int sectorShift, int position) {
+#if _DEBUG
+        Debug.Log("shifting region " + (sectorShift > 0 ? "forward" : "backward"));
+#endif
+        Debug.Assert(sectorShift != 0);
+
+        // go thru table and shift offsets occuring after position 
+        for (int i = 0; i < TABLE_SIZE; i += 4) {
+            reader.Start(table, i, 4);
+            int sectorOffset = (int)reader.ReadUInt(24);
+            byte sectorCount = reader.ReadByte(8);
+
+            if (TABLE_SIZE + sectorOffset * SECTOR_SIZE >= position) {
+                sectorOffset += sectorShift;
+                writer.Start(writeBuffer);
+                writer.Write((uint)sectorOffset, 24);
+                writer.Write(sectorCount, 8);
+                writer.Finish();
+                writer.GetData(fourBytes);
+            }
+        }
+
+        // shift data after position in sector sized chunks
+        long len = stream.Length;
+        if (sectorShift < 0) { // shrinking, moving chunks backward, so start from front
+            for (long i = TABLE_SIZE + position; i < len; i += SECTOR_SIZE) {
+                stream.Seek(i, SeekOrigin.Begin);
+                int read = stream.Read(sectorBuffer, 0, SECTOR_SIZE);
+                Debug.Assert(read == SECTOR_SIZE);
+                stream.Seek(i + sectorShift * SECTOR_SIZE, SeekOrigin.Begin);
+                stream.Write(sectorBuffer, 0, SECTOR_SIZE);
+            }
+        } else { // expanding, moving chunks forward, so start from back
+            for (long i = len - SECTOR_SIZE; i >= position; i -= SECTOR_SIZE) {
+                stream.Seek(i, SeekOrigin.Begin);
+                int read = stream.Read(sectorBuffer, 0, SECTOR_SIZE);
+                Debug.Assert(read == SECTOR_SIZE);
+                stream.Seek(i + sectorShift * SECTOR_SIZE, SeekOrigin.Begin);
+                stream.Write(sectorBuffer, 0, SECTOR_SIZE);
+            }
+        }
+
+        // set sectorBuffer pack to zeros for padding usage
+        Array.Clear(sectorBuffer, 0, sectorBuffer.Length);
+    }
+
     // returns lookup byte position to sector table
-    public static int GetLookUpPos(Vector3i cp) {
+    public static int GetTablePos(Vector3i cp) {
         return 4 * (Mod16(cp.x) + Mod16(cp.z) * 16 + Mod16(cp.y) * 256);
     }
 
@@ -353,25 +417,25 @@ public static class Serialization {
         return r < 0 ? r + 16 : r;
     }
 
-    static void SetTableEntry(Vector3i cp, uint sectorOffset, uint sectorCount) {
-        int lookupPos = GetLookUpPos(cp);
+    static void SetTableEntry(Vector3i cp, int sectorOffset, byte sectorCount) {
+        int lookupPos = GetTablePos(cp);
 
         writer.Start(writeBuffer);
-        writer.Write(sectorOffset, 24);
+        writer.Write((uint)sectorOffset, 24);
         writer.Write(sectorCount, 8);
         writer.Finish();
-        writer.GetData(uintBytes);
+        writer.GetData(fourBytes);
 
-        Buffer.BlockCopy(uintBytes, 0, table, lookupPos, 4);
+        Buffer.BlockCopy(fourBytes, 0, table, lookupPos, 4);
 
     }
 
-    static void GetTableEntry(Vector3i cp, out uint sectorOffset, out uint sectorCount) {
-        int lookupPos = GetLookUpPos(cp);
+    static void GetTableEntry(Vector3i cp, out int sectorOffset, out byte sectorCount) {
+        int lookupPos = GetTablePos(cp);
 
         reader.Start(table, lookupPos, 4);
-        sectorOffset = reader.ReadUInt(24);
-        sectorCount = reader.ReadUInt(8);
+        sectorOffset = (int)reader.ReadUInt(24);
+        sectorCount = reader.ReadByte(8);
     }
 
     // todo: try not making new array and just write from position and length of write buffer

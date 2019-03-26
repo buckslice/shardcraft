@@ -95,7 +95,7 @@ public class LoadChunks : MonoBehaviour {
         }
 
         if (Input.GetKeyDown(KeyCode.F)) {
-            TestFillChunk(new Vector3i(-2, 0, 2), Blocks.STONE);
+            TestFillChunk(new Vector3i(1, -1, 1), Blocks.STONE);
         }
 
         JobHandle.ScheduleBatchedJobs();
@@ -223,9 +223,9 @@ public class LoadChunks : MonoBehaviour {
             return;
         }
 
-        for (int x = 0; x < Chunk.SIZE; ++x) {
-            for (int y = 0; y < Chunk.SIZE; ++y) {
-                for (int z = 0; z < Chunk.SIZE; ++z) {
+        for (int y = 0; y < Chunk.SIZE; ++y) {
+            for (int z = 0; z < Chunk.SIZE; ++z) {
+                for (int x = 0; x < Chunk.SIZE; ++x) {
                     //c.SetBlock(x, y, z, Blocks.STONE);
 
                     // checkerboard
@@ -237,6 +237,7 @@ public class LoadChunks : MonoBehaviour {
                 }
             }
         }
+
     }
 
 

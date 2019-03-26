@@ -99,7 +99,7 @@ namespace GafferNet {
         public void Start(uint[] data) {
             Assert.IsTrue(data != null);
             m_data = data;
-            m_numWords = data.Length / 4;
+            m_numWords = data.Length;
             m_numBits = m_numWords * 32;
             m_bitsWritten = 0;
             m_wordIndex = 0;
@@ -210,7 +210,7 @@ namespace GafferNet {
             Buffer.BlockCopy(data, 0, m_data, 0, bytes);
         }
 
-        public void Start(byte[] data, int srcPos, int bytes) {
+        public void Start(byte[] data, int srcOffset, int bytes) {
             m_numWords = (bytes + 3) / 4; // so if just 1 extra byte it will become whole word
             m_numBits = bytes * 8;
             m_bitsRead = 0;
@@ -218,7 +218,7 @@ namespace GafferNet {
             m_scratchBits = 0;
             m_wordIndex = 0;
             m_data = new uint[m_numWords];
-            Buffer.BlockCopy(data, srcPos, m_data, 0, bytes);
+            Buffer.BlockCopy(data, srcOffset, m_data, 0, bytes);
         }
 
         public bool WouldOverflow(int bits) {
@@ -431,8 +431,8 @@ namespace GafferNet {
             m_reader.Start(data);
         }
 
-        public void Start(byte[] data, int srcPos, int bytes) {
-            m_reader.Start(data, srcPos, bytes);
+        public void Start(byte[] data, int srcOffset, int bytes) {
+            m_reader.Start(data, srcOffset, bytes);
         }
 
         public int ReadInt(int min = int.MinValue, int max = int.MaxValue) {
