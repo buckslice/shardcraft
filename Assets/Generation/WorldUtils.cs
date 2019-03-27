@@ -47,8 +47,6 @@ public static class WorldUtils {
 
         world.SetBlock(bp.x, bp.y, bp.z, block);
 
-        Debug.Log(bp);
-
         return true;
     }
 

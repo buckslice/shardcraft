@@ -79,7 +79,7 @@ public class NativeMeshData {
     }
 
     public Block GetBlock(int x, int y, int z) {
-        // only one of these will ever be true at once
+        // only one of these can ever be true at once... otherwise need more neighbors
         if (x < 0) {
             return west[(size - 1) + z * size + y * size * size];
         } else if (y < 0) {

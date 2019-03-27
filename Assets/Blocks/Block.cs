@@ -29,10 +29,6 @@ public struct Block : IEquatable<Block> {
         return BlockTypes.GetBlockType(type).ColliderSolid();
     }
 
-    public Tile TexturePosition(Dir dir) {
-        return BlockTypes.GetBlockType(type).TexturePosition(dir);
-    }
-
     public static bool operator ==(Block a, Block b) {
         return a.type == b.type;
     }
@@ -105,7 +101,7 @@ public abstract class BlockType {
         return true;
     }
 
-    public virtual Tile TexturePosition(Dir dir) {
+    public virtual Tile TexturePosition(Dir dir, int x, int y, int z, NativeMeshData data) {
         return new Tile() { x = 0, y = 0 };
     }
 
@@ -139,7 +135,7 @@ public abstract class BlockType {
 
         data.AddQuadTriangles();
 
-        data.AddFaceUVs(TexturePosition(Dir.west));
+        data.AddFaceUVs(TexturePosition(Dir.west, x, y, z, data));
     }
     protected virtual void FaceDataDownNative(int x, int y, int z, NativeMeshData data) {
         data.AddVertex(new Vector3(x, y, z) / Chunk.BPU);
@@ -149,7 +145,7 @@ public abstract class BlockType {
 
         data.AddQuadTriangles();
 
-        data.AddFaceUVs(TexturePosition(Dir.down));
+        data.AddFaceUVs(TexturePosition(Dir.down, x, y, z, data));
     }
     protected virtual void FaceDataSouthNative(int x, int y, int z, NativeMeshData data) {
         data.AddVertex(new Vector3(x, y, z) / Chunk.BPU);
@@ -159,7 +155,7 @@ public abstract class BlockType {
 
         data.AddQuadTriangles();
 
-        data.AddFaceUVs(TexturePosition(Dir.south));
+        data.AddFaceUVs(TexturePosition(Dir.south, x, y, z, data));
     }
 
     protected virtual void FaceDataEastNative(int x, int y, int z, NativeMeshData data) {
@@ -170,7 +166,7 @@ public abstract class BlockType {
 
         data.AddQuadTriangles();
 
-        data.AddFaceUVs(TexturePosition(Dir.east));
+        data.AddFaceUVs(TexturePosition(Dir.east, x, y, z, data));
     }
     protected virtual void FaceDataUpNative(int x, int y, int z, NativeMeshData data) {
         data.AddVertex(new Vector3(x, y + 1.0f, z + 1.0f) / Chunk.BPU);
@@ -180,7 +176,7 @@ public abstract class BlockType {
 
         data.AddQuadTriangles();
 
-        data.AddFaceUVs(TexturePosition(Dir.up));
+        data.AddFaceUVs(TexturePosition(Dir.up, x, y, z, data));
     }
     protected virtual void FaceDataNorthNative(int x, int y, int z, NativeMeshData data) {
         data.AddVertex(new Vector3(x + 1.0f, y, z + 1.0f) / Chunk.BPU);
@@ -190,24 +186,25 @@ public abstract class BlockType {
 
         data.AddQuadTriangles();
 
-        data.AddFaceUVs(TexturePosition(Dir.north));
+        data.AddFaceUVs(TexturePosition(Dir.north, x, y, z, data));
     }
 
-    public virtual void FaceUVsGreedy(Dir dir, MeshData data, int w, int h) {
-        Tile tp = TexturePosition(dir);
+    // todo: translate to native array job option
+    //public virtual void FaceUVsGreedy(Dir dir, MeshData data, int w, int h) {
+    //    Tile tp = TexturePosition(dir, data);
 
-        // store the offset
-        data.uv.Add(new Vector2(tp.x, tp.y) * Tile.SIZE);
-        data.uv.Add(new Vector2(tp.x, tp.y) * Tile.SIZE);
-        data.uv.Add(new Vector2(tp.x, tp.y) * Tile.SIZE);
-        data.uv.Add(new Vector2(tp.x, tp.y) * Tile.SIZE);
+    //    // store the offset
+    //    data.uv.Add(new Vector2(tp.x, tp.y) * Tile.SIZE);
+    //    data.uv.Add(new Vector2(tp.x, tp.y) * Tile.SIZE);
+    //    data.uv.Add(new Vector2(tp.x, tp.y) * Tile.SIZE);
+    //    data.uv.Add(new Vector2(tp.x, tp.y) * Tile.SIZE);
 
-        // then add width and height in uv2, shader will calculate coordinate from this
-        data.uv2.Add(new Vector2(0, 0));
-        data.uv2.Add(new Vector2(h, 0));
-        data.uv2.Add(new Vector2(0, w));
-        data.uv2.Add(new Vector2(h, w));
-    }
+    //    // then add width and height in uv2, shader will calculate coordinate from this
+    //    data.uv2.Add(new Vector2(0, 0));
+    //    data.uv2.Add(new Vector2(h, 0));
+    //    data.uv2.Add(new Vector2(0, w));
+    //    data.uv2.Add(new Vector2(h, w));
+    //}
 
 }
 
