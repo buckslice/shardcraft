@@ -148,23 +148,6 @@ public class World : MonoBehaviour {
 
         if (chunk != null) {
             chunk.SetBlock(x - chunk.wp.x, y - chunk.wp.y, z - chunk.wp.z, block);
-
-            // if block is on a chunk edge then update neighbor chunks
-            if (x - chunk.wp.x == 0 && chunk.neighbors[0] != null) {
-                chunk.neighbors[0].update = true;
-            } else if (x - chunk.wp.x == Chunk.SIZE - 1 && chunk.neighbors[3] != null) {
-                chunk.neighbors[3].update = true;
-            }
-            if (y - chunk.wp.y == 0 && chunk.neighbors[1] != null) {
-                chunk.neighbors[1].update = true;
-            } else if (y - chunk.wp.y == Chunk.SIZE - 1 && chunk.neighbors[4] != null) {
-                chunk.neighbors[4].update = true;
-            }
-            if (z - chunk.wp.z == 0 && chunk.neighbors[2] != null) {
-                chunk.neighbors[2].update = true;
-            } else if (z - chunk.wp.z == Chunk.SIZE - 1 && chunk.neighbors[5] != null) {
-                chunk.neighbors[5].update = true;
-            }
         }
     }
 

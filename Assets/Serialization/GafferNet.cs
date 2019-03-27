@@ -173,10 +173,18 @@ namespace GafferNet {
             return output;
         }
 
-        public int GetData(byte[] buffer) {
+        public int GetData(byte[] dstBuffer) {
             int bytesWritten = GetBytesWritten();
-            Assert.IsTrue(buffer.Length >= bytesWritten);
-            Buffer.BlockCopy(m_data, 0, buffer, 0, bytesWritten);
+            Assert.IsTrue(dstBuffer.Length >= bytesWritten);
+            Buffer.BlockCopy(m_data, 0, dstBuffer, 0, bytesWritten);
+            return bytesWritten;
+        }
+
+        public int GetData(byte[] dstBuffer, int dstOffset, int bytes) { // bytes not really required but just for error checking
+            int bytesWritten = GetBytesWritten();
+            Assert.IsTrue(bytes == bytesWritten);
+            Assert.IsTrue(dstBuffer.Length - dstOffset >= bytesWritten);
+            Buffer.BlockCopy(m_data, 0, dstBuffer, dstOffset, bytesWritten);
             return bytesWritten;
         }
 
@@ -210,15 +218,18 @@ namespace GafferNet {
             Buffer.BlockCopy(data, 0, m_data, 0, bytes);
         }
 
-        public void Start(byte[] data, int srcOffset, int bytes) {
+        // TEST THIS OUT, provide a buffer too on reading so dont need to instantiate new array
+        // make sure you can use the uint buffer at this time. mightve been written to...
+
+        public void Start(byte[] data, int srcOffset, uint[] buffer, int bytes) {
             m_numWords = (bytes + 3) / 4; // so if just 1 extra byte it will become whole word
             m_numBits = bytes * 8;
             m_bitsRead = 0;
             m_scratch = 0;
             m_scratchBits = 0;
             m_wordIndex = 0;
-            m_data = new uint[m_numWords];
-            Buffer.BlockCopy(data, srcOffset, m_data, 0, bytes);
+            m_data = buffer;
+            Buffer.BlockCopy(data, srcOffset, buffer, 0, bytes);
         }
 
         public bool WouldOverflow(int bits) {
@@ -404,8 +415,11 @@ namespace GafferNet {
         public byte[] GetData() {
             return m_writer.GetData();
         }
-        public int GetData(byte[] buffer) {
-            return m_writer.GetData(buffer);
+        public int GetData(byte[] dstBuffer) {
+            return m_writer.GetData(dstBuffer);
+        }
+        public int GetData(byte[] dstBuffer, int dstOffset, int bytes) {
+            return m_writer.GetData(dstBuffer, dstOffset, bytes);
         }
 
         public int GetBytesWritten() {
@@ -431,8 +445,8 @@ namespace GafferNet {
             m_reader.Start(data);
         }
 
-        public void Start(byte[] data, int srcOffset, int bytes) {
-            m_reader.Start(data, srcOffset, bytes);
+        public void Start(byte[] data, int srcOffset, uint[] buffer, int bytes) {
+            m_reader.Start(data, srcOffset, buffer, bytes);
         }
 
         public int ReadInt(int min = int.MinValue, int max = int.MaxValue) {
@@ -446,18 +460,6 @@ namespace GafferNet {
             m_bitsRead += bits;
             return (int)(unsigned_value + min);
         }
-
-        //public uint ReadUInt(uint min = uint.MinValue, uint max = uint.MaxValue) {
-        //    Assert.IsTrue(min < max);
-        //    int bits = Util.BitsRequired(min, max);
-        //    if (m_reader.WouldOverflow(bits)) {
-        //        m_error = Constants.STREAM_ERROR_OVERFLOW;
-        //        throw new SerializeException();
-        //    }
-        //    uint unsigned_value = m_reader.ReadBits(bits);
-        //    m_bitsRead += bits;
-        //    return unsigned_value + min;
-        //}
 
         public byte ReadByte(int bits = 8) {
             Assert.IsTrue(bits > 0);

@@ -93,7 +93,9 @@ public class Chunk {
             while (pendingEdits.Count > 0) {
                 BlockEdit e = pendingEdits.Dequeue();
                 blocks[e.x + e.z * SIZE + e.y * SIZE * SIZE] = e.block;
+                CheckNeedToUpdateNeighbors(e.x, e.y, e.z);
             }
+            needToUpdateSave = true; // blocks were modified so need to update save
             // just slam out another job asap (could try manually completing too? or give highest prio to chunks near player somehow)
             JobController.StartMeshJob(this);
         }
@@ -210,10 +212,33 @@ public class Chunk {
                 blocks[x + z * SIZE + y * SIZE * SIZE] = block;
                 needToUpdateSave = true; // block was modified so need to update save
                 update = true;
+                CheckNeedToUpdateNeighbors(x, y, z);
             }
         } else {
             world.SetBlock(wp.x + x, wp.y + y, wp.z + z, block);
         }
+    }
+
+    // if block is on a chunk edge then update neighbor chunks
+    // given x,y,z of block in local chunk space, check if you need to update your neighbors
+    void CheckNeedToUpdateNeighbors(int x, int y, int z) {
+        Debug.Assert(InRange(x, y, z));
+        if (x == 0 && neighbors[0] != null) {
+            neighbors[0].update = true;
+        } else if (x == SIZE - 1 && neighbors[3] != null) {
+            neighbors[3].update = true;
+        }
+        if (y == 0 && neighbors[1] != null) {
+            neighbors[1].update = true;
+        } else if (y == SIZE - 1 && neighbors[4] != null) {
+            neighbors[4].update = true;
+        }
+        if (z == 0 && neighbors[2] != null) {
+            neighbors[2].update = true;
+        } else if (z == SIZE - 1 && neighbors[5] != null) {
+            neighbors[5].update = true;
+        }
+
     }
 
     public static bool InRange(int x, int y, int z) {

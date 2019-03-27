@@ -34,10 +34,11 @@ public static class Serialization {
     // then 1 byte for sector count, so up to 256 sectors each chunk can have
     const int TABLE_SIZE = 16384; // 4 bytes per chunk * 16*16*16 chunks per region
     const int SECTOR_SIZE = 4096; // in bytes
-    static uint[] writeBuffer = new uint[32768]; // buffer for writing to writeStream
+    static uint[] uintBuffer = new uint[32768]; // uint buffer for writing and reading
     static byte[] byteBuffer = new byte[131072]; // equal sized buffer for copying data from writeStream
-    static byte[] fourBytes = new byte[4]; // buffer for copying data from writeStream
-    static byte[] sectorBuffer = new byte[SECTOR_SIZE]; // buffer to help write padding at end of file
+    static byte[] fourBytes = new byte[4]; // small buffer for single operations
+    static uint[] oneUint = new uint[1];   // small buffer for single operations
+    static byte[] sectorBuffer = new byte[SECTOR_SIZE]; // buffer to help with shifting region operations
     static byte[] table = new byte[TABLE_SIZE]; // todo: cache these tables for each chunk so u dont need to read them everytime
 
     static GafferNet.WriteStream writer = new GafferNet.WriteStream();
@@ -247,7 +248,7 @@ public static class Serialization {
 
             // read count to get length of chunk data
             stream.Read(fourBytes, 0, 4);
-            reader.Start(fourBytes, 0, 4);
+            reader.Start(fourBytes, 0, oneUint, 4);
             int bytes = (int)reader.ReadUInt();
 
             // read from stream into byte buffer
@@ -293,10 +294,6 @@ public static class Serialization {
         while (chunks.Count > 0) {
             Chunk chunk = chunks.Dequeue();
 
-            if (chunk.cp == new Vector3i(1, -1, 1)) {
-                Debug.Log("stop!");
-            }
-
             // get encoded chunk bytes
             int bytes = EncodeBlocks(byteBuffer, chunk.blocks);
 
@@ -323,7 +320,7 @@ public static class Serialization {
                 ShiftRegionData(stream, requiredSectors - sectorCount, endOfSectorPos);
             }
 
-            writer.Start(writeBuffer);
+            writer.Start(uintBuffer);
             writer.Write((uint)bytes);
             writer.Finish();
             writer.GetData(fourBytes);
@@ -331,7 +328,7 @@ public static class Serialization {
             // add padding to end of byteBuffer
             int pad = SECTOR_SIZE * requiredSectors - bytes - 4;
             Debug.Assert(pad >= 0 && pad <= SECTOR_SIZE);
-            Buffer.BlockCopy(sectorBuffer, 0, byteBuffer, bytes, pad);
+            Array.Clear(byteBuffer, bytes, pad);
 
             // seek to correct spot in file
             stream.Seek(TABLE_SIZE + sectorOffset * SECTOR_SIZE, SeekOrigin.Begin);
@@ -369,31 +366,23 @@ public static class Serialization {
 
         // go thru table and shift offsets occuring after position 
         for (int i = 0; i < TABLE_SIZE; i += 4) {
-            reader.Start(table, i, 4);
+            reader.Start(table, i, oneUint, 4);
             int sectorOffset = (int)reader.ReadUInt(24);
             byte sectorCount = reader.ReadByte(8);
 
             if (TABLE_SIZE + sectorOffset * SECTOR_SIZE >= position) {
                 sectorOffset += sectorShift;
-                writer.Start(writeBuffer);
+                writer.Start(uintBuffer);
                 writer.Write((uint)sectorOffset, 24);
                 writer.Write(sectorCount, 8);
                 writer.Finish();
-                writer.GetData(fourBytes);
+                writer.GetData(table, i, 4); // write back to table
             }
         }
 
         // shift data after position in sector sized chunks
         long len = stream.Length;
-        if (sectorShift < 0) { // shrinking, moving chunks backward, so start from front
-            for (long i = TABLE_SIZE + position; i < len; i += SECTOR_SIZE) {
-                stream.Seek(i, SeekOrigin.Begin);
-                int read = stream.Read(sectorBuffer, 0, SECTOR_SIZE);
-                Debug.Assert(read == SECTOR_SIZE);
-                stream.Seek(i + sectorShift * SECTOR_SIZE, SeekOrigin.Begin);
-                stream.Write(sectorBuffer, 0, SECTOR_SIZE);
-            }
-        } else { // expanding, moving chunks forward, so start from back
+        if (sectorShift > 0) { // expanding, moving chunks forward, so start from back
             for (long i = len - SECTOR_SIZE; i >= position; i -= SECTOR_SIZE) {
                 stream.Seek(i, SeekOrigin.Begin);
                 int read = stream.Read(sectorBuffer, 0, SECTOR_SIZE);
@@ -401,10 +390,18 @@ public static class Serialization {
                 stream.Seek(i + sectorShift * SECTOR_SIZE, SeekOrigin.Begin);
                 stream.Write(sectorBuffer, 0, SECTOR_SIZE);
             }
+        } else { // shrinking, moving chunks backward, so start from front
+            for (long i = position; i < len; i += SECTOR_SIZE) {
+                stream.Seek(i, SeekOrigin.Begin);
+                int read = stream.Read(sectorBuffer, 0, SECTOR_SIZE);
+                Debug.Assert(read == SECTOR_SIZE);
+                stream.Seek(i + sectorShift * SECTOR_SIZE, SeekOrigin.Begin);
+                stream.Write(sectorBuffer, 0, SECTOR_SIZE);
+            }
+            // when shrinking need to manually shrink file afterwards, expanding will do this automatically
+            stream.SetLength(len + SECTOR_SIZE * sectorShift);
         }
 
-        // set sectorBuffer pack to zeros for padding usage
-        Array.Clear(sectorBuffer, 0, sectorBuffer.Length);
     }
 
     // returns lookup byte position to sector table
@@ -420,20 +417,18 @@ public static class Serialization {
     static void SetTableEntry(Vector3i cp, int sectorOffset, byte sectorCount) {
         int lookupPos = GetTablePos(cp);
 
-        writer.Start(writeBuffer);
+        writer.Start(uintBuffer);
         writer.Write((uint)sectorOffset, 24);
         writer.Write(sectorCount, 8);
         writer.Finish();
-        writer.GetData(fourBytes);
-
-        Buffer.BlockCopy(fourBytes, 0, table, lookupPos, 4);
+        writer.GetData(table, lookupPos, 4);
 
     }
 
     static void GetTableEntry(Vector3i cp, out int sectorOffset, out byte sectorCount) {
         int lookupPos = GetTablePos(cp);
 
-        reader.Start(table, lookupPos, 4);
+        reader.Start(table, lookupPos, oneUint, 4);
         sectorOffset = (int)reader.ReadUInt(24);
         sectorCount = reader.ReadByte(8);
     }
@@ -449,7 +444,7 @@ public static class Serialization {
 
         // todo: investigate whether using ushort is better for runs and types eventually maybe
 
-        writer.Start(writeBuffer);
+        writer.Start(uintBuffer);
 
         // circumvent the safety check here because it gets mad for some reason when trying to save
         // even though i am quite sure it is safe. Saving is only called when a chunk is being destroyed
@@ -480,7 +475,7 @@ public static class Serialization {
 
     // decode given byte array into nativearray for chunk
     static void DecodeBlocks(byte[] buffer, int bytes, NativeArray<Block> blocks) {
-        reader.Start(buffer, 0, bytes);
+        reader.Start(buffer, 0, uintBuffer, bytes);
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
         var handle = AtomicSafetyHandle.Create();

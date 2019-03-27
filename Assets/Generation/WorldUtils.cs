@@ -55,6 +55,46 @@ public static class WorldUtils {
 
         return block;
     }
+
+    public static void FillChunk(World world, Vector3i chunkPos, Block toFill) {
+        Chunk c = world.GetChunk(chunkPos);
+        if (c == null) {
+            Debug.Log("no chunk here");
+            return;
+        }
+
+        for (int y = 0; y < Chunk.SIZE; ++y) {
+            for (int z = 0; z < Chunk.SIZE; ++z) {
+                for (int x = 0; x < Chunk.SIZE; ++x) {
+                    c.SetBlock(x, y, z, toFill);
+                }
+            }
+        }
+
+    }
+
+    public static void CheckerboardChunk(World world, Vector3i chunkPos, Block toFill) {
+        Chunk c = world.GetChunk(chunkPos);
+        if (c == null) {
+            Debug.Log("no chunk here");
+            return;
+        }
+
+        for (int y = 0; y < Chunk.SIZE; ++y) {
+            for (int z = 0; z < Chunk.SIZE; ++z) {
+                for (int x = 0; x < Chunk.SIZE; ++x) {
+                    // checkerboard
+                    if ((x + y + z) % 2 == 0) {
+                        c.SetBlock(x, y, z, toFill);
+                    } else {
+                        c.SetBlock(x, y, z, Blocks.AIR);
+                    }
+                }
+            }
+        }
+
+    }
+
 }
 
 public struct BlockEdit {

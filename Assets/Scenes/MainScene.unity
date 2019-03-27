@@ -566,6 +566,10 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   text: {fileID: 251957287}
+  editChunk:
+    x: 1
+    y: -1
+    z: 1
 --- !u!114 &534669908
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -753,7 +757,6 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 86a71823eeaa76848b35c2a58d8f9950, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  worldName: world
   chunkPrefab: {fileID: 488608649905904392, guid: 5a9289aba6bfac145bf1acb29935ad53,
     type: 3}
   TileMat: {fileID: 2100000, guid: 83cbd086011c43e48ae352c10450dcb7, type: 2}

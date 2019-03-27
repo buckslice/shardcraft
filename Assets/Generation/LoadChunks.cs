@@ -17,6 +17,8 @@ public class LoadChunks : MonoBehaviour {
 
     public Text text;
 
+    public Vector3i editChunk;
+
     // Start is called before the first frame update
     void Start() {
         world = FindObjectOfType<World>();
@@ -95,7 +97,13 @@ public class LoadChunks : MonoBehaviour {
         }
 
         if (Input.GetKeyDown(KeyCode.F)) {
-            TestFillChunk(new Vector3i(1, -1, 1), Blocks.STONE);
+            WorldUtils.FillChunk(world, editChunk, Blocks.STONE);
+        }
+        if (Input.GetKeyDown(KeyCode.G)) {
+            WorldUtils.FillChunk(world, editChunk, Blocks.AIR);
+        }
+        if (Input.GetKeyDown(KeyCode.C)) {
+            WorldUtils.CheckerboardChunk(world, editChunk, Blocks.STONE);
         }
 
         JobHandle.ScheduleBatchedJobs();
@@ -214,32 +222,6 @@ public class LoadChunks : MonoBehaviour {
             Debug.Log("destroyed: " + destroyed);
         }
     }
-
-    // nice do one in checkerboard pattern too for testing encoding and sector stuff
-    void TestFillChunk(Vector3i chunkPos, Block toFill) {
-        Chunk c = world.GetChunk(chunkPos);
-        if (c == null) {
-            Debug.Log("no chunk here");
-            return;
-        }
-
-        for (int y = 0; y < Chunk.SIZE; ++y) {
-            for (int z = 0; z < Chunk.SIZE; ++z) {
-                for (int x = 0; x < Chunk.SIZE; ++x) {
-                    //c.SetBlock(x, y, z, Blocks.STONE);
-
-                    // checkerboard
-                    if ((x + y + z) % 2 == 0) {
-                        c.SetBlock(x, y, z, Blocks.STONE);
-                    } else {
-                        c.SetBlock(x, y, z, Blocks.AIR);
-                    }
-                }
-            }
-        }
-
-    }
-
 
     Vector3i SumNeighborChunks() {
         Vector3i val = new Vector3i();
