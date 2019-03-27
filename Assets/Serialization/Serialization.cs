@@ -420,12 +420,7 @@ public static class Serialization {
 
     // returns lookup byte position to sector table
     public static int GetTablePos(Vector3i cp) {
-        return 4 * (Mod16(cp.x) + Mod16(cp.z) * 16 + Mod16(cp.y) * 256);
-    }
-
-    public static int Mod16(int c) {  // true mod implementation
-        int r = c % 16;
-        return r < 0 ? r + 16 : r;
+        return 4 * (Mth.Mod16(cp.x) + Mth.Mod16(cp.z) * 16 + Mth.Mod16(cp.y) * 256);
     }
 
     static void SetTableEntry(Vector3i cp, int sectorOffset, byte sectorCount) {
@@ -512,12 +507,8 @@ public static class Serialization {
 
     // regions are 16x16x16 chunks
     public static Vector3i GetRegionCoord(Vector3i cp) {
-
-        //return chunkPos / 16; // doesnt deal with negatives as smoothly as bit shifting
         return new Vector3i(cp.x >> 4, cp.y >> 4, cp.z >> 4);
-
     }
-
 
     static string SaveLocation(string worldName) {
         string saveLocation = saveFolderName + "/" + worldName + "/";

@@ -17,6 +17,8 @@ public class World : MonoBehaviour {
 
     public Pool<Chunk> chunkPool;
 
+    public Queue<Chunk> destroyQueue = new Queue<Chunk>();
+
     public bool loadPlayerSave = false;
 
     public int seed; // todo: make world generator use seed with some offset or something
@@ -42,17 +44,14 @@ public class World : MonoBehaviour {
 
         Tests.Run();
 
-
         seed = 1000;
     }
-
-
 
     public void CreateChunk(int x, int y, int z) {
         Debug.Assert(GetChunk(x, y, z) == null);
 
         Vector3i chunkPos = new Vector3i(x, y, z);
-        Vector3i worldPos = chunkPos * Chunk.SIZE;
+        Vector3i worldPos = chunkPos * Chunk.SIZE / 2;
 
         Chunk chunk = chunkPool.Get();
         chunk.Initialize(this, worldPos, chunkPos);
@@ -80,24 +79,42 @@ public class World : MonoBehaviour {
         n.neighbors[Dirs.Opp(d)] = c;
     }
 
-    public bool DestroyChunk(int x, int y, int z) {
-        Chunk chunk = GetChunk(x, y, z);
-        if (chunk != null) {
-            // notify neighbors
-            for (int i = 0; i < 6; ++i) {
-                Chunk n = chunk.neighbors[i];
-                if (n != null) {
-                    n.neighbors[Dirs.Opp(i)] = null;
-                }
-            }
-
-            chunk.gameObject.SetActive(false);
-            chunk.ClearMeshes();
-            chunks.Remove(new Vector3i(x, y, z));
-            Serialization.SaveChunk(chunk);
-            return true;
+    // adds to queue to destroy it when proper time
+    public void DestroyChunk(Vector3i cp) {
+        Chunk chunk = GetChunk(cp);
+        if (chunk != null && !chunk.dying) {
+            destroyQueue.Enqueue(chunk);
+            chunk.dying = true;
         }
-        return false;
+    }
+
+    public void DestroyChunks() {
+        int destroyed = 0;
+        int qlen = destroyQueue.Count;
+        while (--qlen >= 0) {
+            Chunk chunk = destroyQueue.Dequeue();
+            if (chunk.IsDataLocked()) {
+                destroyQueue.Enqueue(chunk); // put it back and try next time
+            } else { // destroy the chunk
+                // notify neighbors
+                for (int i = 0; i < 6; ++i) {
+                    Chunk n = chunk.neighbors[i];
+                    if (n != null) {
+                        n.neighbors[Dirs.Opp(i)] = null;
+                    }
+                }
+
+                chunk.gameObject.SetActive(false);
+                chunk.ClearMeshes();
+                chunks.Remove(chunk.cp);
+                Serialization.SaveChunk(chunk);
+                destroyed++;
+            }
+        }
+
+        if (destroyed > 0) {
+            Debug.Log("destroyed: " + destroyed);
+        }
     }
 
     public void SaveChunks() {
@@ -115,11 +132,6 @@ public class World : MonoBehaviour {
         chunkPool.Dispose();
     }
 
-    // gets chunk using world coordinates
-    public Chunk GetChunkByWorldPos(int x, int y, int z) {
-        chunks.TryGetValue(Chunk.GetChunkPosition(new Vector3(x, y, z)), out Chunk chunk);
-        return chunk;
-    }
     // gets chunk using chunk coords
     public Chunk GetChunk(int x, int y, int z) {
         chunks.TryGetValue(new Vector3i(x, y, z), out Chunk chunk);
@@ -130,9 +142,15 @@ public class World : MonoBehaviour {
         return chunk;
     }
 
+    // gets chunk using world block coordinates
+    public Chunk GetChunkByWorldBlockPos(int x, int y, int z) {
+        chunks.TryGetValue(WorldUtils.GetChunkPosFromBlockPos(x, y, z), out Chunk chunk);
+        return chunk;
+    }
 
+    // gets block using world block coordinates (as opposed to local/chunk block coordinates)
     public Block GetBlock(int x, int y, int z) {
-        Chunk containerChunk = GetChunkByWorldPos(x, y, z);
+        Chunk containerChunk = GetChunkByWorldBlockPos(x, y, z);
 
         if (containerChunk != null && containerChunk.loaded) {
             return containerChunk.GetBlock(x - containerChunk.wp.x, y - containerChunk.wp.y, z - containerChunk.wp.z);
@@ -142,12 +160,12 @@ public class World : MonoBehaviour {
 
     }
 
-    // sets block using world coordinates
+    // sets block using world block coordinates (as opposed to local/chunk block coordinates)
     public void SetBlock(int x, int y, int z, Block block) {
-        Chunk chunk = GetChunkByWorldPos(x, y, z);
+        Chunk chunk = GetChunkByWorldBlockPos(x, y, z);
 
         if (chunk != null) {
-            chunk.SetBlock(x - chunk.wp.x, y - chunk.wp.y, z - chunk.wp.z, block);
+            chunk.SetBlock(x - chunk.wp.x * Chunk.BPU, y - chunk.wp.y * Chunk.BPU, z - chunk.wp.z * Chunk.BPU, block);
         }
     }
 

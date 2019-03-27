@@ -11,6 +11,8 @@ public class Chunk {
     public const int CHUNK_WIDTH = SIZE;
     public const int CHUNK_HEIGHT = SIZE;
 
+    public const int BPU = 2; // blocks per unit
+
     //public Block[] blocks;
 
     public NativeArray<Block> blocks;
@@ -27,8 +29,9 @@ public class Chunk {
     public bool update { get; set; }    // means need to update mesh
     public bool rendered { get; private set; }  // has a mesh
     bool builtStructures;
-    int dataLock = 0;
+    int dataLock = 0;   // if not zero means one or more jobs are reading from the data
     public bool needToUpdateSave { get; set; } // only gets set when generated or modified a block
+    public bool dying { get; set; } // set when chunk is in process of getting destroyed
 
     public MeshRenderer mr { get; set; }
     MeshFilter filter;
@@ -42,7 +45,7 @@ public class Chunk {
     public Chunk(GameObject gameObject) {
         this.gameObject = gameObject;
 
-        blocks = new NativeArray<Block>(Chunk.SIZE * Chunk.SIZE * Chunk.SIZE, Allocator.Persistent);
+        blocks = new NativeArray<Block>(SIZE * SIZE * SIZE, Allocator.Persistent);
 
         mr = gameObject.GetComponent<MeshRenderer>();
         filter = gameObject.GetComponent<MeshFilter>();
@@ -61,6 +64,7 @@ public class Chunk {
         dataLock = 0;
         builtStructures = false;
         needToUpdateSave = false;
+        dying = false;
 
         gameObject.transform.position = wp.ToVector3();
         gameObject.name = "Chunk " + cp;
@@ -74,15 +78,19 @@ public class Chunk {
     }
 
     public void LockData() {
-        dataLock += 1;
+        ++dataLock;
     }
 
     public void UnlockData() {
-        dataLock -= 1;
+        --dataLock;
         Debug.Assert(dataLock >= 0);
         if (dataLock == 0) {
             ApplyPendingEdits();
         }
+    }
+
+    public bool IsDataLocked() {
+        return dataLock > 0;
     }
 
     public void ApplyPendingEdits() {
@@ -154,6 +162,9 @@ public class Chunk {
     }
 
     public void UpdateMeshNative(NativeList<Vector3> vertices, NativeList<int> triangles, NativeList<Vector2> uvs) {
+        if (dying) {
+            return;
+        }
         if (triangles.Length < short.MaxValue) {
             filter.mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt16;
         } else {
@@ -172,6 +183,9 @@ public class Chunk {
     }
 
     public void UpdateColliderNative(NativeList<Vector3> vertices, NativeList<int> triangles) {
+        if (dying) {
+            return;
+        }
         coll.sharedMesh = null;
         Mesh mesh = new Mesh(); // maybe reuse this?
         if (triangles.Length < short.MaxValue) {
@@ -242,26 +256,17 @@ public class Chunk {
         return x >= 0 && x < SIZE && y >= 0 && y < SIZE && z >= 0 && z < SIZE;
     }
 
-    // returns the chunk coord that pos is in
-    public static Vector3i GetChunkPosition(Vector3 worldPos) {
-        return new Vector3i(
-            Mathf.FloorToInt(worldPos.x / SIZE),
-            Mathf.FloorToInt(worldPos.y / SIZE),
-            Mathf.FloorToInt(worldPos.z / SIZE)
-        );
-    }
-
     // linearize vector3i based on chunk size
-    public static ushort CoordToUint(int x, int y, int z) {
-        Debug.Assert(x >= 0 && x < SIZE && y >= 0 && y < SIZE && z >= 0 && z < SIZE);
-        return (ushort)(x + y * SIZE + z * SIZE * SIZE);
-    }
+    //public static ushort CoordToUint(int x, int y, int z) {
+    //    Debug.Assert(x >= 0 && x < SIZE && y >= 0 && y < SIZE && z >= 0 && z < SIZE);
+    //    return (ushort)(x + y * SIZE + z * SIZE * SIZE);
+    //}
 
-    public static Vector3i IntToCoord(int i) {
-        int x = i % SIZE;
-        int y = (i % (SIZE * SIZE)) / SIZE;
-        int z = i / (SIZE * SIZE);
-        return new Vector3i(x, y, z);
-    }
+    //public static Vector3i IntToCoord(int i) {
+    //    int x = i % SIZE;
+    //    int y = (i % (SIZE * SIZE)) / SIZE;
+    //    int z = i / (SIZE * SIZE);
+    //    return new Vector3i(x, y, z);
+    //}
 
 }

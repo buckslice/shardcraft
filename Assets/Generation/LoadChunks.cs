@@ -6,7 +6,7 @@ using UnityEngine.UI;
 
 public class LoadChunks : MonoBehaviour {
 
-    int loadRadius = 8; // render radius will be 1 minus this
+    int loadRadius = 6; // render radius will be 1 minus this
     World world;
 
     Vector3i[] neighborChunks; // list of chunk offsets to generate in order of closeness
@@ -150,7 +150,7 @@ public class LoadChunks : MonoBehaviour {
     void UpdateChunks() {
         int updates = 0;
 
-        Vector3i playerChunk = Chunk.GetChunkPosition(transform.position);
+        Vector3i playerChunk = WorldUtils.GetChunkPosition(transform.position);
         for (int i = 0; i < neighborChunks.Length && updates < maxUpdatesPerFrame; ++i) {
             Vector3i p = playerChunk + neighborChunks[i];
             Chunk chunk = world.GetChunk(p);
@@ -170,7 +170,7 @@ public class LoadChunks : MonoBehaviour {
     void GenerateChunks() {
         //const int pad = 1;
 
-        Vector3i playerChunk = Chunk.GetChunkPosition(transform.position);
+        Vector3i playerChunk = WorldUtils.GetChunkPosition(transform.position);
         if (playerChunk != lastPlayerChunk) {
             neighborIndex = 0;
         }
@@ -202,25 +202,20 @@ public class LoadChunks : MonoBehaviour {
     // todo: change to just delete if chunk offset is not in the neighbors set
     // or at least turn off renderer then delete chunk later actually
     void DeleteFarChunks() {
-        float maxDist = (loadRadius * 4) * Chunk.SIZE;
+        float maxDist = (loadRadius * 3.0f) * Chunk.SIZE / Chunk.BPU;
 
-        List<Vector3i> chunksToDelete = new List<Vector3i>();
         foreach (var chunk in world.chunks) {
+            if (chunk.Value.dying) {
+                continue;
+            }
             float sqrDist = Vector3.SqrMagnitude(chunk.Value.wp.ToVector3() + Vector3.one * Chunk.SIZE - transform.position);
 
             if (sqrDist > maxDist * maxDist) {
-                chunksToDelete.Add(chunk.Key);
+                world.DestroyChunk(chunk.Key);
             }
         }
 
-        // cant delete in upper loop cuz iterating over dict
-        int destroyed = 0;
-        foreach (var cp in chunksToDelete) {
-            destroyed += world.DestroyChunk(cp.x, cp.y, cp.z) ? 1 : 0;
-        }
-        if (chunksToDelete.Count > 0) {
-            Debug.Log("destroyed: " + destroyed);
-        }
+        world.DestroyChunks();
     }
 
     Vector3i SumNeighborChunks() {

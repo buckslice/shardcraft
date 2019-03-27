@@ -30,7 +30,6 @@ public static class MeshBuilder {
 
         void AddQuadTrianglesGreedy(bool clockwise) {
             if (!clockwise) {
-
                 triangles.Add(vertices.Length - 2);  // 2
                 triangles.Add(vertices.Length - 4);  // 0
                 triangles.Add(vertices.Length - 3);  // 1
@@ -46,10 +45,9 @@ public static class MeshBuilder {
                 triangles.Add(vertices.Length - 3);  // 1
                 triangles.Add(vertices.Length - 4);  // 0
                 triangles.Add(vertices.Length - 2);  // 2
-
             }
         }
-        
+
         // setup variables for algo
         int i, j, k, l, w, h, d1, d2, n = 0;
         Dir side = Dir.south;
@@ -160,10 +158,10 @@ public static class MeshBuilder {
                         Vector3 topRight = new Vector3(x[0] + du[0] + dv[0], x[1] + du[1] + dv[1], x[2] + du[2] + dv[2]) + MeshUtils.padOffset[s][3];
 
                         // not using for now
-                        //botLeft *= VOXEL_SIZE;
-                        //topLeft *= VOXEL_SIZE;
-                        //topRight *= VOXEL_SIZE;
-                        //botRight *= VOXEL_SIZE;
+                        botLeft /= Chunk.BPU;
+                        topLeft /= Chunk.BPU;
+                        topRight /= Chunk.BPU;
+                        botRight /= Chunk.BPU;
 
                         vertices.Add(botLeft);
                         vertices.Add(botRight);
@@ -188,67 +186,5 @@ public static class MeshBuilder {
             }
         }
     }
-
-    // this is probably slow as crap but whatever
-    public static NativeArray<Block> BuildPaddedBlockArray(Chunk chunk) {
-        const int s = Chunk.SIZE;
-        const int s1 = s + 1;
-        const int s2 = s + 2;
-
-        NativeArray<Block> blocks = new NativeArray<Block>(s2 * s2 * s2, Allocator.TempJob);
-
-        // west
-        for (int y = 0; y < s; ++y) {
-            for (int z = 0; z < s; ++z) {
-                blocks[0 + (z + 1) * s2 + (y + 1) * s2 * s2] = chunk.neighbors[0].blocks[(s - 1) + z * s + y * s * s];
-            }
-        }
-        // down
-        for (int z = 0; z < s; ++z) {
-            for (int x = 0; x < s; ++x) {
-                blocks[(x + 1) + (z + 1) * s2 + 0] = chunk.neighbors[1].blocks[x + z * s + (s - 1) * s * s];
-            }
-        }
-
-        // south
-        for (int y = 0; y < s; ++y) {
-            for (int x = 0; x < s; ++x) {
-                blocks[(x + 1) + 0 + (y + 1) * s2 * s2] = chunk.neighbors[2].blocks[x + (s - 1) * s + y * s * s];
-            }
-        }
-
-        // east
-        for (int y = 0; y < s; ++y) {
-            for (int z = 0; z < s; ++z) {
-                blocks[s1 + (z + 1) * s2 + (y + 1) * s2 * s2] = chunk.neighbors[3].blocks[0 + z * s + y * s * s];
-            }
-        }
-        // up
-        for (int z = 0; z < s; ++z) {
-            for (int x = 0; x < s; ++x) {
-                blocks[(x + 1) + (z + 1) * s2 + s1 * s2 * s2] = chunk.neighbors[4].blocks[x + z * s + 0];
-            }
-        }
-
-        // north
-        for (int y = 0; y < s; ++y) {
-            for (int x = 0; x < s; ++x) {
-                blocks[(x + 1) + s1 * s2 + (y + 1) * s2 * s2] = chunk.neighbors[5].blocks[x + 0 + y * s * s];
-            }
-        }
-
-        // fill blocks array with padding
-        for (int y = 1; y < s1; y++) {
-            for (int z = 1; z < s1; z++) {
-                for (int x = 1; x < s1; x++) {
-                    blocks[x + z * s2 + y * s2 * s2] = chunk.blocks[(x - 1) + (z - 1) * s + (y - 1) * s * s];
-                }
-            }
-        }
-
-        return blocks;
-
-    }
-
 
 }

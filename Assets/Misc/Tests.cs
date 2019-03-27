@@ -24,15 +24,15 @@ public static class Tests {
         failures = 0;
 
         {
-            Vector3i v = new Vector3i(5, 0, 11);
-            int i = Chunk.CoordToUint(v.x, v.y, v.z);
-            Vector3i v2 = Chunk.IntToCoord(i);
-            TestEqual(v, v2, "Int2Coord");
+            //Vector3i v = new Vector3i(5, 0, 11);
+            //int i = Chunk.CoordToUint(v.x, v.y, v.z);
+            //Vector3i v2 = Chunk.IntToCoord(i);
+            //TestEqual(v, v2, "Int2Coord");
 
-            v = new Vector3i(0, 0, 0);
-            i = Chunk.CoordToUint(v.x, v.y, v.z);
-            v2 = Chunk.IntToCoord(i);
-            TestEqual(v, v2, "Int2Coord2");
+            //v = new Vector3i(0, 0, 0);
+            //i = Chunk.CoordToUint(v.x, v.y, v.z);
+            //v2 = Chunk.IntToCoord(i);
+            //TestEqual(v, v2, "Int2Coord2");
 
         }
 
@@ -60,11 +60,23 @@ public static class Tests {
             TestEqual(Serialization.GetRegionCoord(new Vector3i(17, 15, 15)), new Vector3i(1, 0, 0), "RegionCoordTest12");
         }
 
+        {   // written assuming 2 blocks per unit
+            TestEqual(WorldUtils.GetChunkPosition(new Vector3(0, 0, 0)), new Vector3i(0, 0, 0), "ChunkPos1");
+            TestEqual(WorldUtils.GetChunkPosition(new Vector3(-1.0f, 0, 0)), new Vector3i(-1, 0, 0), "ChunkPos2");
+            TestEqual(WorldUtils.GetChunkPosition(new Vector3(-16.01f, 0, 0)), new Vector3i(-2, 0, 0), "ChunkPos3");
+            TestEqual(WorldUtils.GetChunkPosition(new Vector3(25, 35, -5)), new Vector3i(1, 2, -1), "ChunkPos4");
+        }
+
         {
-            TestEqual(Chunk.GetChunkPosition(new Vector3(0, 0, 0)), new Vector3i(0, 0, 0), "ChunkPos1");
-            TestEqual(Chunk.GetChunkPosition(new Vector3(-1.0f, 0, 0)), new Vector3i(-1, 0, 0), "ChunkPos2");
-            //TestEqual(Chunk.GetChunkPosition(new Vector3(-16.01f, 0, 0)), new Vector3i(-2, 0, 0), "ChunkPos3");
-            //TestEqual(Chunk.GetChunkPosition(new Vector3(25, 35, -5)), new Vector3i(1, 2, -1), "ChunkPos4");
+            TestEqual(WorldUtils.GetChunkPosFromBlockPos(0, 13, 0), new Vector3i(0, 0, 0), "GCPFBP1");
+            TestEqual(WorldUtils.GetChunkPosFromBlockPos(32, 34, 0), new Vector3i(1, 1, 0), "GCPFBP2");
+            TestEqual(WorldUtils.GetChunkPosFromBlockPos(0, -1, 0), new Vector3i(0, -1, 0), "GCPFBP3");
+            TestEqual(WorldUtils.GetChunkPosFromBlockPos(-15, 0, 0), new Vector3i(-1, 0, 0), "GCPFBP4");
+            TestEqual(WorldUtils.GetChunkPosFromBlockPos(-16, 0, 0), new Vector3i(-1, 0, 0), "GCPFBP5");
+            TestEqual(WorldUtils.GetChunkPosFromBlockPos(-31, 0, 0), new Vector3i(-1, 0, 0), "GCPFBP6");
+            TestEqual(WorldUtils.GetChunkPosFromBlockPos(-32, 0, 0), new Vector3i(-1, 0, 0), "GCPFBP7");
+            TestEqual(WorldUtils.GetChunkPosFromBlockPos(-33, 0, 0), new Vector3i(-2, 0, 0), "GCPFBP8");
+            TestEqual(WorldUtils.GetChunkPosFromBlockPos(-33, 0, 40), new Vector3i(-2, 0, 1), "GCPFBP9");
         }
 
         {
@@ -74,13 +86,13 @@ public static class Tests {
             TestEqual(Serialization.GetTablePos(new Vector3i(-1, 0, 0)), 60, "LookUpPos4");
         }
         {
-            TestEqual(Serialization.Mod16(0), 0, "Mod16_1");
-            TestEqual(Serialization.Mod16(15), 15, "Mod16_2");
-            TestEqual(Serialization.Mod16(16), 0, "Mod16_3");
-            TestEqual(Serialization.Mod16(35), 3, "Mod16_4");
-            TestEqual(Serialization.Mod16(-1), 15, "Mod16_5");
-            TestEqual(Serialization.Mod16(-16), 0, "Mod16_6");
-            TestEqual(Serialization.Mod16(-5), 11, "Mod16_7");
+            TestEqual(Mth.Mod16(0), 0, "Mod16_1");
+            TestEqual(Mth.Mod16(15), 15, "Mod16_2");
+            TestEqual(Mth.Mod16(16), 0, "Mod16_3");
+            TestEqual(Mth.Mod16(35), 3, "Mod16_4");
+            TestEqual(Mth.Mod16(-1), 15, "Mod16_5");
+            TestEqual(Mth.Mod16(-16), 0, "Mod16_6");
+            TestEqual(Mth.Mod16(-5), 11, "Mod16_7");
         }
 
         string msg = string.Format("{0}/{1} tests passed", passes, passes + failures);

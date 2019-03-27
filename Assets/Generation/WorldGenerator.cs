@@ -35,7 +35,7 @@ public static class WorldGenerator {
         for (int y = 0; y < Chunk.SIZE; ++y) {
             for (int z = 0; z < Chunk.SIZE; ++z) {
                 for (int x = 0; x < Chunk.SIZE; ++x) {
-                    Vector3 wp = new Vector3(x, y, z) + chunkPos + new Vector3(55.0f, 12.4f, 87.5f);
+                    Vector3 wp = new Vector3(x, y, z) / Chunk.BPU + chunkPos + new Vector3(55.0f, 12.4f, 87.5f);
                     float n = 0.0f;
 
                     // experiment with catlike coding noise some more
