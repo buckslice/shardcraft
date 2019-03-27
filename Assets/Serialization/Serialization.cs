@@ -225,44 +225,50 @@ public static class Serialization {
         Debug.Log("loading " + chunks.Count + " chunks from region " + regionCoord);
         watch.Restart();
 #endif
+        FileStream stream = null;
+        try {
+            stream = File.Open(regionFile, FileMode.Open); // will open or create if not there
+            int c = stream.Read(table, 0, TABLE_SIZE);
+            Debug.Assert(c == TABLE_SIZE);
+            while (chunks.Count > 0) {
+                Chunk chunk = chunks.Dequeue();
 
-        FileStream stream = File.Open(regionFile, FileMode.Open); // will open or create if not there
-        int c = stream.Read(table, 0, TABLE_SIZE);
-        Debug.Assert(c == TABLE_SIZE);
-        while (chunks.Count > 0) {
-            Chunk chunk = chunks.Dequeue();
+                int sectorOffset;
+                byte sectorCount;
+                GetTableEntry(chunk.cp, out sectorOffset, out sectorCount);
 
-            int sectorOffset;
-            byte sectorCount;
-            GetTableEntry(chunk.cp, out sectorOffset, out sectorCount);
-
-            if (sectorOffset == 0 && sectorCount == 0) { // no entry in table
-                lock (chunkLoadFailures) {
-                    chunkLoadFailures.Enqueue(chunk);
+                if (sectorOffset == 0 && sectorCount == 0) { // no entry in table
+                    lock (chunkLoadFailures) {
+                        chunkLoadFailures.Enqueue(chunk);
+                    }
+                    continue;
                 }
-                continue;
+
+                // seek to start of sector
+                stream.Seek(TABLE_SIZE + sectorOffset * SECTOR_SIZE, SeekOrigin.Begin);
+
+                // read count to get length of chunk data
+                stream.Read(fourBytes, 0, 4);
+                reader.Start(fourBytes, 0, oneUint, 4);
+                int bytes = (int)reader.ReadUInt();
+
+                // read from stream into byte buffer
+                stream.Read(byteBuffer, 0, bytes);
+
+                DecodeBlocks(byteBuffer, bytes, chunk.blocks);
+
+                lock (chunksLoaded) {
+                    chunksLoaded.Enqueue(chunk);
+                }
+
             }
-
-            // seek to start of sector
-            stream.Seek(TABLE_SIZE + sectorOffset * SECTOR_SIZE, SeekOrigin.Begin);
-
-            // read count to get length of chunk data
-            stream.Read(fourBytes, 0, 4);
-            reader.Start(fourBytes, 0, oneUint, 4);
-            int bytes = (int)reader.ReadUInt();
-
-            // read from stream into byte buffer
-            stream.Read(byteBuffer, 0, bytes);
-
-            DecodeBlocks(byteBuffer, bytes, chunk.blocks);
-
-            lock (chunksLoaded) {
-                chunksLoaded.Enqueue(chunk);
+        } catch (Exception e) {
+            Debug.Log(e.Message);
+        } finally {
+            if (stream != null) {
+                stream.Close();
             }
-
         }
-
-        stream.Close();
 
 #if _DEBUG
         Debug.Log("loaded in " + watch.ElapsedMilliseconds + " ms");
@@ -280,76 +286,84 @@ public static class Serialization {
 
         // check if region file exists
         string regionFile = RegionFileName(regionCoord);
-
         bool alreadyExisted = File.Exists(regionFile);
-        FileStream stream = File.Open(regionFile, FileMode.OpenOrCreate); // will open or create if not there
-        if (alreadyExisted) { // load lookup table if file was there already
-            int c = stream.Read(table, 0, TABLE_SIZE);
-            Debug.Assert(c == TABLE_SIZE);
-        } else {
-            Array.Clear(table, 0, TABLE_SIZE);   // make sure its 0s
-            stream.Write(table, 0, TABLE_SIZE);  // write table at beginning of new file (will get updated at end as well)
-        }
+        FileStream stream = null;
+        try {
+            stream = File.Open(regionFile, FileMode.OpenOrCreate); // will open or create if not there
 
-        while (chunks.Count > 0) {
-            Chunk chunk = chunks.Dequeue();
-
-            // get encoded chunk bytes
-            int bytes = EncodeBlocks(byteBuffer, chunk.blocks);
-
-            int requiredSectors = (bytes + 4) / SECTOR_SIZE + 1; // +4 for length uint
-            Debug.Assert(requiredSectors < 256); // max for 1 byte sector count
-
-            // get position in lookup table
-            int sectorOffset; // starting point of this chunk in terms of number of sectors from front
-            byte sectorCount; // how many sectors this chunk takes up
-            GetTableEntry(chunk.cp, out sectorOffset, out sectorCount);
-
-            // if no entry in table, add one to the end
-            if (sectorOffset == 0 && sectorCount == 0) {
-                sectorOffset = (int)((stream.Length - TABLE_SIZE) / SECTOR_SIZE);
-                sectorCount = (byte)requiredSectors;
-
-                SetTableEntry(chunk.cp, sectorOffset, sectorCount); // append new table entry
-            } else if (requiredSectors != sectorCount) {
-                Debug.Assert(requiredSectors > 0 && sectorCount > 0);
-
-                SetTableEntry(chunk.cp, sectorOffset, (byte)requiredSectors); // update table entry
-
-                int endOfSectorPos = TABLE_SIZE + (sectorOffset + sectorCount) * SECTOR_SIZE;
-                ShiftRegionData(stream, requiredSectors - sectorCount, endOfSectorPos);
+            if (alreadyExisted) { // load lookup table if file was there already
+                int c = stream.Read(table, 0, TABLE_SIZE);
+                Debug.Assert(c == TABLE_SIZE);
+            } else {
+                Array.Clear(table, 0, TABLE_SIZE);   // make sure its 0s
+                stream.Write(table, 0, TABLE_SIZE);  // write table at beginning of new file (will get updated at end as well)
             }
 
-            writer.Start(uintBuffer);
-            writer.Write((uint)bytes);
-            writer.Finish();
-            writer.GetData(fourBytes);
+            while (chunks.Count > 0) {
+                Chunk chunk = chunks.Dequeue();
 
-            // add padding to end of byteBuffer
-            int pad = SECTOR_SIZE * requiredSectors - bytes - 4;
-            Debug.Assert(pad >= 0 && pad <= SECTOR_SIZE);
-            Array.Clear(byteBuffer, bytes, pad);
+                // get encoded chunk bytes
+                int bytes = EncodeBlocks(byteBuffer, chunk.blocks);
 
-            // seek to correct spot in file
-            stream.Seek(TABLE_SIZE + sectorOffset * SECTOR_SIZE, SeekOrigin.Begin);
+                int requiredSectors = (bytes + 4) / SECTOR_SIZE + 1; // +4 for length uint
+                Debug.Assert(requiredSectors < 256); // max for 1 byte sector count
 
-            long streamPos = stream.Position;
-            // write data length followed by padded chunk data
-            stream.Write(fourBytes, 0, 4);
-            stream.Write(byteBuffer, 0, bytes + pad);
-            Debug.Assert(stream.Position - streamPos == SECTOR_SIZE * requiredSectors);
+                // get position in lookup table
+                int sectorOffset; // starting point of this chunk in terms of number of sectors from front
+                byte sectorCount; // how many sectors this chunk takes up
+                GetTableEntry(chunk.cp, out sectorOffset, out sectorCount);
 
-            lock (chunksSaved) {
-                chunksSaved.Enqueue(chunk);
+                // if no entry in table, add one to the end
+                if (sectorOffset == 0 && sectorCount == 0) {
+                    sectorOffset = (int)((stream.Length - TABLE_SIZE) / SECTOR_SIZE);
+                    sectorCount = (byte)requiredSectors;
+
+                    SetTableEntry(chunk.cp, sectorOffset, sectorCount); // append new table entry
+                } else if (requiredSectors != sectorCount) {
+                    Debug.Assert(requiredSectors > 0 && sectorCount > 0);
+
+                    SetTableEntry(chunk.cp, sectorOffset, (byte)requiredSectors); // update table entry
+
+                    int endOfSectorPos = TABLE_SIZE + (sectorOffset + sectorCount) * SECTOR_SIZE;
+                    ShiftRegionData(stream, requiredSectors - sectorCount, endOfSectorPos);
+                }
+
+                writer.Start(uintBuffer);
+                writer.Write((uint)bytes);
+                writer.Finish();
+                writer.GetData(fourBytes);
+
+                // add padding to end of byteBuffer
+                int pad = SECTOR_SIZE * requiredSectors - bytes - 4;
+                Debug.Assert(pad >= 0 && pad <= SECTOR_SIZE);
+                Array.Clear(byteBuffer, bytes, pad);
+
+                // seek to correct spot in file
+                stream.Seek(TABLE_SIZE + sectorOffset * SECTOR_SIZE, SeekOrigin.Begin);
+
+                long streamPos = stream.Position;
+                // write data length followed by padded chunk data
+                stream.Write(fourBytes, 0, 4);
+                stream.Write(byteBuffer, 0, bytes + pad);
+                Debug.Assert(stream.Position - streamPos == SECTOR_SIZE * requiredSectors);
+
+                lock (chunksSaved) {
+                    chunksSaved.Enqueue(chunk);
+                }
+            }
+
+            stream.Seek(0, SeekOrigin.Begin);
+            stream.Write(table, 0, TABLE_SIZE); // write updated table back and close stream
+
+            Debug.Assert((stream.Length - TABLE_SIZE) % SECTOR_SIZE == 0);
+
+        } catch (Exception e) {
+            Debug.Log(e.Message);
+        } finally {
+            if (stream != null) {
+                stream.Close();
             }
         }
-
-        stream.Seek(0, SeekOrigin.Begin);
-        stream.Write(table, 0, TABLE_SIZE); // write updated table back and close stream
-
-        Debug.Assert((stream.Length - TABLE_SIZE) % SECTOR_SIZE == 0);
-
-        stream.Close();
 
 #if _DEBUG
         Debug.Log("saved in " + watch.ElapsedMilliseconds + " ms");
@@ -495,29 +509,6 @@ public static class Serialization {
         AtomicSafetyHandle.Release(handle);
 #endif
     }
-
-    //static void _SaveChunk(Chunk chunk) {
-
-    //    var bytes = EncodeBlocks(chunk.blocks);
-
-    //    File.WriteAllBytes(SaveFileName(chunk), bytes);
-
-    //    lock (chunksSaved) {
-    //        chunksSaved.Enqueue(chunk);
-    //    }
-    //}
-
-    //static void _LoadChunk(Chunk chunk) {
-    //    string saveFile = SaveFileName(chunk);
-    //    Debug.Assert(File.Exists(saveFile));
-
-    //    byte[] bytes = File.ReadAllBytes(saveFile);
-    //    DecodeBlocks(bytes, chunk.blocks);
-
-    //    lock (chunksLoaded) {
-    //        chunksLoaded.Enqueue(chunk);
-    //    }
-    //}
 
     // regions are 16x16x16 chunks
     public static Vector3i GetRegionCoord(Vector3i cp) {

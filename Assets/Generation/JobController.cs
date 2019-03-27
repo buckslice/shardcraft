@@ -1,4 +1,6 @@
-﻿using System.Collections;
+﻿#define GEN_COLLIDERS
+
+using System.Collections;
 using System.Collections.Generic;
 using Unity.Burst;
 using Unity.Collections;
@@ -43,8 +45,10 @@ public struct MeshJob : IJob {
     public NativeList<int> triangles;
     public NativeList<Vector2> uvs;
 
+#if GEN_COLLIDERS
     public NativeList<Vector3> colliderVerts;
     public NativeList<int> colliderTris;
+#endif
     //public NativeList<Vector2> uvs;
 
     public void Execute() {
@@ -59,7 +63,10 @@ public struct MeshJob : IJob {
 
         MeshBuilder.BuildNaive(data);
 
+#if GEN_COLLIDERS
         MeshBuilder.BuildGreedyCollider(data, colliderVerts, colliderTris);
+#endif
+
     }
 
 }
@@ -108,8 +115,10 @@ public class MeshJobInfo {
     NativeList<int> triangles;
     NativeList<Vector2> uvs;
 
+#if GEN_COLLIDERS
     NativeList<Vector3> colliderVerts;
     NativeList<int> colliderTris;
+#endif
 
     public MeshJobInfo(Chunk chunk) {
 
@@ -117,14 +126,9 @@ public class MeshJobInfo {
         triangles = Pools.intPool.Get();
         uvs = Pools.v2Pool.Get();
 
-        colliderVerts = Pools.v3Pool.Get();
-        colliderTris = Pools.intPool.Get();
-
         vertices.Clear();
         triangles.Clear();
         uvs.Clear();
-        colliderVerts.Clear();
-        colliderTris.Clear();
 
         this.chunk = chunk;
 
@@ -146,8 +150,14 @@ public class MeshJobInfo {
         job.triangles = triangles;
         job.uvs = uvs;
 
+#if GEN_COLLIDERS
+        colliderVerts = Pools.v3Pool.Get();
+        colliderTris = Pools.intPool.Get();
+        colliderVerts.Clear();
+        colliderTris.Clear();
         job.colliderVerts = colliderVerts;
         job.colliderTris = colliderTris;
+#endif
 
         handle = job.Schedule();
 
@@ -161,15 +171,15 @@ public class MeshJobInfo {
 
         chunk.UpdateMeshNative(vertices, triangles, uvs);
 
-        chunk.UpdateColliderNative(colliderVerts, colliderTris);
-
         Pools.v3Pool.Return(vertices);
         Pools.intPool.Return(triangles);
         Pools.v2Pool.Return(uvs);
 
+#if GEN_COLLIDERS
+        chunk.UpdateColliderNative(colliderVerts, colliderTris);
         Pools.v3Pool.Return(colliderVerts);
         Pools.intPool.Return(colliderTris);
-
+#endif
     }
 }
 

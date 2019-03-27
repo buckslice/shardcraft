@@ -39,9 +39,6 @@ public class Chunk {
 
     public static bool beGreedy = false;
 
-    public static bool generateColliders = true;
-
-
     public Chunk(GameObject gameObject) {
         this.gameObject = gameObject;
 

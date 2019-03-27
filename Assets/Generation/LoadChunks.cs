@@ -6,14 +6,14 @@ using UnityEngine.UI;
 
 public class LoadChunks : MonoBehaviour {
 
-    int loadRadius = 4; // render radius will be 1 minus this
+    int loadRadius = 8; // render radius will be 1 minus this
     World world;
 
     Vector3i[] neighborChunks; // list of chunk offsets to generate in order of closeness
 
-    public const int maxUpdatesPerFrame = 8; // how many mesh jobs are sent among other things
+    public const int maxUpdatesPerFrame = 2; // number of update per frame (sends mesh jobs among other things)
     public const int genJobLimit = 16; // limit on number of active generation jobs
-    public const int meshLoadsPerFrame = 8; // number of mesh datas and colliders uploaded
+    public const int meshLoadsPerFrame = 8; // number of meshes and colliders uploaded per frame
 
     public Text text;
 
