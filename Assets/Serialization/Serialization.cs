@@ -255,7 +255,7 @@ public static class Serialization {
                 // read from stream into byte buffer
                 stream.Read(byteBuffer, 0, bytes);
 
-                DecodeBlocks(byteBuffer, bytes, chunk.blocks);
+                DecodeChunk(byteBuffer, bytes, chunk);
 
                 lock (chunksLoaded) {
                     chunksLoaded.Enqueue(chunk);
@@ -303,7 +303,7 @@ public static class Serialization {
                 Chunk chunk = chunks.Dequeue();
 
                 // get encoded chunk bytes
-                int bytes = EncodeBlocks(byteBuffer, chunk.blocks);
+                int bytes = EncodeChunk(byteBuffer, chunk);
 
                 int requiredSectors = (bytes + 4) / SECTOR_SIZE + 1; // +4 for length uint
                 Debug.Assert(requiredSectors < 256); // max for 1 byte sector count
@@ -443,7 +443,9 @@ public static class Serialization {
     }
 
     // todo: try not making new array and just write from position and length of write buffer
-    static int EncodeBlocks(byte[] buffer, NativeArray<Block> blocks) {
+    static int EncodeChunk(byte[] buffer, Chunk chunk) {
+        var blocks = chunk.blocks;
+
         // run length encoding, a byte for type followed by byte for runcount
         // rewrote project to access data in xzy order, because i assume there will be more horizontal than vertical structures in the world gen (and thus more runs)
         // WWWWWBWWWBWWWW  - example
@@ -454,6 +456,8 @@ public static class Serialization {
         // todo: investigate whether using ushort is better for runs and types eventually maybe
 
         writer.Start(uintBuffer);
+
+        writer.Write(chunk.builtStructures);
 
         // circumvent the safety check here because it gets mad for some reason when trying to save
         // even though i am quite sure it is safe. Saving is only called when a chunk is being destroyed
@@ -483,8 +487,12 @@ public static class Serialization {
     }
 
     // decode given byte array into nativearray for chunk
-    static void DecodeBlocks(byte[] buffer, int bytes, NativeArray<Block> blocks) {
+    static void DecodeChunk(byte[] buffer, int bytes, Chunk chunk) {
+        var blocks = chunk.blocks;
+
         reader.Start(buffer, 0, uintBuffer, bytes);
+
+        chunk.builtStructures = reader.ReadBool();
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
         var handle = AtomicSafetyHandle.Create();

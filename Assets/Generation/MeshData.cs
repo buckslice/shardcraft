@@ -58,15 +58,15 @@ public class MeshData {
 
 public class NativeMeshData {
     public NativeList<Vector3> vertices;
+    public NativeList<Vector3> uvs;
     public NativeList<int> triangles;
-    public NativeList<Vector2> uvs;
     public MeshJob job;
 
-    public NativeMeshData(MeshJob job, NativeList<Vector3> vertices, NativeList<int> triangles, NativeList<Vector2> uvs) {
+    public NativeMeshData(MeshJob job, NativeList<Vector3> vertices, NativeList<Vector3> uvs, NativeList<int> triangles) {
         this.job = job;
         this.vertices = vertices;
-        this.triangles = triangles;
         this.uvs = uvs;
+        this.triangles = triangles;
     }
 
     public Block GetBlock(int x, int y, int z) {
@@ -92,11 +92,20 @@ public class NativeMeshData {
 
     }
 
-    public void AddFaceUVs(Tile tp) {
-        uvs.Add(new Vector2(tp.x + 1, tp.y) * Tile.SIZE);
-        uvs.Add(new Vector2(tp.x + 1, tp.y + 1) * Tile.SIZE);
-        uvs.Add(new Vector2(tp.x, tp.y + 1) * Tile.SIZE);
-        uvs.Add(new Vector2(tp.x, tp.y) * Tile.SIZE);
+    //public void AddFaceUVs(Tile tp) {
+    //    uvs.Add(new Vector2(tp.x + 1, tp.y) * Tile.SIZE);
+    //    uvs.Add(new Vector2(tp.x + 1, tp.y + 1) * Tile.SIZE);
+    //    uvs.Add(new Vector2(tp.x, tp.y + 1) * Tile.SIZE);
+    //    uvs.Add(new Vector2(tp.x, tp.y) * Tile.SIZE);
+
+    //}
+
+    // given slice into texture2Darray, selecting it by the z uv coordinate
+    public void AddFaceUVs(int slice) {
+        uvs.Add(new Vector3(1, 0, slice));
+        uvs.Add(new Vector3(1, 1, slice));
+        uvs.Add(new Vector3(0, 1, slice));
+        uvs.Add(new Vector3(0, 0, slice));
     }
 
 }

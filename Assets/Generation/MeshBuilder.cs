@@ -99,8 +99,11 @@ public static class MeshBuilder {
                         Block block2 = data.GetBlock(x[0] + q[0], x[1] + q[1], x[2] + q[2]); // block were going to
 
                         // this isSolid is probably wrong in some cases but no blocks use yet cuz i dont rly get so figure out later lol
-                        slice[n++] = block1.IsSolid(side) && block2.IsSolid(Dirs.Opp(side)) ?
-                            Blocks.AIR : backFace ? block2 : block1;
+                        //slice[n++] = block1.IsSolid(side) && block2.IsSolid(Dirs.Opp(side)) ?
+                        //    Blocks.AIR : backFace ? block2 : block1;
+
+                        slice[n++] = block1.ColliderSolid() && block2.ColliderSolid() ?
+                                Blocks.AIR : backFace ? block2 : block1;
                     }
                 }
 

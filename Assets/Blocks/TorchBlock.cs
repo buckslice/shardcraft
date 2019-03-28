@@ -91,9 +91,9 @@ public class BlockTorch : BlockType {
     }
 
 
-    // test smiley texture
-    public override Tile TexturePosition(Dir dir, int x, int y, int z, NativeMeshData data) {
-        return new Tile(1, 1);
-    }
+    //// test smiley texture
+    //public override Tile TexturePosition(Dir dir, int x, int y, int z, NativeMeshData data) {
+    //    return new Tile(1, 1);
+    //}
 
 }

@@ -2,7 +2,7 @@
 using System.Collections;
 using System;
 
-public class BlockAir : BlockType {
+public class AirBlock : BlockType {
 
     public override bool IsSolid(Dir dir) {
         return false;

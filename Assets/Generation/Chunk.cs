@@ -22,13 +22,13 @@ public class Chunk {
 
     public World world;
     public GameObject gameObject;
-    public Vector3i wp { get; private set; } // world space position
+    public Vector3i bp { get; private set; } // world block space position (not pure world position!)
     public Vector3i cp { get; private set; } // chunk space
 
     public bool loaded { get; private set; }    // indicates block array is set correctly (either loaded from save or freshly gend)
     public bool update { get; set; }            // means need to update mesh for some reason
     public bool rendered { get; private set; }  // has a mesh (may be out of date)
-    bool builtStructures;
+    public bool builtStructures { get; set; }
     int dataLock = 0;   // if not zero means one or more jobs are reading from the data
     public bool needToUpdateSave { get; set; } // only gets set when generated or modified a block
     public bool dying { get; set; } // set when chunk is in process of getting destroyed
@@ -38,11 +38,10 @@ public class Chunk {
     MeshCollider coll;
 
     // w d s e u n
-    // maybe instead store all 26 neighbors? oh ya thad be nice
-    // then only update edge neighbors if like x = 0 and y = 0 for example, and corner neighbors if all 3
     public Chunk[] neighbors = new Chunk[6];
-    public int loadedNeighbors = 0;
 
+    public int loadedNeighbors = 0;
+    // dont think having all 26 neighbors would be good. not too hard to say neighbors[0].neighbors[3] for example or something
     // 12 edge neighbors, uw, us, ue, un, sw, se, nw, ne, dw, ds, de, dn
     // 8 corner neighbors, usw, use, unw, une, dsw, dse, dnw, dne
     // or just figure out way to index them like this neighbors[-1,0,1]; so that would be up west neighbor
@@ -61,9 +60,9 @@ public class Chunk {
 
     }
 
-    public void Initialize(World world, Vector3i wp, Vector3i cp) {
+    public void Initialize(World world, Vector3i bp, Vector3i cp) {
         this.world = world; // maybe world can change? i dunno would prob have its own pool
-        this.wp = wp;
+        this.bp = bp;
         this.cp = cp;
 
         loaded = false;
@@ -75,7 +74,7 @@ public class Chunk {
         dying = false;
         loadedNeighbors = 0;
 
-        gameObject.transform.position = wp.ToVector3();
+        gameObject.transform.position = bp.ToVector3() / BPU;
         gameObject.name = "Chunk " + cp;
         gameObject.SetActive(true);
 
@@ -108,6 +107,7 @@ public class Chunk {
     }
 
     public void ApplyPendingEdits() {
+        Debug.Assert(loaded);
         if (pendingEdits.Count > 0 && dataLock == 0) {
             while (pendingEdits.Count > 0) {
                 BlockEdit e = pendingEdits.Dequeue();
@@ -115,8 +115,11 @@ public class Chunk {
                 CheckNeedToUpdateNeighbors(e.x, e.y, e.z);
             }
             needToUpdateSave = true; // blocks were modified so need to update save
-            // just slam out another job asap (could try manually completing too? or give highest prio to chunks near player somehow)
-            JobController.StartMeshJob(this);
+            if (!NeighborsLoaded()) {
+                update = true;
+            } else {    // slam out job right away if you can
+                JobController.StartMeshJob(this);
+            }
         }
     }
 
@@ -127,53 +130,30 @@ public class Chunk {
 
     // Updates the chunk based on its contents
     public bool UpdateChunk() {
-        if (!loaded) {
+        if (!loaded || !NeighborsLoaded()) {
             return false;
         }
 
-        Debug.Assert(loadedNeighbors >= 0 && loadedNeighbors <= 26);
-        if(loadedNeighbors < 26) {
-            return false;
+        if (!builtStructures) {
+            BuildStructures();
+            builtStructures = true;
         }
-
-        //if (!builtStructures) {
-        //    BuildStructures();
-        //    builtStructures = true;
-        //}
 
         if (update && dataLock == 0) {
             update = false;
             JobController.StartMeshJob(this);
-        } else {
-            return false;
+            return true;
         }
 
-        return true;
+        return false;
     }
 
-    // called only once all neighbors are generated
-    public void BuildStructures() {
-
-        // not sure here lol
-        Random.InitState(wp.GetHashCode() + world.seed);
-
-        for (int z = 0; z < SIZE; ++z) {
-            for (int y = 0; y < SIZE; ++y) {
-                for (int x = 0; x < SIZE; ++x) {
-
-                    if (GetBlock(x, y, z) == Blocks.AIR && GetBlock(x, y - 1, z) == Blocks.GRASS) {
-                        if (Random.value < 0.01f) {
-                            SetBlock(x, y, z, Blocks.TORCH);
-                        }
-                    }
-
-                }
-            }
-        }
-
+    public bool NeighborsLoaded() {
+        Debug.Assert(loadedNeighbors >= 0 && loadedNeighbors <= 26);
+        return loadedNeighbors == 26;
     }
 
-    public void UpdateMeshNative(NativeList<Vector3> vertices, NativeList<int> triangles, NativeList<Vector2> uvs) {
+    public void UpdateMeshNative(NativeList<Vector3> vertices, NativeList<Vector3> uvs, NativeList<int> triangles) {
         if (dying) {
             return;
         }
@@ -185,7 +165,7 @@ public class Chunk {
 
         filter.mesh.Clear();
         filter.mesh.vertices = vertices.ToArray();
-        filter.mesh.uv = uvs.ToArray();
+        filter.mesh.SetUVs(0, new List<Vector3>(uvs.ToArray()));
         filter.mesh.triangles = triangles.ToArray();
         filter.mesh.RecalculateNormals();
 
@@ -212,6 +192,10 @@ public class Chunk {
         coll.sharedMesh = mesh;
     }
 
+    public Vector3 GetWorldPos() {
+        return (bp / BPU).ToVector3();
+    }
+
     public Block GetBlock(int x, int y, int z) {
         // return block if its in range of this chunk
         if (InRange(x, y, z)) {
@@ -220,7 +204,7 @@ public class Chunk {
             }
             return blocks[x + z * SIZE + y * SIZE * SIZE];
         }
-        return world.GetBlock(wp.x + x, wp.y + y, wp.z + z);
+        return world.GetBlock(bp.x + x, bp.y + y, bp.z + z);
     }
 
     // standard way to safely set the block in this chunk
@@ -238,7 +222,7 @@ public class Chunk {
                 CheckNeedToUpdateNeighbors(x, y, z);
             }
         } else {
-            world.SetBlock(wp.x + x, wp.y + y, wp.z + z, block);
+            world.SetBlock(bp.x + x, bp.y + y, bp.z + z, block);
         }
     }
 
@@ -246,6 +230,7 @@ public class Chunk {
     // given x,y,z of block in local chunk space, check if you need to update your neighbors
     void CheckNeedToUpdateNeighbors(int x, int y, int z) {
         Debug.Assert(InRange(x, y, z));
+
         if (x == 0 && neighbors[0] != null) {
             neighbors[Dirs.WEST].update = true;
         } else if (x == SIZE - 1 && neighbors[3] != null) {
@@ -287,5 +272,104 @@ public class Chunk {
     //    int z = i / (SIZE * SIZE);
     //    return new Vector3i(x, y, z);
     //}
+
+    // called only once all neighbors are generated
+    public void BuildStructures() {
+
+        void TrySpawnTree(int x, int y, int z) {
+            int width = Random.Range(1, 4);
+
+            int height = 0;
+            if (width == 1) {
+                height = Random.Range(3, 10);
+                for (int i = 0; i <= height; ++i) {
+                    Block b = GetBlock(x, y + i, z);
+                    if (i == 0) {
+                        if (b != Blocks.GRASS) return;
+                    } else {
+                        if (b != Blocks.AIR) return;
+                    }
+                }
+
+            } else if (width == 2) {
+                height = Random.Range(8, 20);
+                for (int i = 0; i <= height; ++i) {
+                    for (int u = 0; u <= 1; ++u) {
+                        for (int v = 0; v <= 1; ++v) {
+                            Block b = GetBlock(x + u, y + i, z + v);
+                            if (i == 0) {
+                                if (b != Blocks.GRASS) return;
+                            } else {
+                                if (b != Blocks.AIR) return;
+                            }
+                        }
+                    }
+                }
+
+            } else if (width == 3) {
+                height = Random.Range(16, 28);
+                for (int i = 0; i <= height; ++i) {
+                    for (int u = -1; u <= 1; ++u) {
+                        for (int v = -1; v <= 1; ++v) {
+                            Block b = GetBlock(x + u, y + i, z + v);
+                            if (i == 0) {
+                                if (b != Blocks.GRASS) return;
+                            } else {
+                                if (b != Blocks.AIR) return;
+                            }
+                        }
+                    }
+                }
+            }
+
+            for (int i = 1; i <= height + 1; ++i) {
+                float f = (height - i);
+                float hf = (float)i / height;
+                hf = 1.0f - hf;
+                hf *= hf;
+                int s = (int)(f * hf);
+                if (s <= 0) {
+                    s = 1;
+                }
+                s += Random.Range(-1, 2);
+                int us = -s;
+                int vs = -s;
+                if (width == 3) {
+                    us -= 1;
+                    vs -= 1;
+                }
+
+                for (int u = us; u <= s + width - 1; ++u) {
+                    for (int v = vs; v <= s + width - 1; ++v) {
+                        // spawn trunk if near center
+                        if (width == 1 && u == 0 && v == 0 ||
+                           width == 2 && (u >= 0 && u <= 1) && (v >= 0 && v <= 1) ||
+                           width == 3 && (u >= -1 && u <= 1) && (v >= -1 && v <= 1)) {
+                            SetBlock(x + u, y + i, z + v, Blocks.BIRCH);
+                        } else if (i >= width * 2 && i % 2 == 0 || i > height - 1) { // otherwise leaves
+                            SetBlock(x + u, y + i, z + v, Blocks.LEAF);
+                        }
+                    }
+                }
+            }
+
+        }
+
+        // not sure here lol
+        Random.InitState(bp.GetHashCode() + world.seed);
+
+        for (int y = 0; y < SIZE; ++y) {
+            for (int z = 0; z < SIZE; ++z) {
+                for (int x = 0; x < SIZE; ++x) {
+                    // random chance to try to spawn tree
+                    if (Random.value < 0.01f) {
+                        TrySpawnTree(x, y, z);
+                    }
+
+                }
+            }
+        }
+
+    }
 
 }

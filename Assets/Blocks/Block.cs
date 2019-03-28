@@ -58,16 +58,21 @@ public static class Blocks {
     public static readonly Block AIR = new Block(0);
     public static readonly Block STONE = new Block(1);
     public static readonly Block GRASS = new Block(2);
-    public static readonly Block TORCH = new Block(3);
+    public static readonly Block BIRCH = new Block(3);
+    public static readonly Block LEAF = new Block(4);
+
+    //public static readonly Block TORCH = new Block();
 }
 
 public static class BlockTypes {
 
     private static BlockType[] types = new BlockType[] {
-        new BlockAir(),
-        new BlockStone(),
-        new BlockGrass(),
-        new BlockTorch(),
+        new AirBlock(),
+        new StoneBlock(),
+        new GrassBlock(),
+        new BirchBlock(),
+        new LeafBlock(),
+        //new BlockTorch(),
     };
 
     public static BlockType GetBlockType(int type) {
@@ -101,8 +106,12 @@ public abstract class BlockType {
         return true;
     }
 
-    public virtual Tile TexturePosition(Dir dir, int x, int y, int z, NativeMeshData data) {
-        return new Tile() { x = 0, y = 0 };
+    //public virtual Tile TexturePosition(Dir dir, int x, int y, int z, NativeMeshData data) {
+    //    return new Tile() { x = 0, y = 0 };
+    //}
+
+    public virtual int GetTextureIndex(Dir dir, int x, int y, int z, NativeMeshData data) {
+        return 0;
     }
 
     public virtual void AddDataNative(int x, int y, int z, NativeMeshData data) {
@@ -135,7 +144,7 @@ public abstract class BlockType {
 
         data.AddQuadTriangles();
 
-        data.AddFaceUVs(TexturePosition(Dir.west, x, y, z, data));
+        data.AddFaceUVs(GetTextureIndex(Dir.west, x, y, z, data));
     }
     protected virtual void FaceDataDownNative(int x, int y, int z, NativeMeshData data) {
         data.AddVertex(new Vector3(x, y, z) / Chunk.BPU);
@@ -145,7 +154,7 @@ public abstract class BlockType {
 
         data.AddQuadTriangles();
 
-        data.AddFaceUVs(TexturePosition(Dir.down, x, y, z, data));
+        data.AddFaceUVs(GetTextureIndex(Dir.down, x, y, z, data));
     }
     protected virtual void FaceDataSouthNative(int x, int y, int z, NativeMeshData data) {
         data.AddVertex(new Vector3(x, y, z) / Chunk.BPU);
@@ -155,7 +164,7 @@ public abstract class BlockType {
 
         data.AddQuadTriangles();
 
-        data.AddFaceUVs(TexturePosition(Dir.south, x, y, z, data));
+        data.AddFaceUVs(GetTextureIndex(Dir.south, x, y, z, data));
     }
 
     protected virtual void FaceDataEastNative(int x, int y, int z, NativeMeshData data) {
@@ -166,7 +175,7 @@ public abstract class BlockType {
 
         data.AddQuadTriangles();
 
-        data.AddFaceUVs(TexturePosition(Dir.east, x, y, z, data));
+        data.AddFaceUVs(GetTextureIndex(Dir.east, x, y, z, data));
     }
     protected virtual void FaceDataUpNative(int x, int y, int z, NativeMeshData data) {
         data.AddVertex(new Vector3(x, y + 1.0f, z + 1.0f) / Chunk.BPU);
@@ -176,7 +185,7 @@ public abstract class BlockType {
 
         data.AddQuadTriangles();
 
-        data.AddFaceUVs(TexturePosition(Dir.up, x, y, z, data));
+        data.AddFaceUVs(GetTextureIndex(Dir.up, x, y, z, data));
     }
     protected virtual void FaceDataNorthNative(int x, int y, int z, NativeMeshData data) {
         data.AddVertex(new Vector3(x + 1.0f, y, z + 1.0f) / Chunk.BPU);
@@ -186,7 +195,7 @@ public abstract class BlockType {
 
         data.AddQuadTriangles();
 
-        data.AddFaceUVs(TexturePosition(Dir.north, x, y, z, data));
+        data.AddFaceUVs(GetTextureIndex(Dir.north, x, y, z, data));
     }
 
     // todo: translate to native array job option
@@ -209,18 +218,18 @@ public abstract class BlockType {
 }
 
 
-public struct Tile {
-    public const float SIZE = 0.25f; // set equal to 1 / number of tiles on sprite sheet 
-    public int x;
-    public int y;
+//public struct Tile {
+//    public const float SIZE = 0.125f; // set equal to 1 / number of tiles on sprite sheet 
+//    public int x;
+//    public int y;
 
-    public Tile(int x, int y) {
-        this.x = x;
-        this.y = y;
-    }
-}
+//    public Tile(int x, int y) {
+//        this.x = x;
+//        this.y = y;
+//    }
+//}
 
-public class BlockStone : BlockType {
+public class StoneBlock : BlockType {
 
     // test smiley texture
     //public override Tile TexturePosition(Dir dir) {

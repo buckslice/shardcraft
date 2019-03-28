@@ -208,7 +208,7 @@ public class LoadChunks : MonoBehaviour {
             if (chunk.Value.dying) {
                 continue;
             }
-            float sqrDist = Vector3.SqrMagnitude(chunk.Value.wp.ToVector3() + Vector3.one * Chunk.SIZE - transform.position);
+            float sqrDist = Vector3.SqrMagnitude(chunk.Value.GetWorldPos() + Vector3.one * Chunk.SIZE - transform.position);
 
             if (sqrDist > maxDist * maxDist) {
                 world.DestroyChunk(chunk.Key);

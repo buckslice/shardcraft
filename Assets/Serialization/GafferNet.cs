@@ -561,6 +561,16 @@ namespace GafferNet {
             return BitConverter.ToSingle(m_floatBytes, 0);
         }
 
+        public bool ReadBool() {
+            if (m_reader.WouldOverflow(1)) {
+                m_error = Constants.STREAM_ERROR_OVERFLOW;
+                throw new SerializeException();
+            }
+            uint read_value = m_reader.ReadBits(1);
+            m_bitsRead += 1;
+            return read_value == 1U;
+        }
+
         public bool SerializeAlign() {
             int alignBits = m_reader.GetAlignBits();
             if (m_reader.WouldOverflow(alignBits)) {

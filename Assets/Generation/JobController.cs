@@ -12,12 +12,12 @@ using System.Threading.Tasks;
 [BurstCompile]
 public struct GenerationJob : IJob {
 
-    public Vector3 chunkPos;
+    public Vector3 chunkWorldPos;
     public NativeArray<Block> blocks;
 
     public void Execute() {
 
-        WorldGenerator.Generate(chunkPos, blocks);
+        WorldGenerator.Generate(chunkWorldPos, blocks);
 
     }
 }
@@ -55,8 +55,8 @@ public struct MeshJob : IJob {
 
 
     public NativeList<Vector3> vertices;
+    public NativeList<Vector3> uvs;
     public NativeList<int> triangles;
-    public NativeList<Vector2> uvs;
 
 #if GEN_COLLIDERS
     public NativeList<Vector3> colliderVerts;
@@ -68,7 +68,7 @@ public struct MeshJob : IJob {
 
     public void Execute() {
 
-        NativeMeshData data = new NativeMeshData(this, vertices, triangles, uvs);
+        NativeMeshData data = new NativeMeshData(this, vertices, uvs, triangles);
 
         MeshBuilder.BuildNaive(data);
 
@@ -130,7 +130,7 @@ public class GenJobInfo {
 
         GenerationJob job = new GenerationJob {
             blocks = blocks,
-            chunkPos = chunk.wp.ToVector3()
+            chunkWorldPos = chunk.GetWorldPos(),
         };
 
         handle = job.Schedule();
@@ -151,8 +151,8 @@ public class MeshJobInfo {
     Chunk chunk;
 
     NativeList<Vector3> vertices;
+    NativeList<Vector3> uvs;
     NativeList<int> triangles;
-    NativeList<Vector2> uvs;
 
 #if GEN_COLLIDERS
     NativeList<Vector3> colliderVerts;
@@ -162,12 +162,12 @@ public class MeshJobInfo {
     public MeshJobInfo(Chunk chunk) {
 
         vertices = Pools.v3Pool.Get();
+        uvs = Pools.v3Pool.Get();
         triangles = Pools.intPool.Get();
-        uvs = Pools.v2Pool.Get();
 
         vertices.Clear();
-        triangles.Clear();
         uvs.Clear();
+        triangles.Clear();
 
         this.chunk = chunk;
 
@@ -196,8 +196,8 @@ public class MeshJobInfo {
 
 
         job.vertices = vertices;
-        job.triangles = triangles;
         job.uvs = uvs;
+        job.triangles = triangles;
 
 #if GEN_COLLIDERS
         colliderVerts = Pools.v3Pool.Get();
@@ -222,11 +222,11 @@ public class MeshJobInfo {
         chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].UnlockData();
         chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].UnlockData();
 
-        chunk.UpdateMeshNative(vertices, triangles, uvs);
+        chunk.UpdateMeshNative(vertices, uvs, triangles);
 
         Pools.v3Pool.Return(vertices);
+        Pools.v3Pool.Return(uvs);
         Pools.intPool.Return(triangles);
-        Pools.v2Pool.Return(uvs);
 
 #if GEN_COLLIDERS
         chunk.UpdateColliderNative(colliderVerts, colliderTris);

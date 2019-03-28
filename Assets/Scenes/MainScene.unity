@@ -724,6 +724,7 @@ GameObject:
   - component: {fileID: 753073626}
   - component: {fileID: 753073627}
   - component: {fileID: 753073628}
+  - component: {fileID: 753073629}
   m_Layer: 0
   m_Name: World
   m_TagString: Untagged
@@ -775,6 +776,27 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: a7d62cbc94ea42644b31f4c89fa5caf4, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
+--- !u!114 &753073629
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 753073625}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1b824de13bc4b4a49a77cfcc62bd9567, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: 
+  textures:
+  - {fileID: 2800000, guid: 393cc47f407e856438304c0583a90699, type: 3}
+  - {fileID: 2800000, guid: 0406237dd6c0fe04b896586f3586502c, type: 3}
+  - {fileID: 2800000, guid: ed3c6a5597385684a97eb832bda3ffe2, type: 3}
+  - {fileID: 2800000, guid: 9e833d9b194430d47b34267a8c6e1e7c, type: 3}
+  - {fileID: 2800000, guid: 0c7ff9b673591cc489d7b1a44fb8282b, type: 3}
+  - {fileID: 2800000, guid: 69cef4f07a16fda499e52a15af199529, type: 3}
+  - {fileID: 2800000, guid: 5e4d4deb9f9029f4488dd2c6ae62d4a3, type: 3}
+  mat: {fileID: 2100000, guid: 83cbd086011c43e48ae352c10450dcb7, type: 2}
 --- !u!1 &771070656
 GameObject:
   m_ObjectHideFlags: 0

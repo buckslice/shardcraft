@@ -51,12 +51,12 @@ public class World : MonoBehaviour {
         Debug.Assert(GetChunk(x, y, z) == null);
 
         Vector3i chunkPos = new Vector3i(x, y, z);
-        Vector3i worldPos = chunkPos * Chunk.SIZE / 2;
+        Vector3i blockPos = chunkPos * Chunk.SIZE;
 
         Chunk chunk = chunkPool.Get();
         //Add it to the chunks dictionary with the position as the key
         chunks.Add(chunkPos, chunk);
-        chunk.Initialize(this, worldPos, chunkPos);
+        chunk.Initialize(this, blockPos, chunkPos);
 
         Serialization.LoadChunk(chunk);
 
@@ -143,9 +143,8 @@ public class World : MonoBehaviour {
     // gets block using world block coordinates (as opposed to local/chunk block coordinates)
     public Block GetBlock(int x, int y, int z) {
         Chunk containerChunk = GetChunkByWorldBlockPos(x, y, z);
-
         if (containerChunk != null && containerChunk.loaded) {
-            return containerChunk.GetBlock(x - containerChunk.wp.x, y - containerChunk.wp.y, z - containerChunk.wp.z);
+            return containerChunk.GetBlock(x - containerChunk.bp.x, y - containerChunk.bp.y, z - containerChunk.bp.z);
         } else {
             return Blocks.AIR;
         }
@@ -157,7 +156,7 @@ public class World : MonoBehaviour {
         Chunk chunk = GetChunkByWorldBlockPos(x, y, z);
 
         if (chunk != null) {
-            chunk.SetBlock(x - chunk.wp.x * Chunk.BPU, y - chunk.wp.y * Chunk.BPU, z - chunk.wp.z * Chunk.BPU, block);
+            chunk.SetBlock(x - chunk.bp.x, y - chunk.bp.y, z - chunk.bp.z, block);
         }
     }
 
