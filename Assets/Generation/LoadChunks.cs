@@ -77,7 +77,9 @@ public class LoadChunks : MonoBehaviour {
         Serialization.thread.Join();
         Debug.Log("main thread joined!");
 
-        world.DisposeChunks();
+        Serialization.FreeSavedChunks(world.chunkPool);
+
+        world.chunkPool.Dispose();
 
         Pools.v3Pool.Dispose();
         Pools.v2Pool.Dispose();
@@ -114,11 +116,11 @@ public class LoadChunks : MonoBehaviour {
     Queue<Chunk> chunkGenQueue = new Queue<Chunk>();
 
     void LateUpdate() {
+
         // check how many chunks loaded and queue the ones that couldnt up for generation
         chunksLoaded += Serialization.CheckNewLoaded(chunkGenQueue);
 
         Serialization.FreeSavedChunks(world.chunkPool);
-
         UnityEngine.Profiling.Profiler.BeginSample("Update Chunks");
         UpdateChunks();
         UnityEngine.Profiling.Profiler.EndSample();
@@ -142,9 +144,7 @@ public class LoadChunks : MonoBehaviour {
             Pools.v3Pool.CountFree(), Pools.v3Pool.Count(),
             Pools.v2Pool.CountFree(), Pools.v2Pool.Count(),
             Pools.intPool.CountFree(), Pools.intPool.Count()
-            );
-
-
+        );
     }
 
     void UpdateChunks() {
@@ -176,7 +176,7 @@ public class LoadChunks : MonoBehaviour {
         }
         lastPlayerChunk = playerChunk;
 
-        // queue up chunks that failed to load
+        // queue up chunks that failed to load (no save entry)
         while (JobController.GetRunningJobs() < genJobLimit && chunkGenQueue.Count > 0) {
             JobController.StartGenerationJob(chunkGenQueue.Dequeue());
         }

@@ -25,9 +25,9 @@ public class Chunk {
     public Vector3i wp { get; private set; } // world space position
     public Vector3i cp { get; private set; } // chunk space
 
-    public bool loaded { get; set; }    // means ur blocks are loaded
-    public bool update { get; set; }    // means need to update mesh
-    public bool rendered { get; private set; }  // has a mesh
+    public bool loaded { get; private set; }    // indicates block array is set correctly (either loaded from save or freshly gend)
+    public bool update { get; set; }            // means need to update mesh for some reason
+    public bool rendered { get; private set; }  // has a mesh (may be out of date)
     bool builtStructures;
     int dataLock = 0;   // if not zero means one or more jobs are reading from the data
     public bool needToUpdateSave { get; set; } // only gets set when generated or modified a block
@@ -38,7 +38,15 @@ public class Chunk {
     MeshCollider coll;
 
     // w d s e u n
+    // maybe instead store all 26 neighbors? oh ya thad be nice
+    // then only update edge neighbors if like x = 0 and y = 0 for example, and corner neighbors if all 3
     public Chunk[] neighbors = new Chunk[6];
+    public int loadedNeighbors = 0;
+
+    // 12 edge neighbors, uw, us, ue, un, sw, se, nw, ne, dw, ds, de, dn
+    // 8 corner neighbors, usw, use, unw, une, dsw, dse, dnw, dne
+    // or just figure out way to index them like this neighbors[-1,0,1]; so that would be up west neighbor
+    // could just be a method that remaps -1,0,1 indices to 0,1,2 array
 
     public static bool beGreedy = false;
 
@@ -65,6 +73,7 @@ public class Chunk {
         builtStructures = false;
         needToUpdateSave = false;
         dying = false;
+        loadedNeighbors = 0;
 
         gameObject.transform.position = wp.ToVector3();
         gameObject.name = "Chunk " + cp;
@@ -75,6 +84,11 @@ public class Chunk {
         }
 
         mr.material = Chunk.beGreedy ? world.TileMatGreedy : world.TileMat;
+    }
+
+    public void SetLoaded() {
+        loaded = true;
+        world.UpdateNeighborsLoadedNeighbors(cp, true);
     }
 
     public void LockData() {
@@ -117,12 +131,10 @@ public class Chunk {
             return false;
         }
 
-        for (int i = 0; i < 6; ++i) {
-            if (neighbors[i] == null || !neighbors[i].loaded) {
-                return false;
-            }
+        Debug.Assert(loadedNeighbors >= 0 && loadedNeighbors <= 26);
+        if(loadedNeighbors < 26) {
+            return false;
         }
-
 
         //if (!builtStructures) {
         //    BuildStructures();
@@ -235,7 +247,7 @@ public class Chunk {
     void CheckNeedToUpdateNeighbors(int x, int y, int z) {
         Debug.Assert(InRange(x, y, z));
         if (x == 0 && neighbors[0] != null) {
-            neighbors[0].update = true;
+            neighbors[Dirs.WEST].update = true;
         } else if (x == SIZE - 1 && neighbors[3] != null) {
             neighbors[3].update = true;
         }
@@ -251,6 +263,13 @@ public class Chunk {
         }
 
     }
+
+    // get neighbor using local offset coordinates from this chunk
+    //Chunk GetNeighbor(int x, int y, int z) {
+    //    Debug.Assert(x != 0 || y != 0 || z != 0);
+    //    return neighbors[(x + 1) + (z + 1) * 3 + (y + 1) * 3 * 3]; // -1 at end for lack of 0,0,0 coord
+
+    //}
 
     public static bool InRange(int x, int y, int z) {
         return x >= 0 && x < SIZE && y >= 0 && y < SIZE && z >= 0 && z < SIZE;

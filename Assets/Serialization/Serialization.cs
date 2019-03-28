@@ -67,7 +67,28 @@ public static class Serialization {
         newWork.Set();
     }
 
-    public static void SaveChunk(Chunk chunk, bool manualSet = false) {
+    // sets new chunk variables and collects load failed chunks to be generated
+    public static int CheckNewLoaded(Queue<Chunk> loadFails) {
+        int loaded = 0;
+        lock (chunksLoaded) {
+            loaded = chunksLoaded.Count;
+            while (chunksLoaded.Count > 0) {
+                Chunk chunk = chunksLoaded.Dequeue();
+                chunk.SetLoaded();
+                chunk.update = true;
+            }
+        }
+
+        lock (chunkLoadFailures) {
+            while (chunkLoadFailures.Count > 0) {
+                loadFails.Enqueue(chunkLoadFailures.Dequeue());
+            }
+        }
+
+        return loaded;
+    }
+
+    public static void SaveChunk(Chunk chunk, bool autoSet = true) {
         if (!chunk.needToUpdateSave) {
             lock (chunksSaved) {
                 chunksSaved.Enqueue(chunk);
@@ -84,34 +105,9 @@ public static class Serialization {
                 chunksToSave[rc] = q;
             }
         }
-        if (!manualSet) {
+        if (autoSet) {
             newWork.Set();
         }
-    }
-
-    public static void SetNewWork() {
-        newWork.Set();
-    }
-
-    // sets new chunk variables and collects load failed chunks to be generated
-    public static int CheckNewLoaded(Queue<Chunk> loadFails) {
-        int loaded = 0;
-        lock (chunksLoaded) {
-            loaded = chunksLoaded.Count;
-            while (chunksLoaded.Count > 0) {
-                Chunk c = chunksLoaded.Dequeue();
-                c.loaded = true;
-                c.update = true;
-            }
-        }
-
-        lock (chunkLoadFailures) {
-            while (chunkLoadFailures.Count > 0) {
-                loadFails.Enqueue(chunkLoadFailures.Dequeue());
-            }
-        }
-
-        return loaded;
     }
 
     public static void FreeSavedChunks(Pool<Chunk> pool) {
@@ -120,6 +116,10 @@ public static class Serialization {
                 pool.Return(chunksSaved.Dequeue());
             }
         }
+    }
+
+    public static void SetNewWork() {
+        newWork.Set();
     }
 
     public static void KillThread() {

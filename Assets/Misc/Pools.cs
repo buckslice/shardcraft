@@ -6,11 +6,11 @@ using Unity.Collections;
 
 public static class Pools {
 
-    public static NativeList<T> NLBuilder<T>() where T : struct {
+    static NativeList<T> NLBuilder<T>() where T : struct {
         return new NativeList<T>(Allocator.Persistent);
     }
 
-    public static void NLDisposer<T>(NativeList<T> list) where T : struct {
+    static void NLDisposer<T>(NativeList<T> list) where T : struct {
         list.Dispose();
     }
 

@@ -41,6 +41,19 @@ public struct MeshJob : IJob {
     [ReadOnly]
     public NativeArray<Block> north;
 
+    // these last ones are for grass block texturing only at the moment
+    // could switch to nativehashmap or whatever maybe...
+    // this whole strat might be dumb tho i dunno
+    [ReadOnly]
+    public NativeArray<Block> downWest;
+    [ReadOnly]
+    public NativeArray<Block> downSouth;
+    [ReadOnly]
+    public NativeArray<Block> downEast;
+    [ReadOnly]
+    public NativeArray<Block> downNorth;
+
+
     public NativeList<Vector3> vertices;
     public NativeList<int> triangles;
     public NativeList<Vector2> uvs;
@@ -51,15 +64,11 @@ public struct MeshJob : IJob {
 #endif
     //public NativeList<Vector2> uvs;
 
+    public const int s = Chunk.SIZE;
+
     public void Execute() {
 
-        NativeMeshData data = new NativeMeshData(Chunk.SIZE, blocks, vertices, triangles, uvs);
-        data.west = west;
-        data.down = down;
-        data.south = south;
-        data.east = east;
-        data.up = up;
-        data.north = north;
+        NativeMeshData data = new NativeMeshData(this, vertices, triangles, uvs);
 
         MeshBuilder.BuildNaive(data);
 
@@ -67,6 +76,38 @@ public struct MeshJob : IJob {
         MeshBuilder.BuildGreedyCollider(data, colliderVerts, colliderTris);
 #endif
 
+    }
+
+    // only lets get one block into edge of neighbor for now
+    // only will work if accessing from above listed neighbors which is an incomplete set
+    public Block GetBlock(int x, int y, int z) {
+        if (y < 0) {
+            // havent accounted for option where both of these are false, aka corner neighbors
+            Debug.Assert(x >= 0 && x < s || z >= 0 && z < s);
+            if (x < 0) {
+                return downWest[(s - 1) + z * s + (s - 1) * s * s];
+            } else if (x >= s) {
+                return downEast[0 + z * s + (s - 1) * s * s];
+            } else if (z < 0) {
+                return downSouth[x + (s - 1) * s + (s - 1) * s * s];
+            } else if (z >= s) {
+                return downNorth[x + 0 + (s - 1) * s * s];
+            }
+            return down[x + z * s + (s - 1) * s * s];
+        }
+        if (x < 0) {
+            return west[(s - 1) + z * s + y * s * s];
+        } else if (z < 0) {
+            return south[x + (s - 1) * s + y * s * s];
+        } else if (x >= s) {
+            return east[0 + z * s + y * s * s];
+        } else if (y >= s) {
+            return up[x + z * s + 0];
+        } else if (z >= s) {
+            return north[x + 0 + y * s * s];
+        } else {
+            return blocks[x + z * s + y * s * s];
+        }
     }
 
 }
@@ -98,11 +139,9 @@ public class GenJobInfo {
     }
 
     public void Finish() {
-
-        chunk.loaded = true;
+        chunk.SetLoaded();
         chunk.update = true;
         chunk.needToUpdateSave = true; // save should be updated since this was newly generated
-
     }
 }
 
@@ -134,17 +173,27 @@ public class MeshJobInfo {
 
         MeshJob job = new MeshJob();
         job.blocks = chunk.blocks;
-        job.west = chunk.neighbors[0].blocks;
-        job.down = chunk.neighbors[1].blocks;
-        job.south = chunk.neighbors[2].blocks;
-        job.east = chunk.neighbors[3].blocks;
-        job.up = chunk.neighbors[4].blocks;
-        job.north = chunk.neighbors[5].blocks;
+        job.west = chunk.neighbors[Dirs.WEST].blocks;
+        job.down = chunk.neighbors[Dirs.DOWN].blocks;
+        job.south = chunk.neighbors[Dirs.SOUTH].blocks;
+        job.east = chunk.neighbors[Dirs.EAST].blocks;
+        job.up = chunk.neighbors[Dirs.UP].blocks;
+        job.north = chunk.neighbors[Dirs.NORTH].blocks;
+
+        job.downWest = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.WEST].blocks;
+        job.downEast = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.EAST].blocks;
+        job.downSouth = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].blocks;
+        job.downNorth = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].blocks;
 
         chunk.LockData();
         for (int i = 0; i < 6; ++i) {
             chunk.neighbors[i].LockData();
         }
+        chunk.neighbors[Dirs.DOWN].neighbors[Dirs.WEST].LockData();
+        chunk.neighbors[Dirs.DOWN].neighbors[Dirs.EAST].LockData();
+        chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].LockData();
+        chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].LockData();
+
 
         job.vertices = vertices;
         job.triangles = triangles;
@@ -168,6 +217,10 @@ public class MeshJobInfo {
         for (int i = 0; i < 6; ++i) {
             chunk.neighbors[i].UnlockData();
         }
+        chunk.neighbors[Dirs.DOWN].neighbors[Dirs.WEST].UnlockData();
+        chunk.neighbors[Dirs.DOWN].neighbors[Dirs.EAST].UnlockData();
+        chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].UnlockData();
+        chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].UnlockData();
 
         chunk.UpdateMeshNative(vertices, triangles, uvs);
 
@@ -199,8 +252,9 @@ public class JobController : MonoBehaviour {
         world = FindObjectOfType<World>();
     }
 
-
+    static bool shutDown = false;
     public static void FinishJobs() {
+        shutDown = true;
         for (int i = 0; i < genJobInfos.Count; ++i) {
             genJobInfos[i].handle.Complete();
             genJobInfos[i].Finish();
@@ -254,7 +308,7 @@ public class JobController : MonoBehaviour {
     public static int genJobFinished = 0;
 
     public static void StartGenerationJob(Chunk chunk) {
-
+        Debug.Assert(!shutDown);
         GenJobInfo info = new GenJobInfo(chunk);
 
         genJobInfos.Add(info);
@@ -265,7 +319,7 @@ public class JobController : MonoBehaviour {
     }
 
     public static void StartMeshJob(Chunk chunk) {
-
+        Debug.Assert(!shutDown);
         MeshJobInfo info = new MeshJobInfo(chunk);
 
         meshJobInfos.Add(info);

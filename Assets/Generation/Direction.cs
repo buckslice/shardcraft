@@ -15,6 +15,14 @@ public enum Dir : byte {
 
 
 public static class Dirs {
+
+    public const int WEST = 0;
+    public const int DOWN = 1;
+    public const int SOUTH = 2;
+    public const int EAST = 3;
+    public const int UP = 4;
+    public const int NORTH = 5;
+
     public static Dir Opp(Dir dir) {
         return (Dir)Opp((int)dir);
     }

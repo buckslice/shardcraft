@@ -13,7 +13,7 @@ public static class MeshBuilder {
         for (int y = 0; y < s; y++) {
             for (int z = 0; z < s; z++) {
                 for (int x = 0; x < s; x++) {
-                    Block b = data.blocks[x + z * s + y * s * s];
+                    Block b = data.job.blocks[x + z * s + y * s * s];
                     BlockType bt = b.GetBlockType();
                     bt.AddDataNative(x, y, z, data);
 

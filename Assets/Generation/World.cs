@@ -54,12 +54,11 @@ public class World : MonoBehaviour {
         Vector3i worldPos = chunkPos * Chunk.SIZE / 2;
 
         Chunk chunk = chunkPool.Get();
+        //Add it to the chunks dictionary with the position as the key
+        chunks.Add(chunkPos, chunk);
         chunk.Initialize(this, worldPos, chunkPos);
 
         Serialization.LoadChunk(chunk);
-
-        //Add it to the chunks dictionary with the position as the key
-        chunks.Add(chunkPos, chunk);
 
         // setup chunk neighbors (need to do after add it to dict)
         ConnectNeighbors(chunk, GetChunk(x - 1, y, z), Dir.west);
@@ -68,6 +67,8 @@ public class World : MonoBehaviour {
         ConnectNeighbors(chunk, GetChunk(x + 1, y, z), Dir.east);
         ConnectNeighbors(chunk, GetChunk(x, y + 1, z), Dir.up);
         ConnectNeighbors(chunk, GetChunk(x, y, z + 1), Dir.north);
+
+        SetLoadedNeighbors(chunk);
     }
 
     void ConnectNeighbors(Chunk c, Chunk n, Dir dir) {
@@ -79,57 +80,48 @@ public class World : MonoBehaviour {
         n.neighbors[Dirs.Opp(d)] = c;
     }
 
-    // adds to queue to destroy it when proper time
-    public void DestroyChunk(Vector3i cp) {
-        Chunk chunk = GetChunk(cp);
-        if (chunk != null && !chunk.dying) {
-            destroyQueue.Enqueue(chunk);
-            chunk.dying = true;
-        }
-    }
-
-    public void DestroyChunks() {
-        int destroyed = 0;
-        int qlen = destroyQueue.Count;
-        while (--qlen >= 0) {
-            Chunk chunk = destroyQueue.Dequeue();
-            if (chunk.IsDataLocked()) {
-                destroyQueue.Enqueue(chunk); // put it back and try next time
-            } else { // destroy the chunk
-                // notify neighbors
-                for (int i = 0; i < 6; ++i) {
-                    Chunk n = chunk.neighbors[i];
-                    if (n != null) {
-                        n.neighbors[Dirs.Opp(i)] = null;
+    // based on chunk pos coordinate, increase or decrease nearby chunks loaded count based on loaded or unloaded
+    public void UpdateNeighborsLoadedNeighbors(Vector3i cp, bool loaded) {
+        int i = loaded ? 1 : -1;
+        for (int y = -1; y <= 1; ++y) {
+            for (int z = -1; z <= 1; ++z) {
+                for (int x = -1; x <= 1; ++x) {
+                    if (x == 0 && y == 0 && z == 0) {
+                        continue;
+                    }
+                    Chunk neighbor = GetChunk(cp + new Vector3i(x, y, z));
+                    if (neighbor != null) {
+                        neighbor.loadedNeighbors += i;
                     }
                 }
-
-                chunk.gameObject.SetActive(false);
-                chunk.ClearMeshes();
-                chunks.Remove(chunk.cp);
-                Serialization.SaveChunk(chunk);
-                destroyed++;
             }
         }
-
-        if (destroyed > 0) {
-            Debug.Log("destroyed: " + destroyed);
+    }
+    // sets a new chunks loaded neighbor count
+    public void SetLoadedNeighbors(Chunk chunk) {
+        for (int y = -1; y <= 1; ++y) {
+            for (int z = -1; z <= 1; ++z) {
+                for (int x = -1; x <= 1; ++x) {
+                    if (x == 0 && y == 0 && z == 0) {
+                        continue;
+                    }
+                    Chunk neighbor = GetChunk(chunk.cp + new Vector3i(x, y, z));
+                    if (neighbor != null && neighbor.loaded) {
+                        chunk.loadedNeighbors++;
+                    }
+                }
+            }
         }
     }
 
+    // this will save all chunks and return them to the pool
+    // should basically only be called when quitting, if want to save all while running
+    // maybe just save then mark all chunks as not needing the saves or something and free chunk some other way
     public void SaveChunks() {
         foreach (KeyValuePair<Vector3i, Chunk> entry in chunks) {
-            Serialization.SaveChunk(entry.Value, true);
+            Serialization.SaveChunk(entry.Value, false);
         }
         Serialization.SetNewWork();
-    }
-
-    public void DisposeChunks() {
-        // first return all the chunks so the chunkPool contains one reference to every chunk it made
-        foreach (KeyValuePair<Vector3i, Chunk> entry in chunks) {
-            chunkPool.Return(entry.Value);
-        }
-        chunkPool.Dispose();
     }
 
     // gets chunk using chunk coords
@@ -180,5 +172,46 @@ public class World : MonoBehaviour {
         }
     }
 
+
+
+    // adds to queue to destroy it when proper time
+    public void DestroyChunk(Vector3i cp) {
+        Chunk chunk = GetChunk(cp);
+        if (chunk != null && !chunk.dying) {
+            destroyQueue.Enqueue(chunk);
+            chunk.dying = true;
+        }
+    }
+
+    public void DestroyChunks() {
+        int destroyed = 0;
+        int qlen = destroyQueue.Count;
+        while (--qlen >= 0) {
+            Chunk chunk = destroyQueue.Dequeue();
+            if (chunk.IsDataLocked()) {
+                destroyQueue.Enqueue(chunk); // put it back and try next time
+            } else { // destroy the chunk
+                // notify neighbors
+                for (int i = 0; i < 6; ++i) {
+                    Chunk n = chunk.neighbors[i];
+                    if (n != null) {
+                        n.neighbors[Dirs.Opp(i)] = null;
+                    }
+                }
+
+                UpdateNeighborsLoadedNeighbors(chunk.cp, false);
+
+                chunk.gameObject.SetActive(false);
+                chunk.ClearMeshes();
+                chunks.Remove(chunk.cp);
+                Serialization.SaveChunk(chunk);
+                destroyed++;
+            }
+        }
+
+        if (destroyed > 0) {
+            Debug.Log("destroyed: " + destroyed);
+        }
+    }
 
 }
