@@ -46,25 +46,25 @@ public static class Tests {
         }
 
         {
-            TestEqual(Serialization.GetRegionCoord(new Vector3i(0, 0, 0)), new Vector3i(0, 0, 0), "RegionCoordTest1");
-            TestEqual(Serialization.GetRegionCoord(new Vector3i(1, 0, 0)), new Vector3i(0, 0, 0), "RegionCoordTest2");
-            TestEqual(Serialization.GetRegionCoord(new Vector3i(5, 5, 5)), new Vector3i(0, 0, 0), "RegionCoordTest3");
-            TestEqual(Serialization.GetRegionCoord(new Vector3i(15, 15, 15)), new Vector3i(0, 0, 0), "RegionCoordTest4");
-            TestEqual(Serialization.GetRegionCoord(new Vector3i(16, 16, 16)), new Vector3i(1, 1, 1), "RegionCoordTest5");
-            TestEqual(Serialization.GetRegionCoord(new Vector3i(18, 5, 5)), new Vector3i(1, 0, 0), "RegionCoordTest6");
-            TestEqual(Serialization.GetRegionCoord(new Vector3i(-1, 0, 0)), new Vector3i(-1, 0, 0), "RegionCoordTest7");
-            TestEqual(Serialization.GetRegionCoord(new Vector3i(0, -1, 0)), new Vector3i(0, -1, 0), "RegionCoordTest8");
-            TestEqual(Serialization.GetRegionCoord(new Vector3i(0, 0, -1)), new Vector3i(0, 0, -1), "RegionCoordTest9");
-            TestEqual(Serialization.GetRegionCoord(new Vector3i(0, 0, -1)), new Vector3i(0, 0, -1), "RegionCoordTest10");
-            TestEqual(Serialization.GetRegionCoord(new Vector3i(14, 15, 15)), new Vector3i(0, 0, 0), "RegionCoordTest11");
-            TestEqual(Serialization.GetRegionCoord(new Vector3i(17, 15, 15)), new Vector3i(1, 0, 0), "RegionCoordTest12");
+            TestEqual(WorldUtils.GetRegionCoord(new Vector3i(0, 0, 0)), new Vector3i(0, 0, 0), "RegionCoordTest1");
+            TestEqual(WorldUtils.GetRegionCoord(new Vector3i(1, 0, 0)), new Vector3i(0, 0, 0), "RegionCoordTest2");
+            TestEqual(WorldUtils.GetRegionCoord(new Vector3i(5, 5, 5)), new Vector3i(0, 0, 0), "RegionCoordTest3");
+            TestEqual(WorldUtils.GetRegionCoord(new Vector3i(15, 15, 15)), new Vector3i(0, 0, 0), "RegionCoordTest4");
+            TestEqual(WorldUtils.GetRegionCoord(new Vector3i(16, 16, 16)), new Vector3i(1, 1, 1), "RegionCoordTest5");
+            TestEqual(WorldUtils.GetRegionCoord(new Vector3i(18, 5, 5)), new Vector3i(1, 0, 0), "RegionCoordTest6");
+            TestEqual(WorldUtils.GetRegionCoord(new Vector3i(-1, 0, 0)), new Vector3i(-1, 0, 0), "RegionCoordTest7");
+            TestEqual(WorldUtils.GetRegionCoord(new Vector3i(0, -1, 0)), new Vector3i(0, -1, 0), "RegionCoordTest8");
+            TestEqual(WorldUtils.GetRegionCoord(new Vector3i(0, 0, -1)), new Vector3i(0, 0, -1), "RegionCoordTest9");
+            TestEqual(WorldUtils.GetRegionCoord(new Vector3i(0, 0, -1)), new Vector3i(0, 0, -1), "RegionCoordTest10");
+            TestEqual(WorldUtils.GetRegionCoord(new Vector3i(14, 15, 15)), new Vector3i(0, 0, 0), "RegionCoordTest11");
+            TestEqual(WorldUtils.GetRegionCoord(new Vector3i(17, 15, 15)), new Vector3i(1, 0, 0), "RegionCoordTest12");
         }
 
         {   // written assuming 2 blocks per unit
-            TestEqual(WorldUtils.GetChunkPosition(new Vector3(0, 0, 0)), new Vector3i(0, 0, 0), "ChunkPos1");
-            TestEqual(WorldUtils.GetChunkPosition(new Vector3(-1.0f, 0, 0)), new Vector3i(-1, 0, 0), "ChunkPos2");
-            TestEqual(WorldUtils.GetChunkPosition(new Vector3(-16.01f, 0, 0)), new Vector3i(-2, 0, 0), "ChunkPos3");
-            TestEqual(WorldUtils.GetChunkPosition(new Vector3(25, 35, -5)), new Vector3i(1, 2, -1), "ChunkPos4");
+            TestEqual(WorldUtils.GetChunkPosFromWorldPos(new Vector3(0, 0, 0)), new Vector3i(0, 0, 0), "ChunkPos1");
+            TestEqual(WorldUtils.GetChunkPosFromWorldPos(new Vector3(-1.0f, 0, 0)), new Vector3i(-1, 0, 0), "ChunkPos2");
+            TestEqual(WorldUtils.GetChunkPosFromWorldPos(new Vector3(-16.01f, 0, 0)), new Vector3i(-2, 0, 0), "ChunkPos3");
+            TestEqual(WorldUtils.GetChunkPosFromWorldPos(new Vector3(25, 35, -5)), new Vector3i(1, 2, -1), "ChunkPos4");
         }
 
         {

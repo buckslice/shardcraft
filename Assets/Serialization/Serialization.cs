@@ -54,7 +54,7 @@ public static class Serialization {
 
 
     public static void LoadChunk(Chunk chunk) {
-        Vector3i rc = GetRegionCoord(chunk.cp);
+        Vector3i rc = WorldUtils.GetRegionCoord(chunk.cp);
         lock (chunksToLoad) {
             if (chunksToLoad.TryGetValue(rc, out Queue<Chunk> q)) {
                 q.Enqueue(chunk);
@@ -95,7 +95,7 @@ public static class Serialization {
             }
             return;
         }
-        Vector3i rc = GetRegionCoord(chunk.cp);
+        Vector3i rc = WorldUtils.GetRegionCoord(chunk.cp);
         lock (chunksToSave) {
             if (chunksToSave.TryGetValue(rc, out Queue<Chunk> q)) {
                 q.Enqueue(chunk);
@@ -511,11 +511,6 @@ public static class Serialization {
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
         AtomicSafetyHandle.Release(handle);
 #endif
-    }
-
-    // regions are 16x16x16 chunks
-    public static Vector3i GetRegionCoord(Vector3i cp) {
-        return new Vector3i(cp.x >> 4, cp.y >> 4, cp.z >> 4);
     }
 
     static string SaveLocation(string worldName) {

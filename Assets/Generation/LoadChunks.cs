@@ -150,7 +150,7 @@ public class LoadChunks : MonoBehaviour {
     void UpdateChunks() {
         int updates = 0;
 
-        Vector3i playerChunk = WorldUtils.GetChunkPosition(transform.position);
+        Vector3i playerChunk = WorldUtils.GetChunkPosFromWorldPos(transform.position);
         for (int i = 0; i < neighborChunks.Length && updates < maxUpdatesPerFrame; ++i) {
             Vector3i p = playerChunk + neighborChunks[i];
             Chunk chunk = world.GetChunk(p);
@@ -170,7 +170,7 @@ public class LoadChunks : MonoBehaviour {
     void GenerateChunks() {
         //const int pad = 1;
 
-        Vector3i playerChunk = WorldUtils.GetChunkPosition(transform.position);
+        Vector3i playerChunk = WorldUtils.GetChunkPosFromWorldPos(transform.position);
         if (playerChunk != lastPlayerChunk) {
             neighborIndex = 0;
         }

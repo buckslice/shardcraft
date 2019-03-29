@@ -4,11 +4,11 @@ using System.Collections;
 public static class WorldUtils {
 
     // given a position in world space get the world space block coordinates
-    public static Vector3i GetBlockPos(Vector3 pos) {
+    public static Vector3i GetBlockPos(Vector3 worldPos) {
         //return new Vector3i(Mathf.RoundToInt(pos.x), Mathf.RoundToInt(pos.y), Mathf.RoundToInt(pos.z));
         //return new Vector3i((int)pos.x, (int)pos.y, (int)pos.z); // THIS TRUNCATES but we need FLOOORING REEEEEEEEEEEE
-        pos *= Chunk.BPU;
-        return new Vector3i(Mathf.FloorToInt(pos.x), Mathf.FloorToInt(pos.y), Mathf.FloorToInt(pos.z));
+        worldPos *= Chunk.BPU;
+        return new Vector3i(Mathf.FloorToInt(worldPos.x), Mathf.FloorToInt(worldPos.y), Mathf.FloorToInt(worldPos.z));
     }
 
     // gets chunk coordinate using world block coordinates
@@ -16,8 +16,13 @@ public static class WorldUtils {
         return new Vector3i(x >> 5, y >> 5, z >> 5); // 32 is 2^5
     }
 
+    // regions are 16x16x16 chunks
+    public static Vector3i GetRegionCoord(Vector3i cp) { // from chunk position
+        return new Vector3i(cp.x >> 4, cp.y >> 4, cp.z >> 4);
+    }
+
     // returns the chunk coord based on world position
-    public static Vector3i GetChunkPosition(Vector3 worldPos) {
+    public static Vector3i GetChunkPosFromWorldPos(Vector3 worldPos) {
         worldPos *= Chunk.BPU;
         return new Vector3i(
             Mathf.FloorToInt(worldPos.x / Chunk.SIZE),
