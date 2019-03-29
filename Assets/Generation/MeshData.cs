@@ -59,13 +59,16 @@ public class MeshData {
 public class NativeMeshData {
     public NativeList<Vector3> vertices;
     public NativeList<Vector3> uvs;
+    public NativeList<Color32> colors;
     public NativeList<int> triangles;
+
     public MeshJob job;
 
-    public NativeMeshData(MeshJob job, NativeList<Vector3> vertices, NativeList<Vector3> uvs, NativeList<int> triangles) {
+    public NativeMeshData(MeshJob job, NativeList<Vector3> vertices, NativeList<Vector3> uvs, NativeList<Color32> colors, NativeList<int> triangles) {
         this.job = job;
         this.vertices = vertices;
         this.uvs = uvs;
+        this.colors = colors;
         this.triangles = triangles;
     }
 
@@ -73,12 +76,13 @@ public class NativeMeshData {
         return job.GetBlock(x, y, z);
     }
 
-    public void AddVertex(Vector3 vertex) {
-        vertices.Add(vertex);
+    public byte GetLight(int x, int y, int z) {
+        return job.GetLight(x, y, z);
     }
 
-    public void AddTriangle(int tri) {
-        triangles.Add(tri);
+    public void AddVertex(Vector3 vertex, Color32 color) {
+        vertices.Add(vertex);
+        colors.Add(color);
     }
 
     public void AddQuadTriangles() {
@@ -89,7 +93,6 @@ public class NativeMeshData {
         triangles.Add(vertices.Length - 4);  // 0
         triangles.Add(vertices.Length - 2);  // 2
         triangles.Add(vertices.Length - 1);  // 3
-
     }
 
     //public void AddFaceUVs(Tile tp) {

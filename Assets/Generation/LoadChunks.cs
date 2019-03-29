@@ -82,7 +82,7 @@ public class LoadChunks : MonoBehaviour {
         world.chunkPool.Dispose();
 
         Pools.v3Pool.Dispose();
-        Pools.v2Pool.Dispose();
+        Pools.c32Pool.Dispose();
         Pools.intPool.Dispose();
 
         Pools.loQPool.Dispose();
@@ -138,14 +138,12 @@ public class LoadChunks : MonoBehaviour {
             "Loaded:  {7}\n" +
             "Greedy:  {8}\n" +
             "v3Pool:  {9}/{10}\n" +
-            "v2Pool:  {11}/{12}\n" +
-            "intPool: {13}/{14}\n",
+            "intPool: {11}/{12}\n",
             JobController.genJobFinished, JobController.genJobScheduled,
             JobController.meshJobFinished, JobController.meshJobScheduled,
             world.chunkPool.CountFree(), world.chunkPool.Count(),
             world.chunks.Count, chunksLoaded, Chunk.beGreedy,
             Pools.v3Pool.CountFree(), Pools.v3Pool.Count(),
-            Pools.v2Pool.CountFree(), Pools.v2Pool.Count(),
             Pools.intPool.CountFree(), Pools.intPool.Count()
         );
     }

@@ -21,6 +21,8 @@ public class Chunk {
     //public HashSet<ushort> modifiedBlockIndices = new HashSet<ushort>(); // hashset to avoid duplicates
     public Queue<BlockEdit> pendingEdits = new Queue<BlockEdit>();
 
+    public Queue<BlockEdit> blocksPlacedSince = new Queue<BlockEdit>();
+
     public World world;
     public GameObject gameObject;
     public Vector3i bp { get; private set; } // world block space position (not pure world position!)
@@ -132,16 +134,16 @@ public class Chunk {
 
     // Updates the chunk based on its contents
     public bool UpdateChunk() {
-        if (!loaded || !NeighborsLoaded()) {
+        if (!loaded || !NeighborsLoaded()) { // need to make sure you and your neighbors are loaded first
             return false;
         }
 
-        if (!builtStructures) {
+        if (!builtStructures) { // build structures like trees and such if you havent yet
             StructureGenerator.BuildStructures(this);
             builtStructures = true;
         }
 
-        if (update && dataLock == 0) {
+        if (update && IsLocalGroupFree()) {
             update = false;
             JobController.StartMeshJob(this);
             return true;
@@ -150,12 +152,42 @@ public class Chunk {
         return false;
     }
 
+    bool IsLocalGroupFree() {
+        return dataLock == 0 &&
+        neighbors[Dirs.WEST].dataLock == 0 &&
+        neighbors[Dirs.DOWN].dataLock == 0 &&
+        neighbors[Dirs.SOUTH].dataLock == 0 &&
+        neighbors[Dirs.EAST].dataLock == 0 &&
+        neighbors[Dirs.UP].dataLock == 0 &&
+        neighbors[Dirs.NORTH].dataLock == 0 &&
+        neighbors[Dirs.UP].neighbors[Dirs.WEST].dataLock == 0 &&
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].dataLock == 0 &&
+        neighbors[Dirs.UP].neighbors[Dirs.EAST].dataLock == 0 &&
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].dataLock == 0 &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.WEST].dataLock == 0 &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].dataLock == 0 &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.EAST].dataLock == 0 &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].dataLock == 0 &&
+        neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].dataLock == 0 &&
+        neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].dataLock == 0 &&
+        neighbors[Dirs.NORTH].neighbors[Dirs.WEST].dataLock == 0 &&
+        neighbors[Dirs.NORTH].neighbors[Dirs.EAST].dataLock == 0 &&
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].dataLock == 0 &&
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].dataLock == 0 &&
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].dataLock == 0 &&
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].dataLock == 0 &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].dataLock == 0 &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].dataLock == 0 &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].dataLock == 0 &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].dataLock == 0;
+    }
+
     public bool NeighborsLoaded() {
         Debug.Assert(loadedNeighbors >= 0 && loadedNeighbors <= 26);
         return loadedNeighbors == 26;
     }
 
-    public void UpdateMeshNative(NativeList<Vector3> vertices, NativeList<Vector3> uvs, NativeList<int> triangles) {
+    public void UpdateMeshNative(NativeList<Vector3> vertices, NativeList<Vector3> uvs, NativeList<Color32> colors, NativeList<int> triangles) {
         if (dying) {
             return;
         }
@@ -168,6 +200,7 @@ public class Chunk {
         filter.mesh.Clear();
         filter.mesh.vertices = vertices.ToArray();
         filter.mesh.SetUVs(0, new List<Vector3>(uvs.ToArray()));
+        filter.mesh.colors32 = colors.ToArray();
         filter.mesh.triangles = triangles.ToArray();
         filter.mesh.RecalculateNormals();
 
@@ -223,6 +256,7 @@ public class Chunk {
                 update = true;
                 CheckNeedToUpdateNeighbors(x, y, z);
             }
+            blocksPlacedSince.Enqueue(new BlockEdit { x = x, y = y, z = z, block = block });
         } else {
             world.SetBlock(bp.x + x, bp.y + y, bp.z + z, block);
         }

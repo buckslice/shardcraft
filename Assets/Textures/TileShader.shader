@@ -15,7 +15,9 @@
 
         CGPROGRAM
         // Physically based Standard lighting model, and enable shadows on all light types
+
         #pragma surface surf Standard fullforwardshadows alphatest:_Cutoff addshadow vertex:vert
+        //#pragma surface surf Unlit noforwardadd alphatest:_Cutoff vertex:vert
 
         #pragma target 3.5
 
@@ -24,6 +26,7 @@
         struct Input
         {
             float3 blockUVs;
+            float4 color : COLOR;
         }; 
 
         half _Glossiness;
@@ -33,7 +36,15 @@
         void vert(inout appdata_full v, out Input OUT) {
             UNITY_INITIALIZE_OUTPUT(Input, OUT);
             OUT.blockUVs = v.texcoord.xyz;
+            OUT.color = v.color;
         }
+
+        //fixed4 LightingUnlit(SurfaceOutput s, fixed3 lightDir, fixed atten) {
+        //    fixed4 c;
+        //    c.rgb = s.Albedo;
+        //    c.a = s.Alpha;
+        //    return c;
+        //}
 
         // Add instancing support for this shader. You need to check 'Enable Instancing' on materials that use the shader.
         // See https://docs.unity3d.com/Manual/GPUInstancing.html for more information about instancing.
@@ -47,10 +58,7 @@
             // Albedo comes from a texture tinted by color
             fixed4 c = UNITY_SAMPLE_TEX2DARRAY(_MainTex, IN.blockUVs);
 
-            o.Albedo = c.rgb;
-            // Metallic and smoothness come from slider variables
-            o.Metallic = _Metallic;
-            o.Smoothness = _Glossiness;
+            o.Albedo = c.rgb * IN.color.rgb;
             o.Alpha = c.a;
         }
         ENDCG

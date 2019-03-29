@@ -4,8 +4,10 @@ using UnityEngine;
 using Unity.Collections;
 
 public struct LightOp {
-    public Vector3i pos;
-    public int val;
+    public int x;
+    public int y;
+    public int z;
+    public byte val;
 }
 
 public static class LightCalculator {
@@ -14,15 +16,19 @@ public static class LightCalculator {
     //    short index; // x y z coordinate!
     //}
 
-    public static void ProcessLights(MeshJob job, NativeQueue<LightOp> ops, NativeQueue<int> lbfs) {
+    public static void ProcessLightOps(MeshJob job, NativeQueue<LightOp> ops, NativeQueue<int> lbfs) {
         const int ww = 96; // because processing 3x3x3 block of 32x32x32 chunks
         while (ops.Count > 0) {
             LightOp op = ops.Dequeue();
 
-            if (op.val > 0) {
+            if (op.val > 0) { // light propagation
                 Debug.Assert(lbfs.Count == 0);
 
-                int startIndex = (op.pos.x + 32) + (op.pos.z + 32) * ww + (op.pos.y + 32) * ww * ww;
+                // set the light here
+                job.SetLight(op.x, op.y, op.z, op.val);
+
+                // ranging from -32 -> -1 , 0 -> 31 , 32 -> 63 , so add 32 to build index from 0-95
+                int startIndex = (op.x + 32) + (op.z + 32) * ww + (op.y + 32) * ww * ww;
                 lbfs.Enqueue(startIndex);
 
                 while (lbfs.Count > 0) {
@@ -63,10 +69,9 @@ public static class LightCalculator {
                         lbfs.Enqueue(x + 32 + (z + 1 + 32) * ww + (y + 32) * ww * ww);
                     }
 
-
                 }
 
-            } else { // light removal
+            } else { // light removal... todo
 
             }
 

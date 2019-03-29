@@ -87,6 +87,7 @@ public struct MeshJob : IJob {
 
     public NativeList<Vector3> vertices;
     public NativeList<Vector3> uvs;
+    public NativeList<Color32> colors;
     public NativeList<int> triangles;
 
 #if GEN_COLLIDERS
@@ -100,18 +101,18 @@ public struct MeshJob : IJob {
 
     public void Execute() {
 
-        NativeMeshData data = new NativeMeshData(this, vertices, uvs, triangles);
+        NativeMeshData data = new NativeMeshData(this, vertices, uvs, colors, triangles);
 
-        // do lighting update, somehow atomic lock the other chunks native arrays?
-
-        //LightCalculator.ProcessLights(this, lightOps, lightBFS);
-
-        // unlock them 
+        // lighting is only reason we need to lock all other chunks rather than just ourselves... but i dunno
+        // its pretty convenient to have it in the same job because were rebuilding the mesh anyways
+        // also since were passing in all these references anyways if we split these 3 up into their own jobs
+        // would have to do that 3 times instead #puke
+        LightCalculator.ProcessLightOps(this, lightOps, lightBFS);
 
         MeshBuilder.BuildNaive(data);
 
 #if GEN_COLLIDERS
-        MeshBuilder.BuildGreedyCollider(data, colliderVerts, colliderTris);
+        MeshBuilder.BuildGreedyCollider(this, colliderVerts, colliderTris);
 #endif
 
     }
@@ -406,6 +407,7 @@ public class MeshJobInfo {
 
     NativeList<Vector3> vertices;
     NativeList<Vector3> uvs;
+    NativeList<Color32> colors;
     NativeList<int> triangles;
 
 #if GEN_COLLIDERS
@@ -506,13 +508,16 @@ public class MeshJobInfo {
 
         vertices = Pools.v3Pool.Get();
         uvs = Pools.v3Pool.Get();
+        colors = Pools.c32Pool.Get();
         triangles = Pools.intPool.Get();
         vertices.Clear();
         uvs.Clear();
+        colors.Clear();
         triangles.Clear();
 
         job.vertices = vertices;
         job.uvs = uvs;
+        job.colors = colors;
         job.triangles = triangles;
 
 #if GEN_COLLIDERS
@@ -530,8 +535,14 @@ public class MeshJobInfo {
         lightOps.Clear();
         lightBFS.Clear();
 
+        while (chunk.blocksPlacedSince.Count > 0) {
+            BlockEdit e = chunk.blocksPlacedSince.Dequeue();
+            Debug.Log(e.x + " " + e.y + " " + e.z + " " + e.block.type);
+            lightOps.Enqueue(new LightOp { x = e.x, y = e.y, z = e.z, val = 16 });
+        }
+
         job.lightOps = lightOps;
-        job.lightBFS = lightBFS; // dont really need a ref to this in my class but whatever
+        job.lightBFS = lightBFS;
 
         handle = job.Schedule();
 
@@ -566,10 +577,11 @@ public class MeshJobInfo {
         chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].UnlockData();
         chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].UnlockData();
 
-        chunk.UpdateMeshNative(vertices, uvs, triangles);
+        chunk.UpdateMeshNative(vertices, uvs, colors, triangles);
 
         Pools.v3Pool.Return(vertices);
         Pools.v3Pool.Return(uvs);
+        Pools.c32Pool.Return(colors);
         Pools.intPool.Return(triangles);
 
 #if GEN_COLLIDERS

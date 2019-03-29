@@ -23,7 +23,9 @@ public static class Pools {
 
 
     public static Pool<NativeList<Vector3>> v3Pool = new Pool<NativeList<Vector3>>(NLBuilder<Vector3>, NLDisposer);
-    public static Pool<NativeList<Vector2>> v2Pool = new Pool<NativeList<Vector2>>(NLBuilder<Vector2>, NLDisposer);
+    //public static Pool<NativeList<Vector2>> v2Pool = new Pool<NativeList<Vector2>>(NLBuilder<Vector2>, NLDisposer);
+    public static Pool<NativeList<Color32>> c32Pool = new Pool<NativeList<Color32>>(NLBuilder<Color32>, NLDisposer);
+
     public static Pool<NativeList<int>> intPool = new Pool<NativeList<int>>(NLBuilder<int>, NLDisposer);
 
     public static Pool<NativeQueue<LightOp>> loQPool = new Pool<NativeQueue<LightOp>>(NQBuilder<LightOp>, NQDisposer);

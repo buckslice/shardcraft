@@ -26,7 +26,7 @@ public static class MeshBuilder {
     //https://github.com/roboleary/GreedyMesh/blob/master/src/mygame/Main.java
     //https://github.com/darkedge/starlight/blob/master/starlight/starlight_game.cpp
 
-    public static void BuildGreedyCollider(NativeMeshData data, NativeList<Vector3> vertices, NativeList<int> triangles) {
+    public static void BuildGreedyCollider(MeshJob job, NativeList<Vector3> vertices, NativeList<int> triangles) {
 
         void AddQuadTrianglesGreedy(bool clockwise) {
             if (!clockwise) {
@@ -95,8 +95,8 @@ public static class MeshBuilder {
                 n = 0;
                 for (x[d2] = 0; x[d2] < maxDim[d2]; x[d2]++) {
                     for (x[d1] = 0; x[d1] < maxDim[d1]; x[d1]++) {
-                        Block block1 = data.GetBlock(x[0], x[1], x[2]); // block were at
-                        Block block2 = data.GetBlock(x[0] + q[0], x[1] + q[1], x[2] + q[2]); // block were going to
+                        Block block1 = job.GetBlock(x[0], x[1], x[2]); // block were at
+                        Block block2 = job.GetBlock(x[0] + q[0], x[1] + q[1], x[2] + q[2]); // block were going to
 
                         // this isSolid is probably wrong in some cases but no blocks use yet cuz i dont rly get so figure out later lol
                         //slice[n++] = block1.IsSolid(side) && block2.IsSolid(Dirs.Opp(side)) ?

@@ -115,15 +115,6 @@ public abstract class BlockType {
     }
 
     public virtual void AddDataNative(int x, int y, int z, NativeMeshData data) {
-        if (!data.GetBlock(x + 1, y, z).IsSolid(Dir.west)) {
-            FaceDataEastNative(x, y, z, data);
-        }
-        if (!data.GetBlock(x, y + 1, z).IsSolid(Dir.down)) {
-            FaceDataUpNative(x, y, z, data);
-        }
-        if (!data.GetBlock(x, y, z + 1).IsSolid(Dir.south)) {
-            FaceDataNorthNative(x, y, z, data);
-        }
         if (!data.GetBlock(x - 1, y, z).IsSolid(Dir.east)) {
             FaceDataWestNative(x, y, z, data);
         }
@@ -133,34 +124,53 @@ public abstract class BlockType {
         if (!data.GetBlock(x, y, z - 1).IsSolid(Dir.north)) {
             FaceDataSouthNative(x, y, z, data);
         }
+        if (!data.GetBlock(x + 1, y, z).IsSolid(Dir.west)) {
+            FaceDataEastNative(x, y, z, data);
+        }
+        if (!data.GetBlock(x, y + 1, z).IsSolid(Dir.down)) {
+            FaceDataUpNative(x, y, z, data);
+        }
+        if (!data.GetBlock(x, y, z + 1).IsSolid(Dir.south)) {
+            FaceDataNorthNative(x, y, z, data);
+        }
     }
 
+    static Color32 GetColorFromLight(byte light) {
+        float fl = light / 16.0f;
+        return new Color(fl, fl, fl, 1.0f);
+    }
 
     protected virtual void FaceDataWestNative(int x, int y, int z, NativeMeshData data) {
-        data.AddVertex(new Vector3(x, y, z + 1.0f) / Chunk.BPU);
-        data.AddVertex(new Vector3(x, y + 1.0f, z + 1.0f) / Chunk.BPU);
-        data.AddVertex(new Vector3(x, y + 1.0f, z) / Chunk.BPU);
-        data.AddVertex(new Vector3(x, y, z) / Chunk.BPU);
+        Color c = GetColorFromLight(data.GetLight(x - 1, y, z));
+
+        data.AddVertex(new Vector3(x, y, z + 1.0f) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x, y + 1.0f, z + 1.0f) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x, y + 1.0f, z) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x, y, z) / Chunk.BPU, c);
 
         data.AddQuadTriangles();
 
         data.AddFaceUVs(GetTextureIndex(Dir.west, x, y, z, data));
     }
     protected virtual void FaceDataDownNative(int x, int y, int z, NativeMeshData data) {
-        data.AddVertex(new Vector3(x, y, z) / Chunk.BPU);
-        data.AddVertex(new Vector3(x + 1.0f, y, z) / Chunk.BPU);
-        data.AddVertex(new Vector3(x + 1.0f, y, z + 1.0f) / Chunk.BPU);
-        data.AddVertex(new Vector3(x, y, z + 1.0f) / Chunk.BPU);
+        Color c = GetColorFromLight(data.GetLight(x, y - 1, z));
+
+        data.AddVertex(new Vector3(x, y, z) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x + 1.0f, y, z) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x + 1.0f, y, z + 1.0f) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x, y, z + 1.0f) / Chunk.BPU, c);
 
         data.AddQuadTriangles();
 
         data.AddFaceUVs(GetTextureIndex(Dir.down, x, y, z, data));
     }
     protected virtual void FaceDataSouthNative(int x, int y, int z, NativeMeshData data) {
-        data.AddVertex(new Vector3(x, y, z) / Chunk.BPU);
-        data.AddVertex(new Vector3(x, y + 1.0f, z) / Chunk.BPU);
-        data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z) / Chunk.BPU);
-        data.AddVertex(new Vector3(x + 1.0f, y, z) / Chunk.BPU);
+        Color c = GetColorFromLight(data.GetLight(x, y, z - 1));
+
+        data.AddVertex(new Vector3(x, y, z) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x, y + 1.0f, z) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x + 1.0f, y, z) / Chunk.BPU, c);
 
         data.AddQuadTriangles();
 
@@ -168,30 +178,36 @@ public abstract class BlockType {
     }
 
     protected virtual void FaceDataEastNative(int x, int y, int z, NativeMeshData data) {
-        data.AddVertex(new Vector3(x + 1.0f, y, z) / Chunk.BPU);
-        data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z) / Chunk.BPU);
-        data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z + 1.0f) / Chunk.BPU);
-        data.AddVertex(new Vector3(x + 1.0f, y, z + 1.0f) / Chunk.BPU);
+        Color c = GetColorFromLight(data.GetLight(x + 1, y, z));
+
+        data.AddVertex(new Vector3(x + 1.0f, y, z) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z + 1.0f) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x + 1.0f, y, z + 1.0f) / Chunk.BPU, c);
 
         data.AddQuadTriangles();
 
         data.AddFaceUVs(GetTextureIndex(Dir.east, x, y, z, data));
     }
     protected virtual void FaceDataUpNative(int x, int y, int z, NativeMeshData data) {
-        data.AddVertex(new Vector3(x, y + 1.0f, z + 1.0f) / Chunk.BPU);
-        data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z + 1.0f) / Chunk.BPU);
-        data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z) / Chunk.BPU);
-        data.AddVertex(new Vector3(x, y + 1.0f, z) / Chunk.BPU);
+        Color c = GetColorFromLight(data.GetLight(x, y + 1, z));
+
+        data.AddVertex(new Vector3(x, y + 1.0f, z + 1.0f) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z + 1.0f) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x, y + 1.0f, z) / Chunk.BPU, c);
 
         data.AddQuadTriangles();
 
         data.AddFaceUVs(GetTextureIndex(Dir.up, x, y, z, data));
     }
     protected virtual void FaceDataNorthNative(int x, int y, int z, NativeMeshData data) {
-        data.AddVertex(new Vector3(x + 1.0f, y, z + 1.0f) / Chunk.BPU);
-        data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z + 1.0f) / Chunk.BPU);
-        data.AddVertex(new Vector3(x, y + 1.0f, z + 1.0f) / Chunk.BPU);
-        data.AddVertex(new Vector3(x, y, z + 1.0f) / Chunk.BPU);
+        Color c = GetColorFromLight(data.GetLight(x, y, z + 1));
+
+        data.AddVertex(new Vector3(x + 1.0f, y, z + 1.0f) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z + 1.0f) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x, y + 1.0f, z + 1.0f) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x, y, z + 1.0f) / Chunk.BPU, c);
 
         data.AddQuadTriangles();
 
