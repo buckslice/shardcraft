@@ -85,6 +85,9 @@ public class LoadChunks : MonoBehaviour {
         Pools.v2Pool.Dispose();
         Pools.intPool.Dispose();
 
+        Pools.loQPool.Dispose();
+        Pools.intQPool.Dispose();
+
     }
 
 

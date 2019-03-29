@@ -13,9 +13,10 @@ public class DrawBounds : MonoBehaviour {
     List<Vector3> lines = new List<Vector3>();
     List<Color> lineColors = new List<Color>();
 
-    public Matrix4x4 matrix = Matrix4x4.identity;
+    public Matrix4x4 matrix { get; set; }
 
     void Start() {
+        matrix = Matrix4x4.identity;
         cam = GetComponent<Camera>();
     }
 

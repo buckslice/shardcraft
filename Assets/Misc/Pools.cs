@@ -10,13 +10,24 @@ public static class Pools {
         return new NativeList<T>(Allocator.Persistent);
     }
 
+    static NativeQueue<T> NQBuilder<T>() where T : struct {
+        return new NativeQueue<T>(Allocator.Persistent);
+    }
+
     static void NLDisposer<T>(NativeList<T> list) where T : struct {
         list.Dispose();
     }
+    static void NQDisposer<T>(NativeQueue<T> queue) where T : struct {
+        queue.Dispose();
+    }
+
 
     public static Pool<NativeList<Vector3>> v3Pool = new Pool<NativeList<Vector3>>(NLBuilder<Vector3>, NLDisposer);
     public static Pool<NativeList<Vector2>> v2Pool = new Pool<NativeList<Vector2>>(NLBuilder<Vector2>, NLDisposer);
     public static Pool<NativeList<int>> intPool = new Pool<NativeList<int>>(NLBuilder<int>, NLDisposer);
+
+    public static Pool<NativeQueue<LightOp>> loQPool = new Pool<NativeQueue<LightOp>>(NQBuilder<LightOp>, NQDisposer);
+    public static Pool<NativeQueue<int>> intQPool = new Pool<NativeQueue<int>>(NQBuilder<int>, NQDisposer);
 
 }
 

@@ -3,6 +3,8 @@ using System.Collections;
 
 public class CamModify : MonoBehaviour {
 
+    public bool doMovement = false;
+
     public float sensitivity = 1.0f;
     public float moveSpeed = 5.0f;
 
@@ -72,6 +74,9 @@ public class CamModify : MonoBehaviour {
         //    world.SwapGreedy();
         //}
 
+        if (!doMovement) {
+            return;
+        }
 
         // basically copying minecraft flying mode behaviour cuz its nice
 
