@@ -275,18 +275,24 @@ public class Chunk {
 
         if (x == 0 && neighbors[0] != null) {
             neighbors[0].update = true;
+            neighbors[0].needNewCollider = true;
         } else if (x == SIZE - 1 && neighbors[3] != null) {
             neighbors[3].update = true;
+            neighbors[3].needNewCollider = true;
         }
         if (y == 0 && neighbors[1] != null) {
             neighbors[1].update = true;
+            neighbors[1].needNewCollider = true;
         } else if (y == SIZE - 1 && neighbors[4] != null) {
             neighbors[4].update = true;
+            neighbors[4].needNewCollider = true;
         }
         if (z == 0 && neighbors[2] != null) {
             neighbors[2].update = true;
+            neighbors[2].needNewCollider = true;
         } else if (z == SIZE - 1 && neighbors[5] != null) {
             neighbors[5].update = true;
+            neighbors[5].needNewCollider = true;
         }
 
     }

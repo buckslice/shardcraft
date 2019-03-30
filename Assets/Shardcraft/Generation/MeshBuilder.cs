@@ -89,20 +89,20 @@ public static class MeshBuilder {
             side = (Dir)dim;
 
             // move through dimension from front to back
-            for (x[d0] = 0; x[d0] < maxDim[d0];) {
-
+            for (x[d0] = -1; x[d0] < maxDim[d0];) {
                 // compute mask (which is a slice)
                 n = 0;
                 for (x[d2] = 0; x[d2] < maxDim[d2]; x[d2]++) {
                     for (x[d1] = 0; x[d1] < maxDim[d1]; x[d1]++) {
-                        Block block1 = job.GetBlock(x[0], x[1], x[2]); // block were at
-                        Block block2 = job.GetBlock(x[0] + q[0], x[1] + q[1], x[2] + q[2]); // block were going to
 
-                        // this isSolid is probably wrong in some cases but no blocks use yet cuz i dont rly get so figure out later lol
+                        // the second part of the ors are to make sure you dont add collision data for other chunk block faces on your borders
+                        Block block1 = (backFace || x[d0] >= 0) ? job.GetBlock(x[0], x[1], x[2]) : Blocks.AIR; // block were at
+                        Block block2 = (!backFace || x[d0] < Chunk.SIZE - 1) ? job.GetBlock(x[0] + q[0], x[1] + q[1], x[2] + q[2]) : Blocks.AIR;
+                        slice[n++] = block1.ColliderSolid() && block2.ColliderSolid() ? Blocks.AIR : backFace ? block2 : block1;
+
+                        // saving this for when porting back to meshing
                         //slice[n++] = block1.IsSolid(side) && block2.IsSolid(Dirs.Opp(side)) ?
                         //    Blocks.AIR : backFace ? block2 : block1;
-
-                        slice[n++] = block1.ColliderSolid() && block2.ColliderSolid() ? Blocks.AIR : backFace ? block2 : block1;
                     }
                 }
 

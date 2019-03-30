@@ -79,9 +79,6 @@ public static class LightCalculator {
 
         }
 
-
-
-
     }
 
 

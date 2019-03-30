@@ -138,45 +138,109 @@ public abstract class BlockType {
     static Color32 GetColorFromLight(byte light) {
         float fl = (float)light / LightCalculator.MAX_LIGHT;
         return new Color(fl, fl, fl, 1.0f);
+    }
 
-        //byte fl = (byte)(light * 64);
-        //return new Color32(fl, fl, fl, 255);
+    static float calcAO(int side1, int side2, NativeMeshData data, int c1, int c2, int c3) {
+        if (side1 + side2 == 2) {
+            return 0.2f;
+        }
+        return (3.0f - side1 - side2 - GetOpacity(data, c1, c2, c3)) / 3.0f * 0.8f + 0.2f;
+    }
 
+    static int GetOpacity(NativeMeshData data, int x, int y, int z) {
+        return data.GetBlock(x, y, z) != Blocks.AIR ? 1 : 0;
     }
 
     protected virtual void FaceDataWestNative(int x, int y, int z, NativeMeshData data) {
         Color c = GetColorFromLight(data.GetLight(x - 1, y, z));
 
+        int up = GetOpacity(data, x - 1, y + 1, z);
+        int down = GetOpacity(data, x - 1, y - 1, z);
+        int north = GetOpacity(data, x - 1, y, z + 1);
+        int south = GetOpacity(data, x - 1, y, z - 1);
+
+        float a0 = calcAO(down, north, data, x - 1, y - 1, z + 1);
+        float a1 = calcAO(up, north, data, x - 1, y + 1, z + 1);
+        float a2 = calcAO(up, south, data, x - 1, y + 1, z - 1);
+        float a3 = calcAO(down, south, data, x - 1, y - 1, z - 1);
+
+        c.a = a0;
         data.AddVertex(new Vector3(x, y, z + 1.0f) / Chunk.BPU, c);
+        c.a = a1;
         data.AddVertex(new Vector3(x, y + 1.0f, z + 1.0f) / Chunk.BPU, c);
+        c.a = a2;
         data.AddVertex(new Vector3(x, y + 1.0f, z) / Chunk.BPU, c);
+        c.a = a3;
         data.AddVertex(new Vector3(x, y, z) / Chunk.BPU, c);
 
-        data.AddQuadTriangles();
+        // do anisotropy flip
+        if (a0 + a2 > a1 + a3) {
+            data.AddQuadTriangles();
+        } else {
+            data.AddFlippedQuadTriangles();
+        }
 
         data.AddFaceUVs(GetTextureIndex(Dir.west, x, y, z, data));
     }
     protected virtual void FaceDataDownNative(int x, int y, int z, NativeMeshData data) {
         Color c = GetColorFromLight(data.GetLight(x, y - 1, z));
 
+        int north = GetOpacity(data, x, y - 1, z + 1);
+        int south = GetOpacity(data, x, y - 1, z - 1);
+        int east = GetOpacity(data, x + 1, y - 1, z);
+        int west = GetOpacity(data, x - 1, y - 1, z);
+
+        float a0 = calcAO(south, west, data, x - 1, y - 1, z - 1);
+        float a1 = calcAO(south, east, data, x + 1, y - 1, z - 1);
+        float a2 = calcAO(north, east, data, x + 1, y - 1, z + 1);
+        float a3 = calcAO(north, west, data, x - 1, y - 1, z + 1);
+
+        c.a = a0;
         data.AddVertex(new Vector3(x, y, z) / Chunk.BPU, c);
+        c.a = a1;
         data.AddVertex(new Vector3(x + 1.0f, y, z) / Chunk.BPU, c);
+        c.a = a2;
         data.AddVertex(new Vector3(x + 1.0f, y, z + 1.0f) / Chunk.BPU, c);
+        c.a = a3;
         data.AddVertex(new Vector3(x, y, z + 1.0f) / Chunk.BPU, c);
 
-        data.AddQuadTriangles();
+        // do anisotropy flip
+        if (a0 + a2 > a1 + a3) {
+            data.AddQuadTriangles();
+        } else {
+            data.AddFlippedQuadTriangles();
+        }
 
         data.AddFaceUVs(GetTextureIndex(Dir.down, x, y, z, data));
     }
     protected virtual void FaceDataSouthNative(int x, int y, int z, NativeMeshData data) {
         Color c = GetColorFromLight(data.GetLight(x, y, z - 1));
 
+        int up = GetOpacity(data, x, y + 1, z - 1);
+        int down = GetOpacity(data, x, y - 1, z - 1);
+        int east = GetOpacity(data, x + 1, y, z - 1);
+        int west = GetOpacity(data, x - 1, y, z - 1);
+
+        float a0 = calcAO(down, west, data, x - 1, y - 1, z - 1);
+        float a1 = calcAO(up, west, data, x - 1, y + 1, z - 1);
+        float a2 = calcAO(up, east, data, x + 1, y + 1, z - 1);
+        float a3 = calcAO(down, east, data, x + 1, y - 1, z - 1);
+
+        c.a = a0;
         data.AddVertex(new Vector3(x, y, z) / Chunk.BPU, c);
+        c.a = a1;
         data.AddVertex(new Vector3(x, y + 1.0f, z) / Chunk.BPU, c);
+        c.a = a2;
         data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z) / Chunk.BPU, c);
+        c.a = a3;
         data.AddVertex(new Vector3(x + 1.0f, y, z) / Chunk.BPU, c);
 
-        data.AddQuadTriangles();
+        // do anisotropy flip
+        if (a0 + a2 > a1 + a3) {
+            data.AddQuadTriangles();
+        } else {
+            data.AddFlippedQuadTriangles();
+        }
 
         data.AddFaceUVs(GetTextureIndex(Dir.south, x, y, z, data));
     }
@@ -184,36 +248,93 @@ public abstract class BlockType {
     protected virtual void FaceDataEastNative(int x, int y, int z, NativeMeshData data) {
         Color c = GetColorFromLight(data.GetLight(x + 1, y, z));
 
+        int up = GetOpacity(data, x + 1, y + 1, z);
+        int down = GetOpacity(data, x + 1, y - 1, z);
+        int north = GetOpacity(data, x + 1, y, z + 1);
+        int south = GetOpacity(data, x + 1, y, z - 1);
+
+        float a0 = calcAO(down, south, data, x + 1, y - 1, z - 1);
+        float a1 = calcAO(up, south, data, x + 1, y + 1, z - 1);
+        float a2 = calcAO(up, north, data, x + 1, y + 1, z + 1);
+        float a3 = calcAO(down, north, data, x + 1, y - 1, z + 1);
+
+        c.a = a0;
         data.AddVertex(new Vector3(x + 1.0f, y, z) / Chunk.BPU, c);
+        c.a = a1;
         data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z) / Chunk.BPU, c);
+        c.a = a2;
         data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z + 1.0f) / Chunk.BPU, c);
+        c.a = a3;
         data.AddVertex(new Vector3(x + 1.0f, y, z + 1.0f) / Chunk.BPU, c);
 
-        data.AddQuadTriangles();
+        // do anisotropy flip
+        if (a0 + a2 > a1 + a3) {
+            data.AddQuadTriangles();
+        } else {
+            data.AddFlippedQuadTriangles();
+        }
 
         data.AddFaceUVs(GetTextureIndex(Dir.east, x, y, z, data));
     }
     protected virtual void FaceDataUpNative(int x, int y, int z, NativeMeshData data) {
         Color c = GetColorFromLight(data.GetLight(x, y + 1, z));
 
+        int north = GetOpacity(data, x, y + 1, z + 1);
+        int south = GetOpacity(data, x, y + 1, z - 1);
+        int east = GetOpacity(data, x + 1, y + 1, z);
+        int west = GetOpacity(data, x - 1, y + 1, z);
+
+        float a0 = calcAO(north, west, data, x - 1, y + 1, z + 1);
+        float a1 = calcAO(north, east, data, x + 1, y + 1, z + 1);
+        float a2 = calcAO(south, east, data, x + 1, y + 1, z - 1);
+        float a3 = calcAO(south, west, data, x - 1, y + 1, z - 1);
+
+        c.a = a0;
         data.AddVertex(new Vector3(x, y + 1.0f, z + 1.0f) / Chunk.BPU, c);
+        c.a = a1;
         data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z + 1.0f) / Chunk.BPU, c);
+        c.a = a2;
         data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z) / Chunk.BPU, c);
+        c.a = a3;
         data.AddVertex(new Vector3(x, y + 1.0f, z) / Chunk.BPU, c);
 
-        data.AddQuadTriangles();
+        // do anisotropy flip
+        if (a0 + a2 > a1 + a3) {
+            data.AddQuadTriangles();
+        } else {
+            data.AddFlippedQuadTriangles();
+        }
 
         data.AddFaceUVs(GetTextureIndex(Dir.up, x, y, z, data));
     }
     protected virtual void FaceDataNorthNative(int x, int y, int z, NativeMeshData data) {
         Color c = GetColorFromLight(data.GetLight(x, y, z + 1));
 
+        int up = GetOpacity(data, x, y + 1, z + 1);
+        int down = GetOpacity(data, x, y - 1, z + 1);
+        int east = GetOpacity(data, x + 1, y, z + 1);
+        int west = GetOpacity(data, x - 1, y, z + 1);
+
+        float a0 = calcAO(down, east, data, x + 1, y - 1, z + 1);
+        float a1 = calcAO(up, east, data, x + 1, y + 1, z + 1);
+        float a2 = calcAO(up, west, data, x - 1, y + 1, z + 1);
+        float a3 = calcAO(down, west, data, x - 1, y - 1, z + 1);
+
+        c.a = a0;
         data.AddVertex(new Vector3(x + 1.0f, y, z + 1.0f) / Chunk.BPU, c);
+        c.a = a1;
         data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z + 1.0f) / Chunk.BPU, c);
+        c.a = a2;
         data.AddVertex(new Vector3(x, y + 1.0f, z + 1.0f) / Chunk.BPU, c);
+        c.a = a3;
         data.AddVertex(new Vector3(x, y, z + 1.0f) / Chunk.BPU, c);
 
-        data.AddQuadTriangles();
+        // do anisotropy flip
+        if (a0 + a2 > a1 + a3) {
+            data.AddQuadTriangles();
+        } else {
+            data.AddFlippedQuadTriangles();
+        }
 
         data.AddFaceUVs(GetTextureIndex(Dir.north, x, y, z, data));
     }

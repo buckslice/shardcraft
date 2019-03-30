@@ -116,10 +116,7 @@ public struct MeshJob : IJob {
 
 #if GEN_COLLIDERS
         if (genCollider) {
-            Debug.Log("need new collider");
             MeshBuilder.BuildGreedyCollider(ref this, colliderVerts, colliderTris);
-        } else {
-            Debug.Log("lighting update, no need");
         }
 #endif
 
