@@ -2,7 +2,6 @@
 {
     Properties
     {
-        _Color ("Color", Color) = (1,1,1,1)
         _MainTex ("TerrainTextureArray", 2DArray) = "white" {}
         _Glossiness ("Smoothness", Range(0,1)) = 0.5
         _Metallic ("Metallic", Range(0,1)) = 0.0
@@ -16,7 +15,8 @@
         CGPROGRAM
         // Physically based Standard lighting model, and enable shadows on all light types
 
-        #pragma surface surf Standard fullforwardshadows alphatest:_Cutoff addshadow vertex:vert
+        //#pragma surface surf Standard fullforwardshadows alphatest:_Cutoff addshadow vertex:vert
+        #pragma surface surf Standard alphatest:_Cutoff vertex:vert
         //#pragma surface surf Unlit noforwardadd alphatest:_Cutoff vertex:vert
 
         #pragma target 3.5
@@ -31,7 +31,6 @@
 
         half _Glossiness;
         half _Metallic;
-        fixed4 _Color;
 
         void vert(inout appdata_full v, out Input OUT) {
             UNITY_INITIALIZE_OUTPUT(Input, OUT);
@@ -58,8 +57,13 @@
             // Albedo comes from a texture tinted by color
             fixed4 c = UNITY_SAMPLE_TEX2DARRAY(_MainTex, IN.blockUVs);
 
-            o.Albedo = c.rgb * IN.color.rgb;
+            //o.Albedo = c.rgb * IN.color.rgb;
+            o.Albedo = IN.color.rgb;
             o.Alpha = c.a;
+
+            o.Smoothness = _Glossiness;
+            o.Metallic = _Metallic;
+            //o.Emission = IN.color.rgb;
         }
         ENDCG
     }

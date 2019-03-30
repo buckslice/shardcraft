@@ -21,7 +21,7 @@ public class Chunk {
     //public HashSet<ushort> modifiedBlockIndices = new HashSet<ushort>(); // hashset to avoid duplicates
     public Queue<BlockEdit> pendingEdits = new Queue<BlockEdit>();
 
-    public Queue<BlockEdit> blocksPlacedSince = new Queue<BlockEdit>();
+    public Queue<BlockEdit> lightOps = new Queue<BlockEdit>();
 
     public World world;
     public GameObject gameObject;
@@ -119,7 +119,7 @@ public class Chunk {
                 CheckNeedToUpdateNeighbors(e.x, e.y, e.z);
             }
             needToUpdateSave = true; // blocks were modified so need to update save
-            if (!NeighborsLoaded()) {
+            if (!NeighborsLoaded() || !IsLocalGroupFree()) {
                 update = true;
             } else {    // slam out job right away if you can
                 JobController.StartMeshJob(this);
@@ -187,6 +187,7 @@ public class Chunk {
         return loadedNeighbors == 26;
     }
 
+    static bool printedOnce = false;
     public void UpdateMeshNative(NativeList<Vector3> vertices, NativeList<Vector3> uvs, NativeList<Color32> colors, NativeList<int> triangles) {
         if (dying) {
             return;
@@ -201,6 +202,15 @@ public class Chunk {
         filter.mesh.vertices = vertices.ToArray();
         filter.mesh.SetUVs(0, new List<Vector3>(uvs.ToArray()));
         filter.mesh.colors32 = colors.ToArray();
+
+        if (printedOnce == false) {
+            for (int i = 0; i < colors.Length; ++i) {
+                if (colors[i] != Color.black) {
+                    Debug.Log(colors[i]);
+                }
+            }
+        }
+
         filter.mesh.triangles = triangles.ToArray();
         filter.mesh.RecalculateNormals();
 
@@ -256,7 +266,7 @@ public class Chunk {
                 update = true;
                 CheckNeedToUpdateNeighbors(x, y, z);
             }
-            blocksPlacedSince.Enqueue(new BlockEdit { x = x, y = y, z = z, block = block });
+            lightOps.Enqueue(new BlockEdit { x = x, y = y, z = z, block = block });
         } else {
             world.SetBlock(bp.x + x, bp.y + y, bp.z + z, block);
         }

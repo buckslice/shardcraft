@@ -535,10 +535,14 @@ public class MeshJobInfo {
         lightOps.Clear();
         lightBFS.Clear();
 
-        while (chunk.blocksPlacedSince.Count > 0) {
-            BlockEdit e = chunk.blocksPlacedSince.Dequeue();
-            Debug.Log(e.x + " " + e.y + " " + e.z + " " + e.block.type);
-            lightOps.Enqueue(new LightOp { x = e.x, y = e.y, z = e.z, val = 16 });
+        while (chunk.lightOps.Count > 0) {
+            BlockEdit e = chunk.lightOps.Dequeue();
+            //Debug.Log(e.x + " " + e.y + " " + e.z + " " + e.block.type);
+            if (e.block == Blocks.AIR) {
+                lightOps.Enqueue(new LightOp { x = e.x, y = e.y, z = e.z, val = 0 });
+            } else {
+                lightOps.Enqueue(new LightOp { x = e.x, y = e.y, z = e.z, val = 4 });
+            }
         }
 
         job.lightOps = lightOps;

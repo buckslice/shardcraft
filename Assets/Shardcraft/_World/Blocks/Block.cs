@@ -136,8 +136,12 @@ public abstract class BlockType {
     }
 
     static Color32 GetColorFromLight(byte light) {
-        float fl = light / 16.0f;
-        return new Color(fl, fl, fl, 1.0f);
+        //float fl = light / 4.0f;
+        //return new Color(fl, fl, fl, 1.0f);
+
+        byte fl = (byte)(light * 64);
+        return new Color32(fl, fl, fl, 255);
+
     }
 
     protected virtual void FaceDataWestNative(int x, int y, int z, NativeMeshData data) {
