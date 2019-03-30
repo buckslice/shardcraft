@@ -58,7 +58,7 @@
             fixed4 c = UNITY_SAMPLE_TEX2DARRAY(_MainTex, IN.blockUVs);
 
             //o.Albedo = c.rgb * IN.color.rgb;
-            o.Albedo = IN.color.rgb;
+            o.Albedo = GammaToLinearSpace(IN.color.rgb);
             o.Alpha = c.a;
 
             o.Smoothness = _Glossiness;

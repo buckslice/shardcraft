@@ -35,10 +35,12 @@ public class Chunk {
     int dataLock = 0;   // if not zero means one or more jobs are reading from the data
     public bool needToUpdateSave { get; set; } // only gets set when generated or modified a block
     public bool dying { get; set; } // set when chunk is in process of getting destroyed
+    public bool needNewCollider { get; private set; }
 
     public MeshRenderer mr { get; set; }
     MeshFilter filter;
     MeshCollider coll;
+
 
     // w d s e u n
     public Chunk[] neighbors = new Chunk[6];
@@ -76,6 +78,7 @@ public class Chunk {
         builtStructures = false;
         needToUpdateSave = false;
         dying = false;
+        needNewCollider = true;
         loadedNeighbors = 0;
 
         gameObject.transform.position = bp.ToVector3() / BPU;
@@ -187,7 +190,6 @@ public class Chunk {
         return loadedNeighbors == 26;
     }
 
-    static bool printedOnce = false;
     public void UpdateMeshNative(NativeList<Vector3> vertices, NativeList<Vector3> uvs, NativeList<Color32> colors, NativeList<int> triangles) {
         if (dying) {
             return;
@@ -203,14 +205,6 @@ public class Chunk {
         filter.mesh.SetUVs(0, new List<Vector3>(uvs.ToArray()));
         filter.mesh.colors32 = colors.ToArray();
 
-        if (printedOnce == false) {
-            for (int i = 0; i < colors.Length; ++i) {
-                if (colors[i] != Color.black) {
-                    Debug.Log(colors[i]);
-                }
-            }
-        }
-
         filter.mesh.triangles = triangles.ToArray();
         filter.mesh.RecalculateNormals();
 
@@ -220,6 +214,7 @@ public class Chunk {
     }
 
     public void UpdateColliderNative(NativeList<Vector3> vertices, NativeList<int> triangles) {
+        needNewCollider = false;
         if (dying) {
             return;
         }
@@ -266,6 +261,7 @@ public class Chunk {
                 update = true;
                 CheckNeedToUpdateNeighbors(x, y, z);
             }
+            needNewCollider = true; // block was changed so collider prob needs to be updated
             lightOps.Enqueue(new BlockEdit { x = x, y = y, z = z, block = block });
         } else {
             world.SetBlock(bp.x + x, bp.y + y, bp.z + z, block);

@@ -26,7 +26,7 @@ public static class MeshBuilder {
     //https://github.com/roboleary/GreedyMesh/blob/master/src/mygame/Main.java
     //https://github.com/darkedge/starlight/blob/master/starlight/starlight_game.cpp
 
-    public static void BuildGreedyCollider(MeshJob job, NativeList<Vector3> vertices, NativeList<int> triangles) {
+    public static void BuildGreedyCollider(ref MeshJob job, NativeList<Vector3> vertices, NativeList<int> triangles) {
 
         void AddQuadTrianglesGreedy(bool clockwise) {
             if (!clockwise) {
@@ -102,8 +102,7 @@ public static class MeshBuilder {
                         //slice[n++] = block1.IsSolid(side) && block2.IsSolid(Dirs.Opp(side)) ?
                         //    Blocks.AIR : backFace ? block2 : block1;
 
-                        slice[n++] = block1.ColliderSolid() && block2.ColliderSolid() ?
-                                Blocks.AIR : backFace ? block2 : block1;
+                        slice[n++] = block1.ColliderSolid() && block2.ColliderSolid() ? Blocks.AIR : backFace ? block2 : block1;
                     }
                 }
 

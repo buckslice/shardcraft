@@ -22,10 +22,10 @@ public struct GenerationJob : IJob {
     }
 }
 
+// this whole file is somethin else... somethin else...
+
 //[BurstCompile] // need to get rid of all class references for burst...??? yeaaa...
 public struct MeshJob : IJob {
-
-    // this class is somethin else... somethin else...
 
     public const int s = Chunk.SIZE;
 
@@ -91,6 +91,7 @@ public struct MeshJob : IJob {
     public NativeList<int> triangles;
 
 #if GEN_COLLIDERS
+    public bool genCollider;
     public NativeList<Vector3> colliderVerts;
     public NativeList<int> colliderTris;
 #endif
@@ -99,20 +100,27 @@ public struct MeshJob : IJob {
     public NativeQueue<int> lightBFS;
     // also record list of who needs to update after this (if u edit their light)
 
+    int lightFlags;
     public void Execute() {
-
-        NativeMeshData data = new NativeMeshData(this, vertices, uvs, colors, triangles);
-
         // lighting is only reason we need to lock all other chunks rather than just ourselves... but i dunno
         // its pretty convenient to have it in the same job because were rebuilding the mesh anyways
-        // also since were passing in all these references anyways if we split these 3 up into their own jobs
+        // also since were passing in all these references if we split these 3 up into their own jobs
         // would have to do that 3 times instead #puke
-        LightCalculator.ProcessLightOps(this, lightOps, lightBFS);
+        lightFlags = 0;
+        LightCalculator.ProcessLightOps(ref this, lightOps, lightBFS);
+        Debug.Assert(lightBFS.Count == 0);
+        lightBFS.Enqueue(lightFlags); // kinda stupid way to do this, but so job handle can check which chunks had their lights set
 
+        NativeMeshData data = new NativeMeshData(ref this, vertices, uvs, colors, triangles);
         MeshBuilder.BuildNaive(data);
 
 #if GEN_COLLIDERS
-        MeshBuilder.BuildGreedyCollider(this, colliderVerts, colliderTris);
+        if (genCollider) {
+            Debug.Log("need new collider");
+            MeshBuilder.BuildGreedyCollider(ref this, colliderVerts, colliderTris);
+        } else {
+            Debug.Log("lighting update, no need");
+        }
 #endif
 
     }
@@ -288,76 +296,102 @@ public struct MeshJob : IJob {
             if (z < 0) {
                 if (x < 0) {
                     dswL[(x + s) + (z + s) * s + (y + s) * s * s] = v;
+                    lightFlags |= 0x1;
                 } else if (x >= s) {
                     dseL[(x - s) + (z + s) * s + (y + s) * s * s] = v;
+                    lightFlags |= 0x2;
                 } else {
                     dsL[x + (z + s) * s + (y + s) * s * s] = v;
+                    lightFlags |= 0x4;
                 }
             } else if (z >= s) {
                 if (x < 0) {
                     dnwL[(x + s) + (z - s) * s + (y + s) * s * s] = v;
+                    lightFlags |= 0x8;
                 } else if (x >= s) {
                     dneL[(x - s) + (z - s) * s + (y + s) * s * s] = v;
+                    lightFlags |= 0x10;
                 } else {
                     dnL[x + (z - s) * s + (y + s) * s * s] = v;
+                    lightFlags |= 0x20;
                 }
             } else {
                 if (x < 0) {
                     dwL[(x + s) + z * s + (y + s) * s * s] = v;
+                    lightFlags |= 0x40;
                 } else if (x >= s) {
                     deL[(x - s) + z * s + (y + s) * s * s] = v;
+                    lightFlags |= 0x80;
                 } else {
                     dL[x + z * s + (y + s) * s * s] = v;
+                    lightFlags |= 0x100;
                 }
             }
         } else if (y >= s) {
             if (z < 0) {
                 if (x < 0) {
                     uswL[(x + s) + (z + s) * s + (y - s) * s * s] = v;
+                    lightFlags |= 0x200;
                 } else if (x >= s) {
                     useL[(x - s) + (z + s) * s + (y - s) * s * s] = v;
+                    lightFlags |= 0x400;
                 } else {
                     usL[x + (z + s) * s + (y - s) * s * s] = v;
+                    lightFlags |= 0x800;
                 }
             } else if (z >= s) {
                 if (x < 0) {
                     unwL[(x + s) + (z - s) * s + (y - s) * s * s] = v;
+                    lightFlags |= 0x1000;
                 } else if (x >= s) {
                     uneL[(x - s) + (z - s) * s + (y - s) * s * s] = v;
+                    lightFlags |= 0x2000;
                 } else {
                     unL[x + (z - s) * s + (y - s) * s * s] = v;
+                    lightFlags |= 0x4000;
                 }
             } else {
                 if (x < 0) {
                     uwL[(x + s) + z * s + (y - s) * s * s] = v;
+                    lightFlags |= 0x8000;
                 } else if (x >= s) {
                     ueL[(x - s) + z * s + (y - s) * s * s] = v;
+                    lightFlags |= 0x10000;
                 } else {
                     uL[x + z * s + (y - s) * s * s] = v;
+                    lightFlags |= 0x20000;
                 }
             }
         } else {
             if (z < 0) {
                 if (x < 0) {
                     swL[(x + s) + (z + s) * s + y * s * s] = v;
+                    lightFlags |= 0x40000;
                 } else if (x >= s) {
                     seL[(x - s) + (z + s) * s + y * s * s] = v;
+                    lightFlags |= 0x80000;
                 } else {
                     sL[x + (z + s) * s + y * s * s] = v;
+                    lightFlags |= 0x100000;
                 }
             } else if (z >= s) {
                 if (x < 0) {
                     nwL[(x + s) + (z - s) * s + y * s * s] = v;
+                    lightFlags |= 0x200000;
                 } else if (x >= s) {
                     neL[(x - s) + (z - s) * s + y * s * s] = v;
+                    lightFlags |= 0x400000;
                 } else {
                     nL[x + (z - s) * s + y * s * s] = v;
+                    lightFlags |= 0x800000;
                 }
             } else {
                 if (x < 0) {
                     wL[(x + s) + z * s + y * s * s] = v;
+                    lightFlags |= 0x1000000;
                 } else if (x >= s) {
                     eL[(x - s) + z * s + y * s * s] = v;
+                    lightFlags |= 0x2000000;
                 } else {
                     light[x + z * s + y * s * s] = v;
                 }
@@ -528,6 +562,10 @@ public class MeshJobInfo {
 
         job.colliderVerts = colliderVerts;
         job.colliderTris = colliderTris;
+
+        // only generate a new collider if there has been a block change (on lighting change dont need to remake collider)
+        // this is one good reason to split the mesh job into multiple jobs maybe...
+        job.genCollider = chunk.needNewCollider;
 #endif
 
         lightOps = Pools.loQPool.Get();
@@ -541,7 +579,7 @@ public class MeshJobInfo {
             if (e.block == Blocks.AIR) {
                 lightOps.Enqueue(new LightOp { x = e.x, y = e.y, z = e.z, val = 0 });
             } else {
-                lightOps.Enqueue(new LightOp { x = e.x, y = e.y, z = e.z, val = 4 });
+                lightOps.Enqueue(new LightOp { x = e.x, y = e.y, z = e.z, val = LightCalculator.MAX_LIGHT });
             }
         }
 
@@ -589,13 +627,76 @@ public class MeshJobInfo {
         Pools.intPool.Return(triangles);
 
 #if GEN_COLLIDERS
-        chunk.UpdateColliderNative(colliderVerts, colliderTris);
+        if (chunk.needNewCollider) {
+            chunk.UpdateColliderNative(colliderVerts, colliderTris);
+        }
         Pools.v3Pool.Return(colliderVerts);
         Pools.intPool.Return(colliderTris);
 #endif
 
+        int lightFlags = lightBFS.Dequeue();
+
         Pools.loQPool.Return(lightOps);
         Pools.intQPool.Return(lightBFS);
+
+        //Debug.Log(lightFlags);
+
+        // notify neighbors whom should update
+        // im really missing arrays not gonna lie
+        if ((lightFlags & 0x1) != 0)
+            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].update = true;
+        if ((lightFlags & 0x2) != 0)
+            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].update = true;
+        if ((lightFlags & 0x4) != 0)
+            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].update = true;
+        if ((lightFlags & 0x8) != 0)
+            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].update = true;
+        if ((lightFlags & 0x10) != 0)
+            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].update = true;
+        if ((lightFlags & 0x20) != 0)
+            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].update = true;
+        if ((lightFlags & 0x40) != 0)
+            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.WEST].update = true;
+        if ((lightFlags & 0x80) != 0)
+            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.EAST].update = true;
+        if ((lightFlags & 0x100) != 0)
+            chunk.neighbors[Dirs.DOWN].update = true;
+        if ((lightFlags & 0x200) != 0)
+            chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].update = true;
+        if ((lightFlags & 0x400) != 0)
+            chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].update = true;
+        if ((lightFlags & 0x800) != 0)
+            chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].update = true;
+        if ((lightFlags & 0x1000) != 0)
+            chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].update = true;
+        if ((lightFlags & 0x2000) != 0)
+            chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].update = true;
+        if ((lightFlags & 0x4000) != 0)
+            chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].update = true;
+        if ((lightFlags & 0x8000) != 0)
+            chunk.neighbors[Dirs.UP].neighbors[Dirs.WEST].update = true;
+        if ((lightFlags & 0x10000) != 0)
+            chunk.neighbors[Dirs.UP].neighbors[Dirs.EAST].update = true;
+        if ((lightFlags & 0x20000) != 0)
+            chunk.neighbors[Dirs.UP].update = true;
+        if ((lightFlags & 0x40000) != 0)
+            chunk.neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].update = true;
+        if ((lightFlags & 0x80000) != 0)
+            chunk.neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].update = true;
+        if ((lightFlags & 0x100000) != 0)
+            chunk.neighbors[Dirs.SOUTH].update = true;
+        if ((lightFlags & 0x200000) != 0)
+            chunk.neighbors[Dirs.NORTH].neighbors[Dirs.WEST].update = true;
+        if ((lightFlags & 0x400000) != 0)
+            chunk.neighbors[Dirs.NORTH].neighbors[Dirs.EAST].update = true;
+        if ((lightFlags & 0x800000) != 0)
+            chunk.neighbors[Dirs.NORTH].update = true;
+        if ((lightFlags & 0x1000000) != 0)
+            chunk.neighbors[Dirs.WEST].update = true;
+        if ((lightFlags & 0x2000000) != 0)
+            chunk.neighbors[Dirs.EAST].update = true;
+
+
     }
 }
 

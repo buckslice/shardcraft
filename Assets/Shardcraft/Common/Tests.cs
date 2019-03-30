@@ -95,6 +95,31 @@ public static class Tests {
             TestEqual(Mth.Mod16(-5), 11, "Mod16_7");
         }
 
+        {
+            int b = 0;
+
+            b |= 0x1;
+
+            TestEqual(b & 0x1, 1, "bit1");
+
+            TestEqual(0x1, 1, "hex0");
+            TestEqual(0x2, 2, "hex1");
+            TestEqual(0x4, 4, "hex2");
+            TestEqual(0x8, 8, "hex3");
+            TestEqual(0x10, 16, "hex4");
+            TestEqual(0x20, 32, "hex5");
+            TestEqual(0x40, 64, "hex6");
+            TestEqual(0x80, 128, "hex7");
+            TestEqual(0x100, 256, "hex8");
+            TestEqual(0x200, 512, "hex9");
+            TestEqual(0x400, 1024, "hex10");
+            TestEqual(0x800, 2048, "hex11");
+            TestEqual(0x1000, 4096, "hex12");
+
+
+
+        }
+
         string msg = string.Format("{0}/{1} tests passed", passes, passes + failures);
         if (failures == 0) {
             Debug.Log(string.Format("<color=#00FF00><b>{0}</b></color>", msg));

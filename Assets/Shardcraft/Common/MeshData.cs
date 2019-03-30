@@ -64,7 +64,7 @@ public class NativeMeshData {
 
     public MeshJob job;
 
-    public NativeMeshData(MeshJob job, NativeList<Vector3> vertices, NativeList<Vector3> uvs, NativeList<Color32> colors, NativeList<int> triangles) {
+    public NativeMeshData(ref MeshJob job, NativeList<Vector3> vertices, NativeList<Vector3> uvs, NativeList<Color32> colors, NativeList<int> triangles) {
         this.job = job;
         this.vertices = vertices;
         this.uvs = uvs;

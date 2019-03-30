@@ -16,7 +16,9 @@ public static class LightCalculator {
     //    short index; // x y z coordinate!
     //}
 
-    public static void ProcessLightOps(MeshJob job, NativeQueue<LightOp> ops, NativeQueue<int> lbfs) {
+    public const byte MAX_LIGHT = 16;
+
+    public static void ProcessLightOps(ref MeshJob job, NativeQueue<LightOp> ops, NativeQueue<int> lbfs) {
         const int ww = 96; // because processing 3x3x3 block of 32x32x32 chunks
         while (ops.Count > 0) {
             LightOp op = ops.Dequeue();

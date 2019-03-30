@@ -136,11 +136,11 @@ public abstract class BlockType {
     }
 
     static Color32 GetColorFromLight(byte light) {
-        //float fl = light / 4.0f;
-        //return new Color(fl, fl, fl, 1.0f);
+        float fl = (float)light / LightCalculator.MAX_LIGHT;
+        return new Color(fl, fl, fl, 1.0f);
 
-        byte fl = (byte)(light * 64);
-        return new Color32(fl, fl, fl, 255);
+        //byte fl = (byte)(light * 64);
+        //return new Color32(fl, fl, fl, 255);
 
     }
 
