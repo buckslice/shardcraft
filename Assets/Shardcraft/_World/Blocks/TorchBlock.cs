@@ -9,7 +9,7 @@ public class BlockTorch : BlockType {
     }
 
     public override bool ColliderSolid() {
-        return false;
+        return true;
     }
 
     public override int GetTextureIndex(Dir dir, int x, int y, int z, ref NativeArray3x3<Block> blocks) {
@@ -17,7 +17,7 @@ public class BlockTorch : BlockType {
     }
 
     public override int GetLight() {
-        return 16;
+        return LightCalculator.MAX_LIGHT;
     }
 
     //const float w = 0.25f;

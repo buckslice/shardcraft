@@ -12,15 +12,46 @@ public class CamModify : MonoBehaviour {
 
     bool drawChunkBorders = false;
 
+    Block[] blocks = new Block[] {
+        Blocks.TORCH,
+        Blocks.GRASS,
+        Blocks.STONE,
+        Blocks.BIRCH,
+    };
+    int blockIndex = 0;
 
+    MeshFilter blockMeshFilter;
 
     void Start() {
         world = FindObjectOfType<World>();
 
         drawer = GetComponent<DrawBounds>();
+
+        blockMeshFilter = GetComponentInChildren<MeshFilter>();
+        MeshBuilder.PrimeBasicBlock();
+    }
+
+    private void OnApplicationQuit() {
+        MeshBuilder.DestroyBasicBlock();
     }
 
     void Update() {
+
+        // scroll to select blocks
+        float scroll = Input.GetAxis("Mouse ScrollWheel");
+        bool changed = true;
+        if (scroll > 0.0f) {
+            blockIndex--;
+        } else if (scroll < 0.0f) { // scroll down will progress list forward
+            blockIndex++;
+        } else {
+            changed = false;
+        }
+        blockIndex = Mth.Mod(blockIndex, blocks.Length);
+        if (changed) {
+            // create a new block mesh
+            MeshBuilder.GetBlockMesh(blocks[blockIndex], blockMeshFilter);
+        }
 
         RaycastHit hit;
 
@@ -35,7 +66,6 @@ public class CamModify : MonoBehaviour {
                 // move cube towards camera direction a little so it looks better when intersecting with other blocks
                 Vector3 center = (bp.ToVector3() + Vector3.one * 0.5f) / Chunk.BPU;
                 drawer.AddBounds(new Bounds(center - transform.forward * 0.01f, Vector3.one / Chunk.BPU), Color.white);
-
             }
         }
 
@@ -53,7 +83,7 @@ public class CamModify : MonoBehaviour {
             if (Physics.Raycast(transform.position, transform.forward, out hit, 100)) {
                 lastPos = transform.position;
                 lastHit = hit;
-                WorldUtils.SetBlock(world, hit, Blocks.GRASS, true);
+                WorldUtils.SetBlock(world, hit, blocks[blockIndex], true);
             }
         }
 

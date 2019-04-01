@@ -13,7 +13,7 @@ public static class MeshBuilder {
         for (int y = 0; y < s; y++) {
             for (int z = 0; z < s; z++) {
                 for (int x = 0; x < s; x++) {
-                    blocks.c[x + z * s + y * s * s].GetBlockType().AddDataNative(x, y, z, data, ref blocks, ref light);
+                    blocks.c[x + z * s + y * s * s].GetType().AddDataNative(x, y, z, data, ref blocks, ref light);
                 }
             }
         }
@@ -185,5 +185,68 @@ public static class MeshBuilder {
             }
         }
     }
+
+
+    // some crap just so i can reuse current block face functions
+    // those will prob get rewritten later so i can redo this then too
+
+    static NativeArray3x3<Block> blockArray;
+    static NativeArray3x3<byte> lightArray;
+
+    public static void PrimeBasicBlock() {
+        blockArray.c = new NativeArray<Block>(Chunk.SIZE * Chunk.SIZE * Chunk.SIZE, Allocator.Persistent);
+        lightArray.c = new NativeArray<byte>(Chunk.SIZE * Chunk.SIZE * Chunk.SIZE, Allocator.Persistent);
+
+        for (int i = 0; i < lightArray.c.Length; ++i) {
+            lightArray.c[i] = LightCalculator.MAX_LIGHT;
+        }
+    }
+
+    public static void DestroyBasicBlock() {
+        blockArray.c.Dispose();
+        lightArray.c.Dispose();
+    }
+
+    public static void GetBlockMesh(Block block, MeshFilter filter) {
+
+        BlockType bt = block.GetType();
+
+        var vertices = Pools.v3Pool.Get();
+        var uvs = Pools.v3Pool.Get();
+        var colors = Pools.c32Pool.Get();
+        var triangles = Pools.intPool.Get();
+        vertices.Clear();
+        uvs.Clear();
+        colors.Clear();
+        triangles.Clear();
+
+        NativeMeshData data = new NativeMeshData(vertices, uvs, colors, triangles);
+
+        const int x = 1;
+        const int y = 1;
+        const int z = 1;
+        blockArray.c[x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE] = block;
+
+        bt.AddDataNative(x, y, z, data, ref blockArray, ref lightArray);
+
+        for (int i = 0; i < vertices.Length; ++i) {
+            vertices[i] = (vertices[i] - (Vector3.one * 0.75f)) * 2.0f;
+        }
+
+        filter.mesh.Clear();
+        filter.mesh.vertices = vertices.ToArray();
+        filter.mesh.SetUVs(0, new List<Vector3>(uvs.ToArray()));
+        filter.mesh.colors32 = colors.ToArray();
+
+        filter.mesh.triangles = triangles.ToArray();
+        filter.mesh.RecalculateNormals();
+
+        Pools.v3Pool.Return(vertices);
+        Pools.v3Pool.Return(uvs);
+        Pools.c32Pool.Return(colors);
+        Pools.intPool.Return(triangles);
+
+    }
+
 
 }

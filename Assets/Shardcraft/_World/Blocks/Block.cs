@@ -13,7 +13,7 @@ public struct Block : IEquatable<Block> {
         this.type = type;
     }
 
-    public BlockType GetBlockType() {
+    public new BlockType GetType() {
         return BlockTypes.GetBlockType(type);
     }
 
@@ -188,6 +188,7 @@ public abstract class BlockType {
 
         data.AddFaceUVs(GetTextureIndex(Dir.west, x, y, z, ref blocks));
     }
+
     protected virtual void FaceDataDownNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<byte> light) {
         Color c = GetColorFromLight(light.Get(x, y - 1, z));
 
@@ -219,6 +220,7 @@ public abstract class BlockType {
 
         data.AddFaceUVs(GetTextureIndex(Dir.down, x, y, z, ref blocks));
     }
+
     protected virtual void FaceDataSouthNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<byte> light) {
         Color c = GetColorFromLight(light.Get(x, y, z - 1));
 
@@ -282,6 +284,7 @@ public abstract class BlockType {
 
         data.AddFaceUVs(GetTextureIndex(Dir.east, x, y, z, ref blocks));
     }
+
     protected virtual void FaceDataUpNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<byte> light) {
         Color c = GetColorFromLight(light.Get(x, y + 1, z));
 
@@ -313,6 +316,7 @@ public abstract class BlockType {
 
         data.AddFaceUVs(GetTextureIndex(Dir.up, x, y, z, ref blocks));
     }
+
     protected virtual void FaceDataNorthNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<byte> light) {
         Color c = GetColorFromLight(light.Get(x, y, z + 1));
 

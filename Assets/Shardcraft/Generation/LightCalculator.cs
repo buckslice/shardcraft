@@ -18,7 +18,7 @@ public static class LightCalculator {
 
     public const byte MAX_LIGHT = 16;
 
-    public static void ProcessLightOps(ref NativeArray3x3<byte> light, ref NativeArray3x3<Block> blocks, NativeQueue<LightOp> ops, NativeQueue<int> lbfs) {
+    public static int ProcessLightOps(ref NativeArray3x3<byte> light, ref NativeArray3x3<Block> blocks, NativeQueue<LightOp> ops, NativeQueue<int> lbfs) {
         const int ww = 96; // because processing 3x3x3 block of 32x32x32 chunks
 
         int lightFlags = 0;
@@ -92,6 +92,7 @@ public static class LightCalculator {
 
         }
 
+        return lightFlags;
     }
 
     const int S = Chunk.SIZE;

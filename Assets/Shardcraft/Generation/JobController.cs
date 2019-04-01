@@ -22,170 +22,6 @@ public struct GenerationJob : IJob {
     }
 }
 
-// this whole file is somethin else... somethin else...
-
-// used to store native arrays for neighbors
-public struct NativeArray3x3<T> where T : struct {
-
-    public NativeArray<T> c; // center
-    // 26 neighbors in a 3x3 cube around center
-    public NativeArray<T> w;
-    public NativeArray<T> d;
-    public NativeArray<T> s;
-    public NativeArray<T> e;
-    public NativeArray<T> u;
-    public NativeArray<T> n;
-    public NativeArray<T> uw;
-    public NativeArray<T> us;
-    public NativeArray<T> ue;
-    public NativeArray<T> un;
-    public NativeArray<T> dw;
-    public NativeArray<T> ds;
-    public NativeArray<T> de;
-    public NativeArray<T> dn;
-    public NativeArray<T> sw;
-    public NativeArray<T> se;
-    public NativeArray<T> nw;
-    public NativeArray<T> ne;
-    public NativeArray<T> usw;
-    public NativeArray<T> use;
-    public NativeArray<T> unw;
-    public NativeArray<T> une;
-    public NativeArray<T> dsw;
-    public NativeArray<T> dse;
-    public NativeArray<T> dnw;
-    public NativeArray<T> dne;
-
-    const int S = Chunk.SIZE;
-
-    public T Get(int x, int y, int z) {
-        if (y < 0) {
-            if (z < 0) {
-                if (x < 0) {
-                    return dsw[(x + S) + (z + S) * S + (y + S) * S * S];
-                } else if (x >= S) {
-                    return dse[(x - S) + (z + S) * S + (y + S) * S * S];
-                } else {
-                    return ds[x + (z + S) * S + (y + S) * S * S];
-                }
-            } else if (z >= S) {
-                if (x < 0) {
-                    return dnw[(x + S) + (z - S) * S + (y + S) * S * S];
-                } else if (x >= S) {
-                    return dne[(x - S) + (z - S) * S + (y + S) * S * S];
-                } else {
-                    return dn[x + (z - S) * S + (y + S) * S * S];
-                }
-            } else {
-                if (x < 0) {
-                    return dw[(x + S) + z * S + (y + S) * S * S];
-                } else if (x >= S) {
-                    return de[(x - S) + z * S + (y + S) * S * S];
-                } else {
-                    return d[x + z * S + (y + S) * S * S];
-                }
-            }
-        } else if (y >= S) {
-            if (z < 0) {
-                if (x < 0) {
-                    return usw[(x + S) + (z + S) * S + (y - S) * S * S];
-                } else if (x >= S) {
-                    return use[(x - S) + (z + S) * S + (y - S) * S * S];
-                } else {
-                    return us[x + (z + S) * S + (y - S) * S * S];
-                }
-            } else if (z >= S) {
-                if (x < 0) {
-                    return unw[(x + S) + (z - S) * S + (y - S) * S * S];
-                } else if (x >= S) {
-                    return une[(x - S) + (z - S) * S + (y - S) * S * S];
-                } else {
-                    return un[x + (z - S) * S + (y - S) * S * S];
-                }
-            } else {
-                if (x < 0) {
-                    return uw[(x + S) + z * S + (y - S) * S * S];
-                } else if (x >= S) {
-                    return ue[(x - S) + z * S + (y - S) * S * S];
-                } else {
-                    return u[x + z * S + (y - S) * S * S];
-                }
-            }
-        } else {
-            if (z < 0) {
-                if (x < 0) {
-                    return sw[(x + S) + (z + S) * S + y * S * S];
-                } else if (x >= S) {
-                    return se[(x - S) + (z + S) * S + y * S * S];
-                } else {
-                    return s[x + (z + S) * S + y * S * S];
-                }
-            } else if (z >= S) {
-                if (x < 0) {
-                    return nw[(x + S) + (z - S) * S + y * S * S];
-                } else if (x >= S) {
-                    return ne[(x - S) + (z - S) * S + y * S * S];
-                } else {
-                    return n[x + (z - S) * S + y * S * S];
-                }
-            } else {
-                if (x < 0) {
-                    return w[(x + S) + z * S + y * S * S];
-                } else if (x >= S) {
-                    return e[(x - S) + z * S + y * S * S];
-                } else {
-                    return c[x + z * S + y * S * S];
-                }
-            }
-        }
-    }
-}
-
-//[BurstCompile] // need to get rid of all class references for burst...??? yeaaa...
-public struct MeshJob : IJob {
-
-    [ReadOnly] public NativeArray3x3<Block> blocks;
-    public NativeArray3x3<byte> light;
-
-    public NativeList<Vector3> vertices;
-    public NativeList<Vector3> uvs;
-    public NativeList<Color32> colors;
-    public NativeList<int> triangles;
-
-#if GEN_COLLIDERS
-    public bool genCollider;
-    public NativeList<Vector3> colliderVerts;
-    public NativeList<int> colliderTris;
-#endif
-
-    public NativeQueue<LightOp> lightOps;     // a list of placement and deletion operations to make within this chunk?
-    public NativeQueue<int> lightBFS;
-    // also record list of who needs to update after this (if u edit their light)
-
-    int lightFlags;
-    public void Execute() {
-        // lighting is only reason we need to lock all other chunks rather than just ourselves... but i dunno
-        // its pretty convenient to have it in the same job because were rebuilding the mesh anyways
-        // also since were passing in all these references if we split these 3 up into their own jobs
-        // would have to do that 3 times instead #puke
-        lightFlags = 0;
-        LightCalculator.ProcessLightOps(ref light, ref blocks, lightOps, lightBFS);
-        Debug.Assert(lightBFS.Count == 0);
-        lightBFS.Enqueue(lightFlags); // kinda stupid way to do this, but so job handle can check which chunks had their lights set
-
-        NativeMeshData data = new NativeMeshData(vertices, uvs, colors, triangles);
-        MeshBuilder.BuildNaive(data, ref blocks, ref light);
-
-#if GEN_COLLIDERS
-        if (genCollider) {
-            MeshBuilder.BuildGreedyCollider(ref blocks, colliderVerts, colliderTris);
-        }
-#endif
-
-    }
-
-}
-
 public class GenJobInfo {
     public JobHandle handle;
 
@@ -211,6 +47,54 @@ public class GenJobInfo {
         chunk.update = true;
         chunk.needToUpdateSave = true; // save should be updated since this was newly generated
     }
+}
+
+// this whole file is somethin else... somethin else...
+
+//[BurstCompile] // need to get rid of all class references for burst...??? yeaaa...
+public struct MeshJob : IJob {
+
+    [ReadOnly]
+    public NativeArray3x3<Block> blocks;
+
+    public NativeArray3x3<byte> light;
+
+    public NativeList<Vector3> vertices;
+    public NativeList<Vector3> uvs;
+    public NativeList<Color32> colors;
+    public NativeList<int> triangles;
+
+#if GEN_COLLIDERS
+    public bool genCollider;
+    public NativeList<Vector3> colliderVerts;
+    public NativeList<int> colliderTris;
+#endif
+
+    public NativeQueue<LightOp> lightOps;     // a list of placement and deletion operations to make within this chunk?
+    public NativeQueue<int> lightBFS;
+    // also record list of who needs to update after this (if u edit their light)
+
+    int lightFlags;
+    public void Execute() {
+        // lighting is only reason we need to lock all other chunks rather than just ourselves... but i dunno
+        // its pretty convenient to have it in the same job because were rebuilding the mesh anyways
+        // also since were passing in all these references if we split these 3 up into their own jobs
+        // would have to do that 3 times instead #puke
+        int lightFlags = LightCalculator.ProcessLightOps(ref light, ref blocks, lightOps, lightBFS);
+        Debug.Assert(lightBFS.Count == 0);
+        lightBFS.Enqueue(lightFlags); // kinda stupid way to do this, but so job handle can check which chunks had their lights set
+
+        NativeMeshData data = new NativeMeshData(vertices, uvs, colors, triangles);
+        MeshBuilder.BuildNaive(data, ref blocks, ref light);
+
+#if GEN_COLLIDERS
+        if (genCollider) {
+            MeshBuilder.BuildGreedyCollider(ref blocks, colliderVerts, colliderTris);
+        }
+#endif
+
+    }
+
 }
 
 public class MeshJobInfo {

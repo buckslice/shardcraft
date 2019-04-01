@@ -263,7 +263,7 @@ public class Chunk {
             }
             needNewCollider = true; // block was changed so collider prob needs to be updated
 
-            int light = block.GetBlockType().GetLight();
+            int light = block.GetType().GetLight();
             if (light > 0) {
                 lightOps.Enqueue(new LightOp { x = x, y = y, z = z, val = light });
             } else {
