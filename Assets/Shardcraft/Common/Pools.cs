@@ -30,6 +30,17 @@ public static class Pools {
 
     public static Pool<NativeQueue<LightOp>> loQPool = new Pool<NativeQueue<LightOp>>(NQBuilder<LightOp>, NQDisposer);
     public static Pool<NativeQueue<int>> intQPool = new Pool<NativeQueue<int>>(NQBuilder<int>, NQDisposer);
+    public static Pool<NativeQueue<LightRemovalNode>> lrnQPool = new Pool<NativeQueue<LightRemovalNode>>(NQBuilder<LightRemovalNode>, NQDisposer);
+
+    public static void Dispose() {
+        v3Pool.Dispose();
+        c32Pool.Dispose();
+        intPool.Dispose();
+
+        loQPool.Dispose();
+        intQPool.Dispose();
+        lrnQPool.Dispose();
+    }
 
 }
 

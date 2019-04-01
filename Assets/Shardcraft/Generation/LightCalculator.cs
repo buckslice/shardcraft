@@ -10,89 +10,177 @@ public struct LightOp {
     public int val;
 }
 
+public struct LightRemovalNode {
+    public int index; // compressed x,y,z coordinate
+    public byte light;
+}
+
 public static class LightCalculator {
 
-    //public struct LightNode {
-    //    short index; // x y z coordinate!
-    //}
-
     public const byte MAX_LIGHT = 16;
+    const int ww = 96; // because processing 3x3x3 block of 32x32x32 chunks
 
-    public static int ProcessLightOps(ref NativeArray3x3<byte> light, ref NativeArray3x3<Block> blocks, NativeQueue<LightOp> ops, NativeQueue<int> lbfs) {
-        const int ww = 96; // because processing 3x3x3 block of 32x32x32 chunks
+    // assumes ops are provided in descending order of value
+    public static int ProcessLightOps(ref NativeArray3x3<byte> light, ref NativeArray3x3<Block> blocks, NativeQueue<LightOp> ops, NativeQueue<int> lbfs, NativeQueue<LightRemovalNode> lrbfs) {
 
         int lightFlags = 0;
 
         while (ops.Count > 0) {
             LightOp op = ops.Dequeue();
 
-            if (op.val > 0) { // light propagation
-                Debug.Assert(lbfs.Count == 0);
+            // linearized starting index of this operation
+            // ranging from -32 -> -1 , 0 -> 31 , 32 -> 63 , so add 32 to build index from 0-95
+            int startIndex = (op.x + 32) + (op.z + 32) * ww + (op.y + 32) * ww * ww;
 
-                // set the light here
-                lightFlags = SetLight(ref light, lightFlags, op.x, op.y, op.z, (byte)op.val);
+            if (op.val == 0) {  // remove light
 
-                // ranging from -32 -> -1 , 0 -> 31 , 32 -> 63 , so add 32 to build index from 0-95
-                int startIndex = (op.x + 32) + (op.z + 32) * ww + (op.y + 32) * ww * ww;
-                lbfs.Enqueue(startIndex);
+                // get previous value before overriding
+                lrbfs.Enqueue(new LightRemovalNode { index = startIndex, light = light.Get(op.x, op.y, op.z) });
+                lightFlags = SetLight(ref light, lightFlags, op.x, op.y, op.z, 0);
 
-                while (lbfs.Count > 0) {
-                    int index = lbfs.Dequeue();
+                while (lrbfs.Count > 0) {
+                    LightRemovalNode node = lrbfs.Dequeue();
 
                     // extract coords from index
-                    int x = index % ww - 32;
-                    int y = index / (ww * ww) - 32;
-                    int z = (index % (ww * ww)) / ww - 32;
+                    int x = node.index % ww - 32;
+                    int y = node.index / (ww * ww) - 32;
+                    int z = (node.index % (ww * ww)) / ww - 32;
 
-                    // get light level at this node
-                    byte lightLevel = light.Get(x, y, z);
-
-                    // check each neighbor if its air (should later be any transparent block)
-                    // if neighbor light level is 2 or more levels less than this node, set them to this light -1 and add to queue
-                    if (blocks.Get(x - 1, y, z) == Blocks.AIR && light.Get(x - 1, y, z) + 2 <= lightLevel) {
-                        lightFlags = SetLight(ref light, lightFlags, x - 1, y, z, (byte)(lightLevel - 1));
+                    byte westLight = light.Get(x - 1, y, z);
+                    if (westLight != 0 && westLight < node.light) {
+                        lightFlags = SetLight(ref light, lightFlags, x - 1, y, z, 0);
+                        lrbfs.Enqueue(new LightRemovalNode { index = x - 1 + 32 + (z + 32) * ww + (y + 32) * ww * ww, light = westLight });
+                    } else if (westLight >= node.light) { // add to propagate queue so can fill gaps left behind by removal
                         lbfs.Enqueue(x - 1 + 32 + (z + 32) * ww + (y + 32) * ww * ww);
                     }
-                    if (blocks.Get(x, y - 1, z) == Blocks.AIR && light.Get(x, y - 1, z) + 2 <= lightLevel) {
-                        lightFlags = SetLight(ref light, lightFlags, x, y - 1, z, (byte)(lightLevel - 1));
+                    byte downLight = light.Get(x, y - 1, z);
+                    if (downLight != 0 && downLight < node.light) {
+                        lightFlags = SetLight(ref light, lightFlags, x, y - 1, z, 0);
+                        lrbfs.Enqueue(new LightRemovalNode { index = x + 32 + (z + 32) * ww + (y - 1 + 32) * ww * ww, light = downLight });
+                    } else if (downLight >= node.light) { // add to propagate queue so can fill gaps left behind by removal
                         lbfs.Enqueue(x + 32 + (z + 32) * ww + (y - 1 + 32) * ww * ww);
                     }
-                    if (blocks.Get(x, y, z - 1) == Blocks.AIR && light.Get(x, y, z - 1) + 2 <= lightLevel) {
-                        lightFlags = SetLight(ref light, lightFlags, x, y, z - 1, (byte)(lightLevel - 1));
+                    byte southLight = light.Get(x, y, z - 1);
+                    if (southLight != 0 && southLight < node.light) {
+                        lightFlags = SetLight(ref light, lightFlags, x, y, z - 1, 0);
+                        lrbfs.Enqueue(new LightRemovalNode { index = x + 32 + (z - 1 + 32) * ww + (y + 32) * ww * ww, light = southLight });
+                    } else if (southLight >= node.light) { // add to propagate queue so can fill gaps left behind by removal
                         lbfs.Enqueue(x + 32 + (z - 1 + 32) * ww + (y + 32) * ww * ww);
                     }
-                    if (blocks.Get(x + 1, y, z) == Blocks.AIR && light.Get(x + 1, y, z) + 2 <= lightLevel) {
-                        lightFlags = SetLight(ref light, lightFlags, x + 1, y, z, (byte)(lightLevel - 1));
+                    byte eastLight = light.Get(x + 1, y, z);
+                    if (eastLight != 0 && eastLight < node.light) {
+                        lightFlags = SetLight(ref light, lightFlags, x + 1, y, z, 0);
+                        lrbfs.Enqueue(new LightRemovalNode { index = x + 1 + 32 + (z + 32) * ww + (y + 32) * ww * ww, light = eastLight });
+                    } else if (eastLight >= node.light) { // add to propagate queue so can fill gaps left behind by removal
                         lbfs.Enqueue(x + 1 + 32 + (z + 32) * ww + (y + 32) * ww * ww);
                     }
-                    if (blocks.Get(x, y + 1, z) == Blocks.AIR && light.Get(x, y + 1, z) + 2 <= lightLevel) {
-                        lightFlags = SetLight(ref light, lightFlags, x, y + 1, z, (byte)(lightLevel - 1));
+                    byte upLight = light.Get(x, y + 1, z);
+                    if (upLight != 0 && upLight < node.light) {
+                        lightFlags = SetLight(ref light, lightFlags, x, y + 1, z, 0);
+                        lrbfs.Enqueue(new LightRemovalNode { index = x + 32 + (z + 32) * ww + (y + 1 + 32) * ww * ww, light = upLight });
+                    } else if (upLight >= node.light) { // add to propagate queue so can fill gaps left behind by removal
                         lbfs.Enqueue(x + 32 + (z + 32) * ww + (y + 1 + 32) * ww * ww);
                     }
-                    if (blocks.Get(x, y, z + 1) == Blocks.AIR && light.Get(x, y, z + 1) + 2 <= lightLevel) {
-                        lightFlags = SetLight(ref light, lightFlags, x, y, z + 1, (byte)(lightLevel - 1));
+                    byte northLight = light.Get(x, y, z + 1);
+                    if (northLight != 0 && northLight < node.light) {
+                        lightFlags = SetLight(ref light, lightFlags, x, y, z + 1, 0);
+                        lrbfs.Enqueue(new LightRemovalNode { index = x + 32 + (z + 1 + 32) * ww + (y + 32) * ww * ww, light = northLight });
+                    } else if (northLight >= node.light) { // add to propagate queue so can fill gaps left behind by removal
                         lbfs.Enqueue(x + 32 + (z + 1 + 32) * ww + (y + 32) * ww * ww);
                     }
-
                 }
 
-            } else if (op.val == 0) { // light removal... todo
+            } else { // propagate light
 
-            } else { // op is -1 means a block was removed that wasn't a light. so update its light from surrounding values
-                byte w = light.Get(op.x - 1, op.y, op.z);
-                byte d = light.Get(op.x, op.y - 1, op.z);
-                byte s = light.Get(op.x, op.y, op.z - 1);
-                byte e = light.Get(op.x + 1, op.y, op.z);
-                byte u = light.Get(op.x, op.y + 1, op.z);
-                byte n = light.Get(op.x, op.y, op.z + 1);
+                lightFlags = SetLight(ref light, lightFlags, op.x, op.y, op.z, (byte)op.val);
 
-                int max = Mathf.Max(w, d, s, e, u, n);
-                lightFlags = SetLight(ref light, lightFlags, op.x, op.y, op.z, (byte)(max > 0 ? max - 1 : 0));
+                lbfs.Enqueue(startIndex);
+
+            }
+
+            // propagate (either way)
+            while (lbfs.Count > 0) {
+                int index = lbfs.Dequeue();
+
+                // extract coords from index
+                int x = index % ww - 32;
+                int y = index / (ww * ww) - 32;
+                int z = (index % (ww * ww)) / ww - 32;
+
+                // get light level at this node
+                byte lightLevel = light.Get(x, y, z);
+
+                // check each neighbor if its air (should later be any transparent block)
+                // if neighbor light level is 2 or more levels less than this node, set them to this light-1 and add to queue
+                if (blocks.Get(x - 1, y, z) == Blocks.AIR && light.Get(x - 1, y, z) + 2 <= lightLevel) {
+                    lightFlags = SetLight(ref light, lightFlags, x - 1, y, z, (byte)(lightLevel - 1));
+                    lbfs.Enqueue(x - 1 + 32 + (z + 32) * ww + (y + 32) * ww * ww);
+                }
+                if (blocks.Get(x, y - 1, z) == Blocks.AIR && light.Get(x, y - 1, z) + 2 <= lightLevel) {
+                    lightFlags = SetLight(ref light, lightFlags, x, y - 1, z, (byte)(lightLevel - 1));
+                    lbfs.Enqueue(x + 32 + (z + 32) * ww + (y - 1 + 32) * ww * ww);
+                }
+                if (blocks.Get(x, y, z - 1) == Blocks.AIR && light.Get(x, y, z - 1) + 2 <= lightLevel) {
+                    lightFlags = SetLight(ref light, lightFlags, x, y, z - 1, (byte)(lightLevel - 1));
+                    lbfs.Enqueue(x + 32 + (z - 1 + 32) * ww + (y + 32) * ww * ww);
+                }
+                if (blocks.Get(x + 1, y, z) == Blocks.AIR && light.Get(x + 1, y, z) + 2 <= lightLevel) {
+                    lightFlags = SetLight(ref light, lightFlags, x + 1, y, z, (byte)(lightLevel - 1));
+                    lbfs.Enqueue(x + 1 + 32 + (z + 32) * ww + (y + 32) * ww * ww);
+                }
+                if (blocks.Get(x, y + 1, z) == Blocks.AIR && light.Get(x, y + 1, z) + 2 <= lightLevel) {
+                    lightFlags = SetLight(ref light, lightFlags, x, y + 1, z, (byte)(lightLevel - 1));
+                    lbfs.Enqueue(x + 32 + (z + 32) * ww + (y + 1 + 32) * ww * ww);
+                }
+                if (blocks.Get(x, y, z + 1) == Blocks.AIR && light.Get(x, y, z + 1) + 2 <= lightLevel) {
+                    lightFlags = SetLight(ref light, lightFlags, x, y, z + 1, (byte)(lightLevel - 1));
+                    lbfs.Enqueue(x + 32 + (z + 1 + 32) * ww + (y + 32) * ww * ww);
+                }
+
             }
 
         }
 
+        //// logic for light refills (when placing transparent, simpler operation necessary than removal i think)
+        //// kinda gunks up logic tho. like when replacing a torch need to do more checks that removal would just handle
+        //while (ops.Count > 0) {
+        //    LightOp op = ops.Dequeue();
+        //    Debug.Assert(op.val < 0);
+
+        //    byte w = light.Get(op.x - 1, op.y, op.z);
+        //    byte d = light.Get(op.x, op.y - 1, op.z);
+        //    byte s = light.Get(op.x, op.y, op.z - 1);
+        //    byte e = light.Get(op.x + 1, op.y, op.z);
+        //    byte u = light.Get(op.x, op.y + 1, op.z);
+        //    byte n = light.Get(op.x, op.y, op.z + 1);
+
+        //    int max = Mathf.Max(w, d, s, e, u, n); // assume light of nearest neighbor
+        //    byte lightLevel = (byte)(max > 0 ? max - 1 : 0);
+        //    lightFlags = SetLight(ref light, lightFlags, op.x, op.y, op.z, lightLevel);
+        //    if(lightLevel > 0) {
+        //        int startIndex = (op.x + 32) + (op.z + 32) * ww + (op.y + 32) * ww * ww;
+        //        lbfs.Enqueue(startIndex);
+        //    }
+        //}
+        //// one last propagate for light fills
+        //lightFlags = Propagate(ref light, ref blocks, lbfs, lightFlags);
+
         return lightFlags;
+    }
+
+    // queue up initial light updates for any light emitting block in loaded chunk
+    // could prob work this into generation and load routines more efficiently but whatever for now
+    public static void CalcInitialLight(NativeArray<Block> blocks, NativeQueue<LightOp> lightOps) {
+        for (int i = 0; i < blocks.Length; ++i) {
+            int light = blocks[i].GetType().GetLight();
+            if (light > 0) { // new light update
+                int x = i % Chunk.SIZE;
+                int y = i / (Chunk.SIZE * Chunk.SIZE);
+                int z = (i % (Chunk.SIZE * Chunk.SIZE)) / Chunk.SIZE;
+                lightOps.Enqueue(new LightOp { x = x, y = y, z = z, val = light });
+            }
+        }
+
     }
 
     const int S = Chunk.SIZE;

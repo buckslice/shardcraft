@@ -70,18 +70,25 @@ public struct MeshJob : IJob {
     public NativeList<int> colliderTris;
 #endif
 
+    public bool calcInitialLight;
     public NativeQueue<LightOp> lightOps;     // a list of placement and deletion operations to make within this chunk?
     public NativeQueue<int> lightBFS;
+    public NativeQueue<LightRemovalNode> lightRBFS;
     // also record list of who needs to update after this (if u edit their light)
 
-    int lightFlags;
     public void Execute() {
         // lighting is only reason we need to lock all other chunks rather than just ourselves... but i dunno
         // its pretty convenient to have it in the same job because were rebuilding the mesh anyways
         // also since were passing in all these references if we split these 3 up into their own jobs
         // would have to do that 3 times instead #puke
-        int lightFlags = LightCalculator.ProcessLightOps(ref light, ref blocks, lightOps, lightBFS);
+
+        // if chunk hasnt been rendered before then check each block to see if it has any lights
+        if (calcInitialLight) {
+            LightCalculator.CalcInitialLight(blocks.c, lightOps);
+        }
+        int lightFlags = LightCalculator.ProcessLightOps(ref light, ref blocks, lightOps, lightBFS, lightRBFS);
         Debug.Assert(lightBFS.Count == 0);
+        Debug.Assert(lightRBFS.Count == 0);
         lightBFS.Enqueue(lightFlags); // kinda stupid way to do this, but so job handle can check which chunks had their lights set
 
         NativeMeshData data = new NativeMeshData(vertices, uvs, colors, triangles);
@@ -114,6 +121,7 @@ public class MeshJobInfo {
 
     NativeQueue<LightOp> lightOps;
     NativeQueue<int> lightBFS;
+    NativeQueue<LightRemovalNode> lightRBFS;
 
     public MeshJobInfo(Chunk chunk) {
         this.chunk = chunk;
@@ -237,8 +245,10 @@ public class MeshJobInfo {
 
         lightOps = Pools.loQPool.Get();
         lightBFS = Pools.intQPool.Get();
+        lightRBFS = Pools.lrnQPool.Get();
         lightOps.Clear();
         lightBFS.Clear();
+        lightRBFS.Clear();
 
         while (chunk.lightOps.Count > 0) {
             lightOps.Enqueue(chunk.lightOps.Dequeue());
@@ -246,6 +256,10 @@ public class MeshJobInfo {
 
         job.lightOps = lightOps;
         job.lightBFS = lightBFS;
+        job.lightRBFS = lightRBFS;
+
+        // if chunk hasnt been rendered then it needs to chunk for existing lights
+        job.calcInitialLight = !chunk.rendered;
 
         handle = job.Schedule();
 
@@ -299,6 +313,7 @@ public class MeshJobInfo {
 
         Pools.loQPool.Return(lightOps);
         Pools.intQPool.Return(lightBFS);
+        Pools.lrnQPool.Return(lightRBFS);
 
         //Debug.Log(lightFlags);
 

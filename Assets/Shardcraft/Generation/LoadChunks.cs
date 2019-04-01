@@ -81,12 +81,7 @@ public class LoadChunks : MonoBehaviour {
 
         world.chunkPool.Dispose();
 
-        Pools.v3Pool.Dispose();
-        Pools.c32Pool.Dispose();
-        Pools.intPool.Dispose();
-
-        Pools.loQPool.Dispose();
-        Pools.intQPool.Dispose();
+        Pools.Dispose();        
 
     }
 

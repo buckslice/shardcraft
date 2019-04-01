@@ -104,24 +104,21 @@ public class Chunk {
     public void UnlockData() {
         --dataLock;
         Debug.Assert(dataLock >= 0);
-        if (dataLock == 0) {
-            ApplyPendingEdits();
-        }
+        TryApplyPendingEdits();
     }
 
     public bool IsDataLocked() {
         return dataLock > 0;
     }
 
-    public void ApplyPendingEdits() {
+    public void TryApplyPendingEdits() {
         Debug.Assert(loaded);
         if (pendingEdits.Count > 0 && dataLock == 0) {
-            while (pendingEdits.Count > 0) {
+            int c = pendingEdits.Count;
+            while (c-- > 0) { // just incase setblock fails, prob wont happen tho
                 BlockEdit e = pendingEdits.Dequeue();
-                blocks[e.x + e.z * SIZE + e.y * SIZE * SIZE] = e.block;
-                CheckNeedToUpdateNeighbors(e.x, e.y, e.z);
+                SetBlock(e.x, e.y, e.z, e.block);
             }
-            needToUpdateSave = true; // blocks were modified so need to update save
             if (!NeighborsLoaded() || !IsLocalGroupFree()) {
                 update = true;
             } else {    // slam out job right away if you can
@@ -210,7 +207,7 @@ public class Chunk {
 
         rendered = true;
 
-        ApplyPendingEdits();
+        TryApplyPendingEdits();
     }
 
     public void UpdateColliderNative(NativeList<Vector3> vertices, NativeList<int> triangles) {
@@ -257,17 +254,17 @@ public class Chunk {
                 pendingEdits.Enqueue(new BlockEdit { x = x, y = y, z = z, block = block });
             } else {
                 blocks[x + z * SIZE + y * SIZE * SIZE] = block;
-                needToUpdateSave = true; // block was modified so need to update save
                 update = true;
+                needToUpdateSave = true; // block was modified so need to update save
+                needNewCollider = true; // block was changed so collider prob needs to be updated
                 CheckNeedToUpdateNeighbors(x, y, z);
-            }
-            needNewCollider = true; // block was changed so collider prob needs to be updated
 
-            int light = block.GetType().GetLight();
-            if (light > 0) {
-                lightOps.Enqueue(new LightOp { x = x, y = y, z = z, val = light });
-            } else {
-                lightOps.Enqueue(new LightOp { x = x, y = y, z = z, val = -1 });
+                int light = block.GetType().GetLight();
+                if (light > 0) { // new light update
+                    lightOps.Enqueue(new LightOp { x = x, y = y, z = z, val = light });
+                } else { // infill if placing transparent (removal would work, this just more efficient i think), else do light removal
+                    lightOps.Enqueue(new LightOp { x = x, y = y, z = z, val = block == Blocks.AIR ? 0 : 0 });
+                }
             }
         } else {
             world.SetBlock(bp.x + x, bp.y + y, bp.z + z, block);
@@ -306,19 +303,5 @@ public class Chunk {
     public static bool InRange(int x, int y, int z) {
         return x >= 0 && x < SIZE && y >= 0 && y < SIZE && z >= 0 && z < SIZE;
     }
-
-    // linearize vector3i based on chunk size
-    //public static ushort CoordToUint(int x, int y, int z) {
-    //    Debug.Assert(x >= 0 && x < SIZE && y >= 0 && y < SIZE && z >= 0 && z < SIZE);
-    //    return (ushort)(x + y * SIZE + z * SIZE * SIZE);
-    //}
-
-    //public static Vector3i IntToCoord(int i) {
-    //    int x = i % SIZE;
-    //    int y = (i % (SIZE * SIZE)) / SIZE;
-    //    int z = i / (SIZE * SIZE);
-    //    return new Vector3i(x, y, z);
-    //}
-
 
 }

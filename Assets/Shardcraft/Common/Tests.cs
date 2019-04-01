@@ -24,19 +24,6 @@ public static class Tests {
         failures = 0;
 
         {
-            //Vector3i v = new Vector3i(5, 0, 11);
-            //int i = Chunk.CoordToUint(v.x, v.y, v.z);
-            //Vector3i v2 = Chunk.IntToCoord(i);
-            //TestEqual(v, v2, "Int2Coord");
-
-            //v = new Vector3i(0, 0, 0);
-            //i = Chunk.CoordToUint(v.x, v.y, v.z);
-            //v2 = Chunk.IntToCoord(i);
-            //TestEqual(v, v2, "Int2Coord2");
-
-        }
-
-        {
             TestEqual(Dirs.Opp(Dir.west), Dir.east, "DirTest1");
             TestEqual(Dirs.Opp(Dir.down), Dir.up, "DirTest2");
             TestEqual(Dirs.Opp(Dir.south), Dir.north, "DirTest3");
@@ -117,6 +104,7 @@ public static class Tests {
             TestEqual(0x1000, 4096, "hex12");
 
         }
+
 
         string msg = string.Format("{0}/{1} tests passed", passes, passes + failures);
         if (failures == 0) {
