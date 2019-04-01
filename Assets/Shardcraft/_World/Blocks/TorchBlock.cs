@@ -1,15 +1,26 @@
 ﻿using UnityEngine;
 using System.Collections;
-using System;
 
 public class BlockTorch : BlockType {
 
-    const float w = 0.25f;
 
     public override bool IsSolid(Dir dir) {
+        return true;
+    }
+
+    public override bool ColliderSolid() {
         return false;
     }
 
+    public override int GetTextureIndex(Dir dir, int x, int y, int z, ref NativeArray3x3<Block> blocks) {
+        return 7;
+    }
+
+    public override int GetLight() {
+        return 16;
+    }
+
+    //const float w = 0.25f;
     //public override void AddDataNative(int x, int y, int z, NativeMeshData data) {
     //    FaceDataEastNative(x, y, z, data);
     //    FaceDataUpNative(x, y, z, data);
@@ -85,11 +96,6 @@ public class BlockTorch : BlockType {
 
     //    data.AddFaceUVs(TexturePosition(Dir.north));
     //}
-
-    public override bool ColliderSolid() {
-        return false;
-    }
-
 
     //// test smiley texture
     //public override Tile TexturePosition(Dir dir, int x, int y, int z, NativeMeshData data) {

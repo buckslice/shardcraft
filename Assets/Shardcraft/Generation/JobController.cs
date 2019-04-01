@@ -24,66 +24,128 @@ public struct GenerationJob : IJob {
 
 // this whole file is somethin else... somethin else...
 
+// used to store native arrays for neighbors
+public struct NativeArray3x3<T> where T : struct {
+
+    public NativeArray<T> c; // center
+    // 26 neighbors in a 3x3 cube around center
+    public NativeArray<T> w;
+    public NativeArray<T> d;
+    public NativeArray<T> s;
+    public NativeArray<T> e;
+    public NativeArray<T> u;
+    public NativeArray<T> n;
+    public NativeArray<T> uw;
+    public NativeArray<T> us;
+    public NativeArray<T> ue;
+    public NativeArray<T> un;
+    public NativeArray<T> dw;
+    public NativeArray<T> ds;
+    public NativeArray<T> de;
+    public NativeArray<T> dn;
+    public NativeArray<T> sw;
+    public NativeArray<T> se;
+    public NativeArray<T> nw;
+    public NativeArray<T> ne;
+    public NativeArray<T> usw;
+    public NativeArray<T> use;
+    public NativeArray<T> unw;
+    public NativeArray<T> une;
+    public NativeArray<T> dsw;
+    public NativeArray<T> dse;
+    public NativeArray<T> dnw;
+    public NativeArray<T> dne;
+
+    const int S = Chunk.SIZE;
+
+    public T Get(int x, int y, int z) {
+        if (y < 0) {
+            if (z < 0) {
+                if (x < 0) {
+                    return dsw[(x + S) + (z + S) * S + (y + S) * S * S];
+                } else if (x >= S) {
+                    return dse[(x - S) + (z + S) * S + (y + S) * S * S];
+                } else {
+                    return ds[x + (z + S) * S + (y + S) * S * S];
+                }
+            } else if (z >= S) {
+                if (x < 0) {
+                    return dnw[(x + S) + (z - S) * S + (y + S) * S * S];
+                } else if (x >= S) {
+                    return dne[(x - S) + (z - S) * S + (y + S) * S * S];
+                } else {
+                    return dn[x + (z - S) * S + (y + S) * S * S];
+                }
+            } else {
+                if (x < 0) {
+                    return dw[(x + S) + z * S + (y + S) * S * S];
+                } else if (x >= S) {
+                    return de[(x - S) + z * S + (y + S) * S * S];
+                } else {
+                    return d[x + z * S + (y + S) * S * S];
+                }
+            }
+        } else if (y >= S) {
+            if (z < 0) {
+                if (x < 0) {
+                    return usw[(x + S) + (z + S) * S + (y - S) * S * S];
+                } else if (x >= S) {
+                    return use[(x - S) + (z + S) * S + (y - S) * S * S];
+                } else {
+                    return us[x + (z + S) * S + (y - S) * S * S];
+                }
+            } else if (z >= S) {
+                if (x < 0) {
+                    return unw[(x + S) + (z - S) * S + (y - S) * S * S];
+                } else if (x >= S) {
+                    return une[(x - S) + (z - S) * S + (y - S) * S * S];
+                } else {
+                    return un[x + (z - S) * S + (y - S) * S * S];
+                }
+            } else {
+                if (x < 0) {
+                    return uw[(x + S) + z * S + (y - S) * S * S];
+                } else if (x >= S) {
+                    return ue[(x - S) + z * S + (y - S) * S * S];
+                } else {
+                    return u[x + z * S + (y - S) * S * S];
+                }
+            }
+        } else {
+            if (z < 0) {
+                if (x < 0) {
+                    return sw[(x + S) + (z + S) * S + y * S * S];
+                } else if (x >= S) {
+                    return se[(x - S) + (z + S) * S + y * S * S];
+                } else {
+                    return s[x + (z + S) * S + y * S * S];
+                }
+            } else if (z >= S) {
+                if (x < 0) {
+                    return nw[(x + S) + (z - S) * S + y * S * S];
+                } else if (x >= S) {
+                    return ne[(x - S) + (z - S) * S + y * S * S];
+                } else {
+                    return n[x + (z - S) * S + y * S * S];
+                }
+            } else {
+                if (x < 0) {
+                    return w[(x + S) + z * S + y * S * S];
+                } else if (x >= S) {
+                    return e[(x - S) + z * S + y * S * S];
+                } else {
+                    return c[x + z * S + y * S * S];
+                }
+            }
+        }
+    }
+}
+
 //[BurstCompile] // need to get rid of all class references for burst...??? yeaaa...
 public struct MeshJob : IJob {
 
-    public const int s = Chunk.SIZE;
-
-    [ReadOnly] public NativeArray<Block> blocks; // my blocks
-    [ReadOnly] public NativeArray<Block> wB;
-    [ReadOnly] public NativeArray<Block> dB;
-    [ReadOnly] public NativeArray<Block> sB;
-    [ReadOnly] public NativeArray<Block> eB;
-    [ReadOnly] public NativeArray<Block> uB;
-    [ReadOnly] public NativeArray<Block> nB;
-    [ReadOnly] public NativeArray<Block> uwB;
-    [ReadOnly] public NativeArray<Block> usB;
-    [ReadOnly] public NativeArray<Block> ueB;
-    [ReadOnly] public NativeArray<Block> unB;
-    [ReadOnly] public NativeArray<Block> swB;
-    [ReadOnly] public NativeArray<Block> seB;
-    [ReadOnly] public NativeArray<Block> nwB;
-    [ReadOnly] public NativeArray<Block> neB;
-    [ReadOnly] public NativeArray<Block> dwB;
-    [ReadOnly] public NativeArray<Block> dsB;
-    [ReadOnly] public NativeArray<Block> deB;
-    [ReadOnly] public NativeArray<Block> dnB;
-    [ReadOnly] public NativeArray<Block> uswB;
-    [ReadOnly] public NativeArray<Block> useB;
-    [ReadOnly] public NativeArray<Block> unwB;
-    [ReadOnly] public NativeArray<Block> uneB;
-    [ReadOnly] public NativeArray<Block> dswB;
-    [ReadOnly] public NativeArray<Block> dseB;
-    [ReadOnly] public NativeArray<Block> dnwB;
-    [ReadOnly] public NativeArray<Block> dneB;
-
-    public NativeArray<byte> light; // my light
-    public NativeArray<byte> wL;
-    public NativeArray<byte> dL;
-    public NativeArray<byte> sL;
-    public NativeArray<byte> eL;
-    public NativeArray<byte> uL;
-    public NativeArray<byte> nL;
-    public NativeArray<byte> uwL;
-    public NativeArray<byte> usL;
-    public NativeArray<byte> ueL;
-    public NativeArray<byte> unL;
-    public NativeArray<byte> dwL;
-    public NativeArray<byte> dsL;
-    public NativeArray<byte> deL;
-    public NativeArray<byte> dnL;
-    public NativeArray<byte> swL;
-    public NativeArray<byte> seL;
-    public NativeArray<byte> nwL;
-    public NativeArray<byte> neL;
-    public NativeArray<byte> uswL;
-    public NativeArray<byte> useL;
-    public NativeArray<byte> unwL;
-    public NativeArray<byte> uneL;
-    public NativeArray<byte> dswL;
-    public NativeArray<byte> dseL;
-    public NativeArray<byte> dnwL;
-    public NativeArray<byte> dneL;
+    [ReadOnly] public NativeArray3x3<Block> blocks;
+    public NativeArray3x3<byte> light;
 
     public NativeList<Vector3> vertices;
     public NativeList<Vector3> uvs;
@@ -107,302 +169,22 @@ public struct MeshJob : IJob {
         // also since were passing in all these references if we split these 3 up into their own jobs
         // would have to do that 3 times instead #puke
         lightFlags = 0;
-        LightCalculator.ProcessLightOps(ref this, lightOps, lightBFS);
+        LightCalculator.ProcessLightOps(ref light, ref blocks, lightOps, lightBFS);
         Debug.Assert(lightBFS.Count == 0);
         lightBFS.Enqueue(lightFlags); // kinda stupid way to do this, but so job handle can check which chunks had their lights set
 
-        NativeMeshData data = new NativeMeshData(ref this, vertices, uvs, colors, triangles);
-        MeshBuilder.BuildNaive(data);
+        NativeMeshData data = new NativeMeshData(vertices, uvs, colors, triangles);
+        MeshBuilder.BuildNaive(data, ref blocks, ref light);
 
 #if GEN_COLLIDERS
         if (genCollider) {
-            MeshBuilder.BuildGreedyCollider(ref this, colliderVerts, colliderTris);
+            MeshBuilder.BuildGreedyCollider(ref blocks, colliderVerts, colliderTris);
         }
 #endif
 
     }
 
-    public Block GetBlock(int x, int y, int z) {
-        if (y < 0) {
-            if (z < 0) {
-                if (x < 0) {
-                    return dswB[(x + s) + (z + s) * s + (y + s) * s * s];
-                } else if (x >= s) {
-                    return dseB[(x - s) + (z + s) * s + (y + s) * s * s];
-                } else {
-                    return dsB[x + (z + s) * s + (y + s) * s * s];
-                }
-            } else if (z >= s) {
-                if (x < 0) {
-                    return dnwB[(x + s) + (z - s) * s + (y + s) * s * s];
-                } else if (x >= s) {
-                    return dneB[(x - s) + (z - s) * s + (y + s) * s * s];
-                } else {
-                    return dnB[x + (z - s) * s + (y + s) * s * s];
-                }
-            } else {
-                if (x < 0) {
-                    return dwB[(x + s) + z * s + (y + s) * s * s];
-                } else if (x >= s) {
-                    return deB[(x - s) + z * s + (y + s) * s * s];
-                } else {
-                    return dB[x + z * s + (y + s) * s * s];
-                }
-            }
-        } else if (y >= s) {
-            if (z < 0) {
-                if (x < 0) {
-                    return uswB[(x + s) + (z + s) * s + (y - s) * s * s];
-                } else if (x >= s) {
-                    return useB[(x - s) + (z + s) * s + (y - s) * s * s];
-                } else {
-                    return usB[x + (z + s) * s + (y - s) * s * s];
-                }
-            } else if (z >= s) {
-                if (x < 0) {
-                    return unwB[(x + s) + (z - s) * s + (y - s) * s * s];
-                } else if (x >= s) {
-                    return uneB[(x - s) + (z - s) * s + (y - s) * s * s];
-                } else {
-                    return unB[x + (z - s) * s + (y - s) * s * s];
-                }
-            } else {
-                if (x < 0) {
-                    return uwB[(x + s) + z * s + (y - s) * s * s];
-                } else if (x >= s) {
-                    return ueB[(x - s) + z * s + (y - s) * s * s];
-                } else {
-                    return uB[x + z * s + (y - s) * s * s];
-                }
-            }
-        } else {
-            if (z < 0) {
-                if (x < 0) {
-                    return swB[(x + s) + (z + s) * s + y * s * s];
-                } else if (x >= s) {
-                    return seB[(x - s) + (z + s) * s + y * s * s];
-                } else {
-                    return sB[x + (z + s) * s + y * s * s];
-                }
-            } else if (z >= s) {
-                if (x < 0) {
-                    return nwB[(x + s) + (z - s) * s + y * s * s];
-                } else if (x >= s) {
-                    return neB[(x - s) + (z - s) * s + y * s * s];
-                } else {
-                    return nB[x + (z - s) * s + y * s * s];
-                }
-            } else {
-                if (x < 0) {
-                    return wB[(x + s) + z * s + y * s * s];
-                } else if (x >= s) {
-                    return eB[(x - s) + z * s + y * s * s];
-                } else {
-                    return blocks[x + z * s + y * s * s];
-                }
-            }
-        }
-    }
-
-    // using local coordinates of this chunk
-    public byte GetLight(int x, int y, int z) {
-        if (y < 0) {
-            if (z < 0) {
-                if (x < 0) {
-                    return dswL[(x + s) + (z + s) * s + (y + s) * s * s];
-                } else if (x >= s) {
-                    return dseL[(x - s) + (z + s) * s + (y + s) * s * s];
-                } else {
-                    return dsL[x + (z + s) * s + (y + s) * s * s];
-                }
-            } else if (z >= s) {
-                if (x < 0) {
-                    return dnwL[(x + s) + (z - s) * s + (y + s) * s * s];
-                } else if (x >= s) {
-                    return dneL[(x - s) + (z - s) * s + (y + s) * s * s];
-                } else {
-                    return dnL[x + (z - s) * s + (y + s) * s * s];
-                }
-            } else {
-                if (x < 0) {
-                    return dwL[(x + s) + z * s + (y + s) * s * s];
-                } else if (x >= s) {
-                    return deL[(x - s) + z * s + (y + s) * s * s];
-                } else {
-                    return dL[x + z * s + (y + s) * s * s];
-                }
-            }
-        } else if (y >= s) {
-            if (z < 0) {
-                if (x < 0) {
-                    return uswL[(x + s) + (z + s) * s + (y - s) * s * s];
-                } else if (x >= s) {
-                    return useL[(x - s) + (z + s) * s + (y - s) * s * s];
-                } else {
-                    return usL[x + (z + s) * s + (y - s) * s * s];
-                }
-            } else if (z >= s) {
-                if (x < 0) {
-                    return unwL[(x + s) + (z - s) * s + (y - s) * s * s];
-                } else if (x >= s) {
-                    return uneL[(x - s) + (z - s) * s + (y - s) * s * s];
-                } else {
-                    return unL[x + (z - s) * s + (y - s) * s * s];
-                }
-            } else {
-                if (x < 0) {
-                    return uwL[(x + s) + z * s + (y - s) * s * s];
-                } else if (x >= s) {
-                    return ueL[(x - s) + z * s + (y - s) * s * s];
-                } else {
-                    return uL[x + z * s + (y - s) * s * s];
-                }
-            }
-        } else {
-            if (z < 0) {
-                if (x < 0) {
-                    return swL[(x + s) + (z + s) * s + y * s * s];
-                } else if (x >= s) {
-                    return seL[(x - s) + (z + s) * s + y * s * s];
-                } else {
-                    return sL[x + (z + s) * s + y * s * s];
-                }
-            } else if (z >= s) {
-                if (x < 0) {
-                    return nwL[(x + s) + (z - s) * s + y * s * s];
-                } else if (x >= s) {
-                    return neL[(x - s) + (z - s) * s + y * s * s];
-                } else {
-                    return nL[x + (z - s) * s + y * s * s];
-                }
-            } else {
-                if (x < 0) {
-                    return wL[(x + s) + z * s + y * s * s];
-                } else if (x >= s) {
-                    return eL[(x - s) + z * s + y * s * s];
-                } else {
-                    return light[x + z * s + y * s * s];
-                }
-            }
-        }
-    }
-
-    // using local coordinates of this chunk
-    public void SetLight(int x, int y, int z, byte v) {
-        if (y < 0) {
-            if (z < 0) {
-                if (x < 0) {
-                    dswL[(x + s) + (z + s) * s + (y + s) * s * s] = v;
-                    lightFlags |= 0x1;
-                } else if (x >= s) {
-                    dseL[(x - s) + (z + s) * s + (y + s) * s * s] = v;
-                    lightFlags |= 0x2;
-                } else {
-                    dsL[x + (z + s) * s + (y + s) * s * s] = v;
-                    lightFlags |= 0x4;
-                }
-            } else if (z >= s) {
-                if (x < 0) {
-                    dnwL[(x + s) + (z - s) * s + (y + s) * s * s] = v;
-                    lightFlags |= 0x8;
-                } else if (x >= s) {
-                    dneL[(x - s) + (z - s) * s + (y + s) * s * s] = v;
-                    lightFlags |= 0x10;
-                } else {
-                    dnL[x + (z - s) * s + (y + s) * s * s] = v;
-                    lightFlags |= 0x20;
-                }
-            } else {
-                if (x < 0) {
-                    dwL[(x + s) + z * s + (y + s) * s * s] = v;
-                    lightFlags |= 0x40;
-                } else if (x >= s) {
-                    deL[(x - s) + z * s + (y + s) * s * s] = v;
-                    lightFlags |= 0x80;
-                } else {
-                    dL[x + z * s + (y + s) * s * s] = v;
-                    lightFlags |= 0x100;
-                }
-            }
-        } else if (y >= s) {
-            if (z < 0) {
-                if (x < 0) {
-                    uswL[(x + s) + (z + s) * s + (y - s) * s * s] = v;
-                    lightFlags |= 0x200;
-                } else if (x >= s) {
-                    useL[(x - s) + (z + s) * s + (y - s) * s * s] = v;
-                    lightFlags |= 0x400;
-                } else {
-                    usL[x + (z + s) * s + (y - s) * s * s] = v;
-                    lightFlags |= 0x800;
-                }
-            } else if (z >= s) {
-                if (x < 0) {
-                    unwL[(x + s) + (z - s) * s + (y - s) * s * s] = v;
-                    lightFlags |= 0x1000;
-                } else if (x >= s) {
-                    uneL[(x - s) + (z - s) * s + (y - s) * s * s] = v;
-                    lightFlags |= 0x2000;
-                } else {
-                    unL[x + (z - s) * s + (y - s) * s * s] = v;
-                    lightFlags |= 0x4000;
-                }
-            } else {
-                if (x < 0) {
-                    uwL[(x + s) + z * s + (y - s) * s * s] = v;
-                    lightFlags |= 0x8000;
-                } else if (x >= s) {
-                    ueL[(x - s) + z * s + (y - s) * s * s] = v;
-                    lightFlags |= 0x10000;
-                } else {
-                    uL[x + z * s + (y - s) * s * s] = v;
-                    lightFlags |= 0x20000;
-                }
-            }
-        } else {
-            if (z < 0) {
-                if (x < 0) {
-                    swL[(x + s) + (z + s) * s + y * s * s] = v;
-                    lightFlags |= 0x40000;
-                } else if (x >= s) {
-                    seL[(x - s) + (z + s) * s + y * s * s] = v;
-                    lightFlags |= 0x80000;
-                } else {
-                    sL[x + (z + s) * s + y * s * s] = v;
-                    lightFlags |= 0x100000;
-                }
-            } else if (z >= s) {
-                if (x < 0) {
-                    nwL[(x + s) + (z - s) * s + y * s * s] = v;
-                    lightFlags |= 0x200000;
-                } else if (x >= s) {
-                    neL[(x - s) + (z - s) * s + y * s * s] = v;
-                    lightFlags |= 0x400000;
-                } else {
-                    nL[x + (z - s) * s + y * s * s] = v;
-                    lightFlags |= 0x800000;
-                }
-            } else {
-                if (x < 0) {
-                    wL[(x + s) + z * s + y * s * s] = v;
-                    lightFlags |= 0x1000000;
-                } else if (x >= s) {
-                    eL[(x - s) + z * s + y * s * s] = v;
-                    lightFlags |= 0x2000000;
-                } else {
-                    light[x + z * s + y * s * s] = v;
-                }
-            }
-        }
-    }
-
 }
-
-//public struct LightingJob : IJob { // might need to be apart of mesh job tho because its using vertex colors...
-//    public void Execute() {
-//        throw new System.NotImplementedException();
-//    }
-//}
 
 public class GenJobInfo {
     public JobHandle handle;
@@ -453,61 +235,65 @@ public class MeshJobInfo {
         this.chunk = chunk;
 
         MeshJob job = new MeshJob();
-        job.blocks = chunk.blocks;
-        job.wB = chunk.neighbors[Dirs.WEST].blocks;
-        job.dB = chunk.neighbors[Dirs.DOWN].blocks;
-        job.sB = chunk.neighbors[Dirs.SOUTH].blocks;
-        job.eB = chunk.neighbors[Dirs.EAST].blocks;
-        job.uB = chunk.neighbors[Dirs.UP].blocks;
-        job.nB = chunk.neighbors[Dirs.NORTH].blocks;
-        job.uwB = chunk.neighbors[Dirs.UP].neighbors[Dirs.WEST].blocks;
-        job.usB = chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].blocks;
-        job.ueB = chunk.neighbors[Dirs.UP].neighbors[Dirs.EAST].blocks;
-        job.unB = chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].blocks;
-        job.dwB = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.WEST].blocks;
-        job.dsB = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].blocks;
-        job.deB = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.EAST].blocks;
-        job.dnB = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].blocks;
-        job.swB = chunk.neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].blocks;
-        job.seB = chunk.neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].blocks;
-        job.nwB = chunk.neighbors[Dirs.NORTH].neighbors[Dirs.WEST].blocks;
-        job.neB = chunk.neighbors[Dirs.NORTH].neighbors[Dirs.EAST].blocks;
-        job.uswB = chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].blocks;
-        job.useB = chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].blocks;
-        job.unwB = chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].blocks;
-        job.uneB = chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].blocks;
-        job.dswB = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].blocks;
-        job.dseB = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].blocks;
-        job.dnwB = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].blocks;
-        job.dneB = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].blocks;
+        job.blocks = new NativeArray3x3<Block> {
+            c = chunk.blocks,
+            w = chunk.neighbors[Dirs.WEST].blocks,
+            d = chunk.neighbors[Dirs.DOWN].blocks,
+            s = chunk.neighbors[Dirs.SOUTH].blocks,
+            e = chunk.neighbors[Dirs.EAST].blocks,
+            u = chunk.neighbors[Dirs.UP].blocks,
+            n = chunk.neighbors[Dirs.NORTH].blocks,
+            uw = chunk.neighbors[Dirs.UP].neighbors[Dirs.WEST].blocks,
+            us = chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].blocks,
+            ue = chunk.neighbors[Dirs.UP].neighbors[Dirs.EAST].blocks,
+            un = chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].blocks,
+            dw = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.WEST].blocks,
+            ds = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].blocks,
+            de = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.EAST].blocks,
+            dn = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].blocks,
+            sw = chunk.neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].blocks,
+            se = chunk.neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].blocks,
+            nw = chunk.neighbors[Dirs.NORTH].neighbors[Dirs.WEST].blocks,
+            ne = chunk.neighbors[Dirs.NORTH].neighbors[Dirs.EAST].blocks,
+            usw = chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].blocks,
+            use = chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].blocks,
+            unw = chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].blocks,
+            une = chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].blocks,
+            dsw = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].blocks,
+            dse = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].blocks,
+            dnw = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].blocks,
+            dne = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].blocks,
+        };
 
-        job.light = chunk.light;
-        job.wL = chunk.neighbors[Dirs.WEST].light;
-        job.dL = chunk.neighbors[Dirs.DOWN].light;
-        job.sL = chunk.neighbors[Dirs.SOUTH].light;
-        job.eL = chunk.neighbors[Dirs.EAST].light;
-        job.uL = chunk.neighbors[Dirs.UP].light;
-        job.nL = chunk.neighbors[Dirs.NORTH].light;
-        job.uwL = chunk.neighbors[Dirs.UP].neighbors[Dirs.WEST].light;
-        job.usL = chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].light;
-        job.ueL = chunk.neighbors[Dirs.UP].neighbors[Dirs.EAST].light;
-        job.unL = chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].light;
-        job.dwL = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.WEST].light;
-        job.dsL = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].light;
-        job.deL = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.EAST].light;
-        job.dnL = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].light;
-        job.swL = chunk.neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].light;
-        job.seL = chunk.neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].light;
-        job.nwL = chunk.neighbors[Dirs.NORTH].neighbors[Dirs.WEST].light;
-        job.neL = chunk.neighbors[Dirs.NORTH].neighbors[Dirs.EAST].light;
-        job.uswL = chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].light;
-        job.useL = chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].light;
-        job.unwL = chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].light;
-        job.uneL = chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].light;
-        job.dswL = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].light;
-        job.dseL = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].light;
-        job.dnwL = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].light;
-        job.dneL = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].light;
+        job.light = new NativeArray3x3<byte> {
+            c = chunk.light,
+            w = chunk.neighbors[Dirs.WEST].light,
+            d = chunk.neighbors[Dirs.DOWN].light,
+            s = chunk.neighbors[Dirs.SOUTH].light,
+            e = chunk.neighbors[Dirs.EAST].light,
+            u = chunk.neighbors[Dirs.UP].light,
+            n = chunk.neighbors[Dirs.NORTH].light,
+            uw = chunk.neighbors[Dirs.UP].neighbors[Dirs.WEST].light,
+            us = chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].light,
+            ue = chunk.neighbors[Dirs.UP].neighbors[Dirs.EAST].light,
+            un = chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].light,
+            dw = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.WEST].light,
+            ds = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].light,
+            de = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.EAST].light,
+            dn = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].light,
+            sw = chunk.neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].light,
+            se = chunk.neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].light,
+            nw = chunk.neighbors[Dirs.NORTH].neighbors[Dirs.WEST].light,
+            ne = chunk.neighbors[Dirs.NORTH].neighbors[Dirs.EAST].light,
+            usw = chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].light,
+            use = chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].light,
+            unw = chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].light,
+            une = chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].light,
+            dsw = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].light,
+            dse = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].light,
+            dnw = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].light,
+            dne = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].light,
+        };
 
         chunk.LockData();
         chunk.neighbors[Dirs.WEST].LockData();
@@ -571,13 +357,7 @@ public class MeshJobInfo {
         lightBFS.Clear();
 
         while (chunk.lightOps.Count > 0) {
-            BlockEdit e = chunk.lightOps.Dequeue();
-            //Debug.Log(e.x + " " + e.y + " " + e.z + " " + e.block.type);
-            if (e.block == Blocks.AIR) {
-                lightOps.Enqueue(new LightOp { x = e.x, y = e.y, z = e.z, val = 0 });
-            } else {
-                lightOps.Enqueue(new LightOp { x = e.x, y = e.y, z = e.z, val = LightCalculator.MAX_LIGHT });
-            }
+            lightOps.Enqueue(chunk.lightOps.Dequeue());
         }
 
         job.lightOps = lightOps;
@@ -638,61 +418,8 @@ public class MeshJobInfo {
 
         //Debug.Log(lightFlags);
 
-        // notify neighbors whom should update
-        // im really missing arrays not gonna lie
-        if ((lightFlags & 0x1) != 0)
-            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].update = true;
-        if ((lightFlags & 0x2) != 0)
-            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].update = true;
-        if ((lightFlags & 0x4) != 0)
-            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].update = true;
-        if ((lightFlags & 0x8) != 0)
-            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].update = true;
-        if ((lightFlags & 0x10) != 0)
-            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].update = true;
-        if ((lightFlags & 0x20) != 0)
-            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].update = true;
-        if ((lightFlags & 0x40) != 0)
-            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.WEST].update = true;
-        if ((lightFlags & 0x80) != 0)
-            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.EAST].update = true;
-        if ((lightFlags & 0x100) != 0)
-            chunk.neighbors[Dirs.DOWN].update = true;
-        if ((lightFlags & 0x200) != 0)
-            chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].update = true;
-        if ((lightFlags & 0x400) != 0)
-            chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].update = true;
-        if ((lightFlags & 0x800) != 0)
-            chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].update = true;
-        if ((lightFlags & 0x1000) != 0)
-            chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].update = true;
-        if ((lightFlags & 0x2000) != 0)
-            chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].update = true;
-        if ((lightFlags & 0x4000) != 0)
-            chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].update = true;
-        if ((lightFlags & 0x8000) != 0)
-            chunk.neighbors[Dirs.UP].neighbors[Dirs.WEST].update = true;
-        if ((lightFlags & 0x10000) != 0)
-            chunk.neighbors[Dirs.UP].neighbors[Dirs.EAST].update = true;
-        if ((lightFlags & 0x20000) != 0)
-            chunk.neighbors[Dirs.UP].update = true;
-        if ((lightFlags & 0x40000) != 0)
-            chunk.neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].update = true;
-        if ((lightFlags & 0x80000) != 0)
-            chunk.neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].update = true;
-        if ((lightFlags & 0x100000) != 0)
-            chunk.neighbors[Dirs.SOUTH].update = true;
-        if ((lightFlags & 0x200000) != 0)
-            chunk.neighbors[Dirs.NORTH].neighbors[Dirs.WEST].update = true;
-        if ((lightFlags & 0x400000) != 0)
-            chunk.neighbors[Dirs.NORTH].neighbors[Dirs.EAST].update = true;
-        if ((lightFlags & 0x800000) != 0)
-            chunk.neighbors[Dirs.NORTH].update = true;
-        if ((lightFlags & 0x1000000) != 0)
-            chunk.neighbors[Dirs.WEST].update = true;
-        if ((lightFlags & 0x2000000) != 0)
-            chunk.neighbors[Dirs.EAST].update = true;
-
+        // notify neighbors whom should update based on set light flags
+        LightCalculator.CheckNeighborLightUpdate(chunk, lightFlags);
 
     }
 }

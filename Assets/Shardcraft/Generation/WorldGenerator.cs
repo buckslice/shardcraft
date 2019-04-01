@@ -43,6 +43,7 @@ public static class WorldGenerator {
                     //float n = samp.value * 3.0f;
 
                     // TODO: convert shapes.cginc into c# equiv, and or get gen going on multiple thread (try job system!!!)
+                    // this is adding a flat ground plane density at low strength, so as you go lower will slowly become solid
                     n -= Vector3.Dot(wp, Vector3.up) * 0.03f;
 
                     //n += Fractal(wp, 5, 0.01f);

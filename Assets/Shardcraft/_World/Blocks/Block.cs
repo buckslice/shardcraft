@@ -53,26 +53,25 @@ public struct Block : IEquatable<Block> {
 
 }
 
-// make sure this matches array below
+// make sure this matches types array below
 public static class Blocks {
     public static readonly Block AIR = new Block(0);
     public static readonly Block STONE = new Block(1);
     public static readonly Block GRASS = new Block(2);
     public static readonly Block BIRCH = new Block(3);
     public static readonly Block LEAF = new Block(4);
-
-    //public static readonly Block TORCH = new Block();
+    public static readonly Block TORCH = new Block(5);
 }
 
 public static class BlockTypes {
-
+    // make sure these match Blocks above
     private static BlockType[] types = new BlockType[] {
         new AirBlock(),
         new StoneBlock(),
         new GrassBlock(),
         new BirchBlock(),
         new LeafBlock(),
-        //new BlockTorch(),
+        new BlockTorch(),
     };
 
     public static BlockType GetBlockType(int type) {
@@ -110,28 +109,34 @@ public abstract class BlockType {
     //    return new Tile() { x = 0, y = 0 };
     //}
 
-    public virtual int GetTextureIndex(Dir dir, int x, int y, int z, NativeMeshData data) {
+    public virtual int GetLight() {
         return 0;
     }
 
-    public virtual void AddDataNative(int x, int y, int z, NativeMeshData data) {
-        if (!data.GetBlock(x - 1, y, z).IsSolid(Dir.east)) {
-            FaceDataWestNative(x, y, z, data);
+
+
+    public virtual int GetTextureIndex(Dir dir, int x, int y, int z, ref NativeArray3x3<Block> blocks) {
+        return 0;
+    }
+
+    public virtual void AddDataNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<byte> light) {
+        if (!blocks.Get(x - 1, y, z).IsSolid(Dir.east)) {
+            FaceDataWestNative(x, y, z, data, ref blocks, ref light);
         }
-        if (!data.GetBlock(x, y - 1, z).IsSolid(Dir.up)) {
-            FaceDataDownNative(x, y, z, data);
+        if (!blocks.Get(x, y - 1, z).IsSolid(Dir.up)) {
+            FaceDataDownNative(x, y, z, data, ref blocks, ref light);
         }
-        if (!data.GetBlock(x, y, z - 1).IsSolid(Dir.north)) {
-            FaceDataSouthNative(x, y, z, data);
+        if (!blocks.Get(x, y, z - 1).IsSolid(Dir.north)) {
+            FaceDataSouthNative(x, y, z, data, ref blocks, ref light);
         }
-        if (!data.GetBlock(x + 1, y, z).IsSolid(Dir.west)) {
-            FaceDataEastNative(x, y, z, data);
+        if (!blocks.Get(x + 1, y, z).IsSolid(Dir.west)) {
+            FaceDataEastNative(x, y, z, data, ref blocks, ref light);
         }
-        if (!data.GetBlock(x, y + 1, z).IsSolid(Dir.down)) {
-            FaceDataUpNative(x, y, z, data);
+        if (!blocks.Get(x, y + 1, z).IsSolid(Dir.down)) {
+            FaceDataUpNative(x, y, z, data, ref blocks, ref light);
         }
-        if (!data.GetBlock(x, y, z + 1).IsSolid(Dir.south)) {
-            FaceDataNorthNative(x, y, z, data);
+        if (!blocks.Get(x, y, z + 1).IsSolid(Dir.south)) {
+            FaceDataNorthNative(x, y, z, data, ref blocks, ref light);
         }
     }
 
@@ -140,29 +145,30 @@ public abstract class BlockType {
         return new Color(fl, fl, fl, 1.0f);
     }
 
-    static float calcAO(int side1, int side2, NativeMeshData data, int c1, int c2, int c3) {
+    const float AOMIN = 0.2f;
+    static float calcAO(int side1, int side2, ref NativeArray3x3<Block> blocks, int c1, int c2, int c3) {
         if (side1 + side2 == 2) {
-            return 0.2f;
+            return AOMIN;
         }
-        return (3.0f - side1 - side2 - GetOpacity(data, c1, c2, c3)) / 3.0f * 0.8f + 0.2f;
+        return (3.0f - side1 - side2 - GetOpacity(ref blocks, c1, c2, c3)) / 3.0f * (1.0f - AOMIN) + AOMIN;
     }
 
-    static int GetOpacity(NativeMeshData data, int x, int y, int z) {
-        return data.GetBlock(x, y, z) != Blocks.AIR ? 1 : 0;
+    static int GetOpacity(ref NativeArray3x3<Block> blocks, int x, int y, int z) {
+        return blocks.Get(x, y, z) != Blocks.AIR ? 1 : 0;
     }
 
-    protected virtual void FaceDataWestNative(int x, int y, int z, NativeMeshData data) {
-        Color c = GetColorFromLight(data.GetLight(x - 1, y, z));
+    protected virtual void FaceDataWestNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<byte> light) {
+        Color c = GetColorFromLight(light.Get(x - 1, y, z));
 
-        int up = GetOpacity(data, x - 1, y + 1, z);
-        int down = GetOpacity(data, x - 1, y - 1, z);
-        int north = GetOpacity(data, x - 1, y, z + 1);
-        int south = GetOpacity(data, x - 1, y, z - 1);
+        int up = GetOpacity(ref blocks, x - 1, y + 1, z);
+        int down = GetOpacity(ref blocks, x - 1, y - 1, z);
+        int north = GetOpacity(ref blocks, x - 1, y, z + 1);
+        int south = GetOpacity(ref blocks, x - 1, y, z - 1);
 
-        float a0 = calcAO(down, north, data, x - 1, y - 1, z + 1);
-        float a1 = calcAO(up, north, data, x - 1, y + 1, z + 1);
-        float a2 = calcAO(up, south, data, x - 1, y + 1, z - 1);
-        float a3 = calcAO(down, south, data, x - 1, y - 1, z - 1);
+        float a0 = calcAO(down, north, ref blocks, x - 1, y - 1, z + 1);
+        float a1 = calcAO(up, north, ref blocks, x - 1, y + 1, z + 1);
+        float a2 = calcAO(up, south, ref blocks, x - 1, y + 1, z - 1);
+        float a3 = calcAO(down, south, ref blocks, x - 1, y - 1, z - 1);
 
         c.a = a0;
         data.AddVertex(new Vector3(x, y, z + 1.0f) / Chunk.BPU, c);
@@ -180,20 +186,20 @@ public abstract class BlockType {
             data.AddFlippedQuadTriangles();
         }
 
-        data.AddFaceUVs(GetTextureIndex(Dir.west, x, y, z, data));
+        data.AddFaceUVs(GetTextureIndex(Dir.west, x, y, z, ref blocks));
     }
-    protected virtual void FaceDataDownNative(int x, int y, int z, NativeMeshData data) {
-        Color c = GetColorFromLight(data.GetLight(x, y - 1, z));
+    protected virtual void FaceDataDownNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<byte> light) {
+        Color c = GetColorFromLight(light.Get(x, y - 1, z));
 
-        int north = GetOpacity(data, x, y - 1, z + 1);
-        int south = GetOpacity(data, x, y - 1, z - 1);
-        int east = GetOpacity(data, x + 1, y - 1, z);
-        int west = GetOpacity(data, x - 1, y - 1, z);
+        int north = GetOpacity(ref blocks, x, y - 1, z + 1);
+        int south = GetOpacity(ref blocks, x, y - 1, z - 1);
+        int east = GetOpacity(ref blocks, x + 1, y - 1, z);
+        int west = GetOpacity(ref blocks, x - 1, y - 1, z);
 
-        float a0 = calcAO(south, west, data, x - 1, y - 1, z - 1);
-        float a1 = calcAO(south, east, data, x + 1, y - 1, z - 1);
-        float a2 = calcAO(north, east, data, x + 1, y - 1, z + 1);
-        float a3 = calcAO(north, west, data, x - 1, y - 1, z + 1);
+        float a0 = calcAO(south, west, ref blocks, x - 1, y - 1, z - 1);
+        float a1 = calcAO(south, east, ref blocks, x + 1, y - 1, z - 1);
+        float a2 = calcAO(north, east, ref blocks, x + 1, y - 1, z + 1);
+        float a3 = calcAO(north, west, ref blocks, x - 1, y - 1, z + 1);
 
         c.a = a0;
         data.AddVertex(new Vector3(x, y, z) / Chunk.BPU, c);
@@ -211,20 +217,20 @@ public abstract class BlockType {
             data.AddFlippedQuadTriangles();
         }
 
-        data.AddFaceUVs(GetTextureIndex(Dir.down, x, y, z, data));
+        data.AddFaceUVs(GetTextureIndex(Dir.down, x, y, z, ref blocks));
     }
-    protected virtual void FaceDataSouthNative(int x, int y, int z, NativeMeshData data) {
-        Color c = GetColorFromLight(data.GetLight(x, y, z - 1));
+    protected virtual void FaceDataSouthNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<byte> light) {
+        Color c = GetColorFromLight(light.Get(x, y, z - 1));
 
-        int up = GetOpacity(data, x, y + 1, z - 1);
-        int down = GetOpacity(data, x, y - 1, z - 1);
-        int east = GetOpacity(data, x + 1, y, z - 1);
-        int west = GetOpacity(data, x - 1, y, z - 1);
+        int up = GetOpacity(ref blocks, x, y + 1, z - 1);
+        int down = GetOpacity(ref blocks, x, y - 1, z - 1);
+        int east = GetOpacity(ref blocks, x + 1, y, z - 1);
+        int west = GetOpacity(ref blocks, x - 1, y, z - 1);
 
-        float a0 = calcAO(down, west, data, x - 1, y - 1, z - 1);
-        float a1 = calcAO(up, west, data, x - 1, y + 1, z - 1);
-        float a2 = calcAO(up, east, data, x + 1, y + 1, z - 1);
-        float a3 = calcAO(down, east, data, x + 1, y - 1, z - 1);
+        float a0 = calcAO(down, west, ref blocks, x - 1, y - 1, z - 1);
+        float a1 = calcAO(up, west, ref blocks, x - 1, y + 1, z - 1);
+        float a2 = calcAO(up, east, ref blocks, x + 1, y + 1, z - 1);
+        float a3 = calcAO(down, east, ref blocks, x + 1, y - 1, z - 1);
 
         c.a = a0;
         data.AddVertex(new Vector3(x, y, z) / Chunk.BPU, c);
@@ -242,21 +248,21 @@ public abstract class BlockType {
             data.AddFlippedQuadTriangles();
         }
 
-        data.AddFaceUVs(GetTextureIndex(Dir.south, x, y, z, data));
+        data.AddFaceUVs(GetTextureIndex(Dir.south, x, y, z, ref blocks));
     }
 
-    protected virtual void FaceDataEastNative(int x, int y, int z, NativeMeshData data) {
-        Color c = GetColorFromLight(data.GetLight(x + 1, y, z));
+    protected virtual void FaceDataEastNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<byte> light) {
+        Color c = GetColorFromLight(light.Get(x + 1, y, z));
 
-        int up = GetOpacity(data, x + 1, y + 1, z);
-        int down = GetOpacity(data, x + 1, y - 1, z);
-        int north = GetOpacity(data, x + 1, y, z + 1);
-        int south = GetOpacity(data, x + 1, y, z - 1);
+        int up = GetOpacity(ref blocks, x + 1, y + 1, z);
+        int down = GetOpacity(ref blocks, x + 1, y - 1, z);
+        int north = GetOpacity(ref blocks, x + 1, y, z + 1);
+        int south = GetOpacity(ref blocks, x + 1, y, z - 1);
 
-        float a0 = calcAO(down, south, data, x + 1, y - 1, z - 1);
-        float a1 = calcAO(up, south, data, x + 1, y + 1, z - 1);
-        float a2 = calcAO(up, north, data, x + 1, y + 1, z + 1);
-        float a3 = calcAO(down, north, data, x + 1, y - 1, z + 1);
+        float a0 = calcAO(down, south, ref blocks, x + 1, y - 1, z - 1);
+        float a1 = calcAO(up, south, ref blocks, x + 1, y + 1, z - 1);
+        float a2 = calcAO(up, north, ref blocks, x + 1, y + 1, z + 1);
+        float a3 = calcAO(down, north, ref blocks, x + 1, y - 1, z + 1);
 
         c.a = a0;
         data.AddVertex(new Vector3(x + 1.0f, y, z) / Chunk.BPU, c);
@@ -274,20 +280,20 @@ public abstract class BlockType {
             data.AddFlippedQuadTriangles();
         }
 
-        data.AddFaceUVs(GetTextureIndex(Dir.east, x, y, z, data));
+        data.AddFaceUVs(GetTextureIndex(Dir.east, x, y, z, ref blocks));
     }
-    protected virtual void FaceDataUpNative(int x, int y, int z, NativeMeshData data) {
-        Color c = GetColorFromLight(data.GetLight(x, y + 1, z));
+    protected virtual void FaceDataUpNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<byte> light) {
+        Color c = GetColorFromLight(light.Get(x, y + 1, z));
 
-        int north = GetOpacity(data, x, y + 1, z + 1);
-        int south = GetOpacity(data, x, y + 1, z - 1);
-        int east = GetOpacity(data, x + 1, y + 1, z);
-        int west = GetOpacity(data, x - 1, y + 1, z);
+        int north = GetOpacity(ref blocks, x, y + 1, z + 1);
+        int south = GetOpacity(ref blocks, x, y + 1, z - 1);
+        int east = GetOpacity(ref blocks, x + 1, y + 1, z);
+        int west = GetOpacity(ref blocks, x - 1, y + 1, z);
 
-        float a0 = calcAO(north, west, data, x - 1, y + 1, z + 1);
-        float a1 = calcAO(north, east, data, x + 1, y + 1, z + 1);
-        float a2 = calcAO(south, east, data, x + 1, y + 1, z - 1);
-        float a3 = calcAO(south, west, data, x - 1, y + 1, z - 1);
+        float a0 = calcAO(north, west, ref blocks, x - 1, y + 1, z + 1);
+        float a1 = calcAO(north, east, ref blocks, x + 1, y + 1, z + 1);
+        float a2 = calcAO(south, east, ref blocks, x + 1, y + 1, z - 1);
+        float a3 = calcAO(south, west, ref blocks, x - 1, y + 1, z - 1);
 
         c.a = a0;
         data.AddVertex(new Vector3(x, y + 1.0f, z + 1.0f) / Chunk.BPU, c);
@@ -305,20 +311,20 @@ public abstract class BlockType {
             data.AddFlippedQuadTriangles();
         }
 
-        data.AddFaceUVs(GetTextureIndex(Dir.up, x, y, z, data));
+        data.AddFaceUVs(GetTextureIndex(Dir.up, x, y, z, ref blocks));
     }
-    protected virtual void FaceDataNorthNative(int x, int y, int z, NativeMeshData data) {
-        Color c = GetColorFromLight(data.GetLight(x, y, z + 1));
+    protected virtual void FaceDataNorthNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<byte> light) {
+        Color c = GetColorFromLight(light.Get(x, y, z + 1));
 
-        int up = GetOpacity(data, x, y + 1, z + 1);
-        int down = GetOpacity(data, x, y - 1, z + 1);
-        int east = GetOpacity(data, x + 1, y, z + 1);
-        int west = GetOpacity(data, x - 1, y, z + 1);
+        int up = GetOpacity(ref blocks, x, y + 1, z + 1);
+        int down = GetOpacity(ref blocks, x, y - 1, z + 1);
+        int east = GetOpacity(ref blocks, x + 1, y, z + 1);
+        int west = GetOpacity(ref blocks, x - 1, y, z + 1);
 
-        float a0 = calcAO(down, east, data, x + 1, y - 1, z + 1);
-        float a1 = calcAO(up, east, data, x + 1, y + 1, z + 1);
-        float a2 = calcAO(up, west, data, x - 1, y + 1, z + 1);
-        float a3 = calcAO(down, west, data, x - 1, y - 1, z + 1);
+        float a0 = calcAO(down, east, ref blocks, x + 1, y - 1, z + 1);
+        float a1 = calcAO(up, east, ref blocks, x + 1, y + 1, z + 1);
+        float a2 = calcAO(up, west, ref blocks, x - 1, y + 1, z + 1);
+        float a3 = calcAO(down, west, ref blocks, x - 1, y - 1, z + 1);
 
         c.a = a0;
         data.AddVertex(new Vector3(x + 1.0f, y, z + 1.0f) / Chunk.BPU, c);
@@ -336,7 +342,7 @@ public abstract class BlockType {
             data.AddFlippedQuadTriangles();
         }
 
-        data.AddFaceUVs(GetTextureIndex(Dir.north, x, y, z, data));
+        data.AddFaceUVs(GetTextureIndex(Dir.north, x, y, z, ref blocks));
     }
 
     // todo: translate to native array job option

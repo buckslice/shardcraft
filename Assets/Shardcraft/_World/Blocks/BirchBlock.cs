@@ -6,7 +6,7 @@ public class BirchBlock : BlockType {
         return true;
     }
 
-    public override int GetTextureIndex(Dir dir, int x, int y, int z, NativeMeshData data) {
+    public override int GetTextureIndex(Dir dir, int x, int y, int z, ref NativeArray3x3<Block> blocks) {
         switch (dir) {
             case Dir.up:
             case Dir.down:

@@ -116,8 +116,6 @@ public static class Tests {
             TestEqual(0x800, 2048, "hex11");
             TestEqual(0x1000, 4096, "hex12");
 
-
-
         }
 
         string msg = string.Format("{0}/{1} tests passed", passes, passes + failures);

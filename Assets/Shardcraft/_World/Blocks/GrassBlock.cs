@@ -5,7 +5,7 @@ public class GrassBlock : BlockType {
         return true;
     }
 
-    public override int GetTextureIndex(Dir dir, int x, int y, int z, NativeMeshData data) {
+    public override int GetTextureIndex(Dir dir, int x, int y, int z, ref NativeArray3x3<Block> blocks) {
         switch (dir) {
             case Dir.up:
                 return 2;
@@ -13,31 +13,28 @@ public class GrassBlock : BlockType {
                 return 1;
         }
 
-        if (data.GetBlock(x, y + 1, z) != Blocks.AIR) {
+        if (blocks.Get(x, y + 1, z) != Blocks.AIR) {
             return 1;
         }
-        //if (y == 0) {   // only have 6 neighbors, this would need more southern neighbors
-        //    return new Tile { x = 3, y = 0 };
-        //}
 
         switch (dir) {
             case Dir.west:
-                if (data.GetBlock(x - 1, y - 1, z) == Blocks.GRASS) {
+                if (blocks.Get(x - 1, y - 1, z) == Blocks.GRASS) {
                     return 2;
                 }
                 break;
             case Dir.east:
-                if (data.GetBlock(x + 1, y - 1, z) == Blocks.GRASS) {
+                if (blocks.Get(x + 1, y - 1, z) == Blocks.GRASS) {
                     return 2;
                 }
                 break;
             case Dir.south:
-                if (data.GetBlock(x, y - 1, z - 1) == Blocks.GRASS) {
+                if (blocks.Get(x, y - 1, z - 1) == Blocks.GRASS) {
                     return 2;
                 }
                 break;
             case Dir.north:
-                if (data.GetBlock(x, y - 1, z + 1) == Blocks.GRASS) {
+                if (blocks.Get(x, y - 1, z + 1) == Blocks.GRASS) {
                     return 2;
                 }
                 break;

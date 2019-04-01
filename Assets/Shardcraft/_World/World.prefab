@@ -83,4 +83,5 @@ MonoBehaviour:
   - {fileID: 2800000, guid: 0c7ff9b673591cc489d7b1a44fb8282b, type: 3}
   - {fileID: 2800000, guid: 69cef4f07a16fda499e52a15af199529, type: 3}
   - {fileID: 2800000, guid: 5e4d4deb9f9029f4488dd2c6ae62d4a3, type: 3}
+  - {fileID: 2800000, guid: 70a62a1549b4ad4419321764c4a373c0, type: 3}
   mat: {fileID: 2100000, guid: 83cbd086011c43e48ae352c10450dcb7, type: 2}

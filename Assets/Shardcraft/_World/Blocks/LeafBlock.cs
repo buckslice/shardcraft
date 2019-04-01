@@ -5,7 +5,7 @@ public class LeafBlock : BlockType {
         return false;
     }
 
-    public override int GetTextureIndex(Dir dir, int x, int y, int z, NativeMeshData data) {
+    public override int GetTextureIndex(Dir dir, int x, int y, int z, ref NativeArray3x3<Block> blocks) {
         return 6;
     }
 }

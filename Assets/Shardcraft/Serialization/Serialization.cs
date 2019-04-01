@@ -537,7 +537,10 @@ public static class Serialization {
     public static void SavePlayer() {
         string saveFile = saveFolderName + "/" + "player.bin";
 
-        CamModify player = Camera.main.transform.GetComponent<CamModify>();
+        FlyCam player = Camera.main.transform.GetComponent<FlyCam>();
+        if (player == null) {
+            return;
+        }
 
         IFormatter formatter = new BinaryFormatter();
         Stream stream = new FileStream(saveFile, FileMode.Create, FileAccess.Write, FileShare.None);
@@ -557,7 +560,10 @@ public static class Serialization {
             return;
         }
 
-        CamModify player = Camera.main.transform.GetComponent<CamModify>();
+        FlyCam player = Camera.main.transform.GetComponent<FlyCam>();
+        if(player == null) {
+            return;
+        }
 
         IFormatter formatter = new BinaryFormatter();
         FileStream stream = new FileStream(saveFile, FileMode.Open);

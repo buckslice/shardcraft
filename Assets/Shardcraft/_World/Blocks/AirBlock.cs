@@ -8,7 +8,7 @@ public class AirBlock : BlockType {
         return false;
     }
 
-    public override void AddDataNative(int x, int y, int z, NativeMeshData data) {
+    public override void AddDataNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<byte> light) {
     }
 
     public override bool ColliderSolid() {

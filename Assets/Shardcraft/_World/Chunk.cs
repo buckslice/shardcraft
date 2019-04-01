@@ -21,7 +21,7 @@ public class Chunk {
     //public HashSet<ushort> modifiedBlockIndices = new HashSet<ushort>(); // hashset to avoid duplicates
     public Queue<BlockEdit> pendingEdits = new Queue<BlockEdit>();
 
-    public Queue<BlockEdit> lightOps = new Queue<BlockEdit>();
+    public Queue<LightOp> lightOps = new Queue<LightOp>();
 
     public World world;
     public GameObject gameObject;
@@ -262,7 +262,13 @@ public class Chunk {
                 CheckNeedToUpdateNeighbors(x, y, z);
             }
             needNewCollider = true; // block was changed so collider prob needs to be updated
-            lightOps.Enqueue(new BlockEdit { x = x, y = y, z = z, block = block });
+
+            int light = block.GetBlockType().GetLight();
+            if (light > 0) {
+                lightOps.Enqueue(new LightOp { x = x, y = y, z = z, val = light });
+            } else {
+                lightOps.Enqueue(new LightOp { x = x, y = y, z = z, val = -1 });
+            }
         } else {
             world.SetBlock(bp.x + x, bp.y + y, bp.z + z, block);
         }

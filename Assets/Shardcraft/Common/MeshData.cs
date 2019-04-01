@@ -62,22 +62,11 @@ public class NativeMeshData {
     public NativeList<Color32> colors;
     public NativeList<int> triangles;
 
-    public MeshJob job;
-
-    public NativeMeshData(ref MeshJob job, NativeList<Vector3> vertices, NativeList<Vector3> uvs, NativeList<Color32> colors, NativeList<int> triangles) {
-        this.job = job;
+    public NativeMeshData(NativeList<Vector3> vertices, NativeList<Vector3> uvs, NativeList<Color32> colors, NativeList<int> triangles) {
         this.vertices = vertices;
         this.uvs = uvs;
         this.colors = colors;
         this.triangles = triangles;
-    }
-
-    public Block GetBlock(int x, int y, int z) {
-        return job.GetBlock(x, y, z);
-    }
-
-    public byte GetLight(int x, int y, int z) {
-        return job.GetLight(x, y, z);
     }
 
     public void AddVertex(Vector3 vertex, Color32 color) {

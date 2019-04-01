@@ -6,17 +6,14 @@ using Unity.Collections;
 public static class MeshBuilder {
 
 
-    public static void BuildNaive(NativeMeshData data) {
+    public static void BuildNaive(NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<byte> light) {
 
         const int s = Chunk.SIZE;
 
         for (int y = 0; y < s; y++) {
             for (int z = 0; z < s; z++) {
                 for (int x = 0; x < s; x++) {
-                    Block b = data.job.blocks[x + z * s + y * s * s];
-                    BlockType bt = b.GetBlockType();
-                    bt.AddDataNative(x, y, z, data);
-
+                    blocks.c[x + z * s + y * s * s].GetBlockType().AddDataNative(x, y, z, data, ref blocks, ref light);
                 }
             }
         }
@@ -26,7 +23,7 @@ public static class MeshBuilder {
     //https://github.com/roboleary/GreedyMesh/blob/master/src/mygame/Main.java
     //https://github.com/darkedge/starlight/blob/master/starlight/starlight_game.cpp
 
-    public static void BuildGreedyCollider(ref MeshJob job, NativeList<Vector3> vertices, NativeList<int> triangles) {
+    public static void BuildGreedyCollider(ref NativeArray3x3<Block> blocks, NativeList<Vector3> vertices, NativeList<int> triangles) {
 
         void AddQuadTrianglesGreedy(bool clockwise) {
             if (!clockwise) {
@@ -96,8 +93,8 @@ public static class MeshBuilder {
                     for (x[d1] = 0; x[d1] < maxDim[d1]; x[d1]++) {
 
                         // the second part of the ors are to make sure you dont add collision data for other chunk block faces on your borders
-                        Block block1 = (backFace || x[d0] >= 0) ? job.GetBlock(x[0], x[1], x[2]) : Blocks.AIR; // block were at
-                        Block block2 = (!backFace || x[d0] < Chunk.SIZE - 1) ? job.GetBlock(x[0] + q[0], x[1] + q[1], x[2] + q[2]) : Blocks.AIR;
+                        Block block1 = (backFace || x[d0] >= 0) ? blocks.Get(x[0], x[1], x[2]) : Blocks.AIR; // block were at
+                        Block block2 = (!backFace || x[d0] < Chunk.SIZE - 1) ? blocks.Get(x[0] + q[0], x[1] + q[1], x[2] + q[2]) : Blocks.AIR;
                         slice[n++] = block1.ColliderSolid() && block2.ColliderSolid() ? Blocks.AIR : backFace ? block2 : block1;
 
                         // saving this for when porting back to meshing

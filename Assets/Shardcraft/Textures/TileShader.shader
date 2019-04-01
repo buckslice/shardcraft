@@ -59,7 +59,7 @@
 
             o.Albedo = c.rgb;
             o.Albedo = c.rgb * IN.color.rgb;
-            //o.Albedo *= IN.color.a; // multiple by ambient occlusion stored in alpha channel of color
+            o.Albedo *= IN.color.a; // multiple by ambient occlusion stored in alpha channel of color
             //o.Albedo = GammaToLinearSpace(IN.color.rgb);
             o.Alpha = c.a;
 
