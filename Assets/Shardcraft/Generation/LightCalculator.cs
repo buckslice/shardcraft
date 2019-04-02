@@ -10,9 +10,11 @@ public struct LightOp {
     public int val;
 }
 
+// would be cool to try to compress the index to be 2^24 instead so whole struct fits into a word
 public struct LightRemovalNode {
-    public int index; // compressed x,y,z coordinate
-    public byte light;
+    //public int index; // compressed x,y,z coordinate
+    //public byte light;
+    public uint indexAndLight; // index in first 24 bits, light in last 8
 }
 
 public static class LightCalculator {
@@ -30,62 +32,67 @@ public static class LightCalculator {
 
             // linearized starting index of this operation
             // ranging from -32 -> -1 , 0 -> 31 , 32 -> 63 , so add 32 to build index from 0-95
-            int startIndex = (op.x + 32) + (op.z + 32) * ww + (op.y + 32) * ww * ww;
+            uint startIndex = (uint)((op.x + 32) + (op.z + 32) * ww + (op.y + 32) * ww * ww);
 
             if (op.val == 0) {  // remove light
+                uint lit = light.Get(op.x, op.y, op.z);
+                startIndex += lit << 24;
 
                 // get previous value before overriding
-                lrbfs.Enqueue(new LightRemovalNode { index = startIndex, light = light.Get(op.x, op.y, op.z) });
+                lrbfs.Enqueue(new LightRemovalNode { indexAndLight = startIndex });
                 lightFlags = SetLight(ref light, lightFlags, op.x, op.y, op.z, 0);
 
                 while (lrbfs.Count > 0) {
                     LightRemovalNode node = lrbfs.Dequeue();
 
+                    byte nodeLight = (byte)(node.indexAndLight >> 24);
+                    uint nodeIndex = node.indexAndLight & 0x111111; // keep only first 24 bits
+
                     // extract coords from index
-                    int x = node.index % ww - 32;
-                    int y = node.index / (ww * ww) - 32;
-                    int z = (node.index % (ww * ww)) / ww - 32;
+                    int x = (int)(nodeIndex % ww - 32);
+                    int y = (int)(nodeIndex / (ww * ww) - 32);
+                    int z = (int)((nodeIndex % (ww * ww)) / ww - 32);
 
                     byte westLight = light.Get(x - 1, y, z);
-                    if (westLight != 0 && westLight < node.light) {
+                    if (westLight != 0 && westLight < nodeLight) {
                         lightFlags = SetLight(ref light, lightFlags, x - 1, y, z, 0);
-                        lrbfs.Enqueue(new LightRemovalNode { index = x - 1 + 32 + (z + 32) * ww + (y + 32) * ww * ww, light = westLight });
-                    } else if (westLight >= node.light) { // add to propagate queue so can fill gaps left behind by removal
+                        lrbfs.Enqueue(new LightRemovalNode { indexAndLight = (uint)(x - 1 + 32 + (z + 32) * ww + (y + 32) * ww * ww + (uint)westLight << 24) });
+                    } else if (westLight >= nodeLight) { // add to propagate queue so can fill gaps left behind by removal
                         lbfs.Enqueue(x - 1 + 32 + (z + 32) * ww + (y + 32) * ww * ww);
                     }
                     byte downLight = light.Get(x, y - 1, z);
-                    if (downLight != 0 && downLight < node.light) {
+                    if (downLight != 0 && downLight < nodeLight) {
                         lightFlags = SetLight(ref light, lightFlags, x, y - 1, z, 0);
-                        lrbfs.Enqueue(new LightRemovalNode { index = x + 32 + (z + 32) * ww + (y - 1 + 32) * ww * ww, light = downLight });
-                    } else if (downLight >= node.light) { // add to propagate queue so can fill gaps left behind by removal
+                        lrbfs.Enqueue(new LightRemovalNode { indexAndLight = (uint)(x + 32 + (z + 32) * ww + (y - 1 + 32) * ww * ww + (uint)downLight << 24) });
+                    } else if (downLight >= nodeLight) { // add to propagate queue so can fill gaps left behind by removal
                         lbfs.Enqueue(x + 32 + (z + 32) * ww + (y - 1 + 32) * ww * ww);
                     }
                     byte southLight = light.Get(x, y, z - 1);
-                    if (southLight != 0 && southLight < node.light) {
+                    if (southLight != 0 && southLight < nodeLight) {
                         lightFlags = SetLight(ref light, lightFlags, x, y, z - 1, 0);
-                        lrbfs.Enqueue(new LightRemovalNode { index = x + 32 + (z - 1 + 32) * ww + (y + 32) * ww * ww, light = southLight });
-                    } else if (southLight >= node.light) { // add to propagate queue so can fill gaps left behind by removal
+                        lrbfs.Enqueue(new LightRemovalNode { indexAndLight = (uint)(x + 32 + (z - 1 + 32) * ww + (y + 32) * ww * ww + (uint)southLight << 24) });
+                    } else if (southLight >= nodeLight) { // add to propagate queue so can fill gaps left behind by removal
                         lbfs.Enqueue(x + 32 + (z - 1 + 32) * ww + (y + 32) * ww * ww);
                     }
                     byte eastLight = light.Get(x + 1, y, z);
-                    if (eastLight != 0 && eastLight < node.light) {
+                    if (eastLight != 0 && eastLight < nodeLight) {
                         lightFlags = SetLight(ref light, lightFlags, x + 1, y, z, 0);
-                        lrbfs.Enqueue(new LightRemovalNode { index = x + 1 + 32 + (z + 32) * ww + (y + 32) * ww * ww, light = eastLight });
-                    } else if (eastLight >= node.light) { // add to propagate queue so can fill gaps left behind by removal
+                        lrbfs.Enqueue(new LightRemovalNode { indexAndLight = (uint)(x + 1 + 32 + (z + 32) * ww + (y + 32) * ww * ww + (uint)eastLight << 24) });
+                    } else if (eastLight >= nodeLight) { // add to propagate queue so can fill gaps left behind by removal
                         lbfs.Enqueue(x + 1 + 32 + (z + 32) * ww + (y + 32) * ww * ww);
                     }
                     byte upLight = light.Get(x, y + 1, z);
-                    if (upLight != 0 && upLight < node.light) {
+                    if (upLight != 0 && upLight < nodeLight) {
                         lightFlags = SetLight(ref light, lightFlags, x, y + 1, z, 0);
-                        lrbfs.Enqueue(new LightRemovalNode { index = x + 32 + (z + 32) * ww + (y + 1 + 32) * ww * ww, light = upLight });
-                    } else if (upLight >= node.light) { // add to propagate queue so can fill gaps left behind by removal
+                        lrbfs.Enqueue(new LightRemovalNode { indexAndLight = (uint)(x + 32 + (z + 32) * ww + (y + 1 + 32) * ww * ww + (uint)upLight << 24) });
+                    } else if (upLight >= nodeLight) { // add to propagate queue so can fill gaps left behind by removal
                         lbfs.Enqueue(x + 32 + (z + 32) * ww + (y + 1 + 32) * ww * ww);
                     }
                     byte northLight = light.Get(x, y, z + 1);
-                    if (northLight != 0 && northLight < node.light) {
+                    if (northLight != 0 && northLight < nodeLight) {
                         lightFlags = SetLight(ref light, lightFlags, x, y, z + 1, 0);
-                        lrbfs.Enqueue(new LightRemovalNode { index = x + 32 + (z + 1 + 32) * ww + (y + 32) * ww * ww, light = northLight });
-                    } else if (northLight >= node.light) { // add to propagate queue so can fill gaps left behind by removal
+                        lrbfs.Enqueue(new LightRemovalNode { indexAndLight = (uint)(x + 32 + (z + 1 + 32) * ww + (y + 32) * ww * ww + (uint)northLight << 24) });
+                    } else if (northLight >= nodeLight) { // add to propagate queue so can fill gaps left behind by removal
                         lbfs.Enqueue(x + 32 + (z + 1 + 32) * ww + (y + 32) * ww * ww);
                     }
                 }
@@ -94,7 +101,7 @@ public static class LightCalculator {
 
                 lightFlags = SetLight(ref light, lightFlags, op.x, op.y, op.z, (byte)op.val);
 
-                lbfs.Enqueue(startIndex);
+                lbfs.Enqueue((int)startIndex);
 
             }
 
