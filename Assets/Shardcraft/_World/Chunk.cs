@@ -16,11 +16,10 @@ public class Chunk {
 
     public NativeArray<Block> blocks;
 
-    public NativeArray<byte> light;
+    public NativeArray<Light> light;
 
     public NativeList<Face> faces;
 
-    //public HashSet<ushort> modifiedBlockIndices = new HashSet<ushort>(); // hashset to avoid duplicates
     public Queue<BlockEdit> pendingEdits = new Queue<BlockEdit>();
 
     public Queue<LightOp> lightOps = new Queue<LightOp>();
@@ -60,7 +59,7 @@ public class Chunk {
         this.gameObject = gameObject;
 
         blocks = new NativeArray<Block>(SIZE * SIZE * SIZE, Allocator.Persistent);
-        light = new NativeArray<byte>(SIZE * SIZE * SIZE, Allocator.Persistent);
+        light = new NativeArray<Light>(SIZE * SIZE * SIZE, Allocator.Persistent);
         faces = new NativeList<Face>(Allocator.Persistent);
 
         mr = gameObject.GetComponent<MeshRenderer>();
@@ -147,7 +146,7 @@ public class Chunk {
     // Updates the chunk based on its contents
     // returns whether or not a full update happens
     public bool UpdateChunk() {
-        if(!loaded || dying || !NeighborsLoaded()) {
+        if (!loaded || dying || !NeighborsLoaded()) {
             return false;
         }
 
@@ -178,7 +177,7 @@ public class Chunk {
         if (dying) {
             return;
         }
-        if (triangles.Length < short.MaxValue) {
+        if (triangles.Length < ushort.MaxValue) {
             filter.mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt16;
         } else {
             filter.mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
@@ -220,7 +219,7 @@ public class Chunk {
         }
         coll.sharedMesh = null;
         Mesh mesh = new Mesh(); // maybe reuse this?
-        if (triangles.Length < short.MaxValue) {
+        if (triangles.Length < ushort.MaxValue) {
             mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt16;
         } else {
             mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
@@ -261,12 +260,7 @@ public class Chunk {
                 needToUpdateSave = true; // block was modified so need to update save
                 needNewCollider = true; // block was changed so collider prob needs to be updated
                 CheckNeedToUpdateNeighbors(x, y, z);
-                int light = block.GetType().GetLight();
-                if (light > 0) { // new light update
-                    lightOps.Enqueue(new LightOp { x = x, y = y, z = z, val = light });
-                } else { // infill if placing transparent (removal would work, this just more efficient i think), else do light removal
-                    lightOps.Enqueue(new LightOp { x = x, y = y, z = z, val = block == Blocks.AIR ? 0 : 0 });
-                }
+                lightOps.Enqueue(new LightOp { index = x + z * SIZE + y * SIZE * SIZE, val = block.GetType().GetLight() });
             }
         } else {
             world.SetBlock(bp.x + x, bp.y + y, bp.z + z, block);
@@ -368,8 +362,8 @@ public class Chunk {
         };
     }
 
-    public NativeArray3x3<byte> GetLocalLights() {
-        return new NativeArray3x3<byte> {
+    public NativeArray3x3<Light> GetLocalLights() {
+        return new NativeArray3x3<Light> {
             c = light,
             w = neighbors[Dirs.WEST].light,
             d = neighbors[Dirs.DOWN].light,

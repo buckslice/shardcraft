@@ -4,20 +4,20 @@ using UnityEngine;
 using Unity.Collections;
 
 public struct Face {
-    public short pos;
+    public ushort pos;
     public Dir dir;
 }
 
 public static class MeshBuilder {
 
-    public static void BuildNaive(NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<byte> lights, NativeList<Face> faces) {
+    const int S = Chunk.SIZE;
 
-        const int s = Chunk.SIZE;
+    public static void BuildNaive(NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeList<Face> faces) {
 
-        for (int y = 0; y < s; y++) {
-            for (int z = 0; z < s; z++) {
-                for (int x = 0; x < s; x++) {
-                    blocks.c[x + z * s + y * s * s].GetType().AddDataNative(x, y, z, data, ref blocks, ref lights, faces);
+        for (int y = 0; y < S; y++) {
+            for (int z = 0; z < S; z++) {
+                for (int x = 0; x < S; x++) {
+                    blocks.c[x + z * S + y * S * S].GetType().AddDataNative(x, y, z, data, ref blocks, ref lights, faces);
                 }
             }
         }
@@ -98,7 +98,7 @@ public static class MeshBuilder {
 
                         // the second part of the ors are to make sure you dont add collision data for other chunk block faces on your borders
                         Block block1 = (backFace || x[d0] >= 0) ? blocks.Get(x[0], x[1], x[2]) : Blocks.AIR; // block were at
-                        Block block2 = (!backFace || x[d0] < Chunk.SIZE - 1) ? blocks.Get(x[0] + q[0], x[1] + q[1], x[2] + q[2]) : Blocks.AIR;
+                        Block block2 = (!backFace || x[d0] < S - 1) ? blocks.Get(x[0] + q[0], x[1] + q[1], x[2] + q[2]) : Blocks.AIR;
                         slice[n++] = block1.ColliderSolid() && block2.ColliderSolid() ? Blocks.AIR : backFace ? block2 : block1;
 
                         // saving this for when porting back to meshing
@@ -195,17 +195,14 @@ public static class MeshBuilder {
     // those will prob get rewritten later so i can redo this then too
 
     static NativeArray3x3<Block> blockArray;
-    static NativeArray3x3<byte> lightArray;
+    static NativeArray3x3<Light> lightArray;
     static NativeList<Face> faceList;
 
     public static void PrimeBasicBlock() {
-        blockArray.c = new NativeArray<Block>(Chunk.SIZE * Chunk.SIZE * Chunk.SIZE, Allocator.Persistent);
-        lightArray.c = new NativeArray<byte>(Chunk.SIZE * Chunk.SIZE * Chunk.SIZE, Allocator.Persistent);
+        blockArray.c = new NativeArray<Block>(S * S * S, Allocator.Persistent);
+        lightArray.c = new NativeArray<Light>(S * S * S, Allocator.Persistent);
         faceList = new NativeList<Face>(Allocator.Persistent);
 
-        for (int i = 0; i < lightArray.c.Length; ++i) {
-            lightArray.c[i] = LightCalculator.MAX_LIGHT;
-        }
     }
 
     public static void DestroyBasicBlock() {
@@ -232,7 +229,20 @@ public static class MeshBuilder {
         const int x = 1;
         const int y = 1;
         const int z = 1;
-        blockArray.c[x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE] = block;
+        blockArray.c[x + z * S + y * S * S] = block;
+
+        ushort light = bt.GetLight();
+        if (light == 0) {
+            light = ushort.MaxValue;
+        }
+
+        lightArray.c[x + z * S + y * S * S] = new Light { torch = light };
+        lightArray.c[x - 1 + z * S + y * S * S] = new Light { torch = light };
+        lightArray.c[x + (z - 1) * S + y * S * S] = new Light { torch = light };
+        lightArray.c[x + z * S + (y - 1) * S * S] = new Light { torch = light };
+        lightArray.c[x + 1 + z * S + y * S * S] = new Light { torch = light };
+        lightArray.c[x + (z + 1) * S + y * S * S] = new Light { torch = light };
+        lightArray.c[x + z * S + (y + 1) * S * S] = new Light { torch = light };
 
         bt.AddDataNative(x, y, z, data, ref blockArray, ref lightArray, faceList);
 

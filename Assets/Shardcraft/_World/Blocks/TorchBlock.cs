@@ -3,6 +3,11 @@ using System.Collections;
 
 public class BlockTorch : BlockType {
 
+    public readonly ushort torchCol;
+
+    public BlockTorch(int r, int g, int b) {
+        torchCol = LightCalculator.GetColor(r, g, b);
+    }
 
     public override bool IsSolid(Dir dir) {
         return true;
@@ -16,8 +21,8 @@ public class BlockTorch : BlockType {
         return 7;
     }
 
-    public override int GetLight() {
-        return LightCalculator.MAX_LIGHT;
+    public override ushort GetLight() {
+        return torchCol;
     }
 
     //const float w = 0.25f;

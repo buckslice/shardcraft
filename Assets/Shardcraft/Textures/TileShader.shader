@@ -55,14 +55,13 @@
         void surf (Input IN, inout SurfaceOutputStandard o)
         {
             // Albedo comes from a texture tinted by color
-            fixed4 col = UNITY_SAMPLE_TEX2DARRAY(_MainTex, IN.blockUVs);
+            fixed4 texCol = UNITY_SAMPLE_TEX2DARRAY(_MainTex, IN.blockUVs);
 
             half3 light = GammaToLinearSpace(IN.color.rgb);
-            o.Albedo = lerp(0.005, 1.0, light.rgb)*col.rgb;
+            o.Albedo = lerp(0.005, 1.0, light)*texCol.rgb;
             //o.Albedo = col.rgb;
-            o.Albedo *= IN.color.a; // multiple by ambient occlusion stored in alpha channel of color
-
-            o.Alpha = col.a;
+            o.Albedo *= IN.color.a; // multiply by ambient occlusion stored in alpha channel of color
+            o.Alpha = texCol.a; // set from transparent textures
 
             o.Smoothness = _Glossiness;
             o.Metallic = _Metallic;

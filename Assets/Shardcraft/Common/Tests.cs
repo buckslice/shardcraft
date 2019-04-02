@@ -105,6 +105,89 @@ public static class Tests {
 
         }
 
+        {
+            // U RRRRR GGGGG BBBBB
+            ushort torch = 0b0_00010_00110_10011;
+            TestEqual(LightCalculator.GetRed(torch), 2, "torch1");
+            TestEqual(LightCalculator.GetGreen(torch), 6, "torch2");
+            TestEqual(LightCalculator.GetBlue(torch), 19, "torch3");
+
+            torch = 0b0_11111_00000_11111;
+
+            TestEqual(LightCalculator.GetRed(torch), 31, "torch4");
+            TestEqual(LightCalculator.GetGreen(torch), 0, "torch5");
+            TestEqual(LightCalculator.GetBlue(torch), 31, "torch6");
+
+            torch = 0b0_10000_00100_01010;
+
+            TestEqual(LightCalculator.GetRed(torch), 16, "torch7");
+            TestEqual(LightCalculator.GetGreen(torch), 4, "torch8");
+            TestEqual(LightCalculator.GetBlue(torch), 10, "torch9");
+
+            torch = (ushort)LightCalculator.SetRed(torch, 8);
+            TestEqual(torch, (ushort)0b0_01000_00100_01010, "torch10");
+            torch = (ushort)LightCalculator.SetBlue(torch, 23);
+            TestEqual(torch, (ushort)0b0_01000_00100_10111, "torch11");
+            torch = (ushort)LightCalculator.SetGreen(torch, 0);
+            TestEqual(torch, (ushort)0b0_01000_00000_10111, "torch12");
+
+            int c = LightCalculator.GetColor(31, 31, 31);
+            TestEqual(LightCalculator.GetRed(c), 31, "torch13");
+            TestEqual(LightCalculator.GetGreen(c), 31, "torch14");
+            TestEqual(LightCalculator.GetBlue(c), 31, "torch15");
+
+            c = LightCalculator.GetColor(1, 7, 30);
+            TestEqual(LightCalculator.GetRed(c), 1, "torch16");
+            TestEqual(LightCalculator.GetGreen(c), 7, "torch17");
+            TestEqual(LightCalculator.GetBlue(c), 30, "torch18");
+
+            c = LightCalculator.GetColor(0, 0, 0);
+            TestEqual(LightCalculator.GetRed(c), 0, "torch19");
+            TestEqual(LightCalculator.GetGreen(c), 0, "torch20");
+            TestEqual(LightCalculator.GetBlue(c), 0, "torch21");
+
+
+            torch = 0b0_00010_00110_10011;
+            TestEqual(LightCalculator.GetChan(torch, 2), 2, "torch1");
+            TestEqual(LightCalculator.GetChan(torch, 1), 6, "torch2");
+            TestEqual(LightCalculator.GetChan(torch, 0), 19, "torch3");
+
+            torch = 0b0_11111_00000_11111;
+
+            TestEqual(LightCalculator.GetChan(torch, 2), 31, "torch4");
+            TestEqual(LightCalculator.GetChan(torch, 1), 0, "torch5");
+            TestEqual(LightCalculator.GetChan(torch, 0), 31, "torch6");
+
+            torch = 0b0_10000_00100_01010;
+
+            TestEqual(LightCalculator.GetChan(torch, 2), 16, "torch7");
+            TestEqual(LightCalculator.GetChan(torch, 1), 4, "torch8");
+            TestEqual(LightCalculator.GetChan(torch, 0), 10, "torch9");
+
+            torch = LightCalculator.SetChan(torch, 2, 8);
+            TestEqual(torch, (ushort)0b0_01000_00100_01010, "torch10");
+            torch = LightCalculator.SetChan(torch, 0, 23);
+            TestEqual(torch, (ushort)0b0_01000_00100_10111, "torch11");
+            torch = LightCalculator.SetChan(torch, 1, 0);
+            TestEqual(torch, (ushort)0b0_01000_00000_10111, "torch12");
+
+            c = LightCalculator.GetColor(31, 31, 31);
+            TestEqual(LightCalculator.GetChan(c, 2), 31, "torch13");
+            TestEqual(LightCalculator.GetChan(c, 1), 31, "torch14");
+            TestEqual(LightCalculator.GetChan(c, 0), 31, "torch15");
+
+            c = LightCalculator.GetColor(1, 7, 30);
+            TestEqual(LightCalculator.GetChan(c, 2), 1, "torch16");
+            TestEqual(LightCalculator.GetChan(c, 1), 7, "torch17");
+            TestEqual(LightCalculator.GetChan(c, 0), 30, "torch18");
+
+            c = LightCalculator.GetColor(0, 0, 0);
+            TestEqual(LightCalculator.GetChan(c, 2), 0, "torch19");
+            TestEqual(LightCalculator.GetChan(c, 1), 0, "torch20");
+            TestEqual(LightCalculator.GetChan(c, 0), 0, "torch21");
+
+        }
+
 
         string msg = string.Format("{0}/{1} tests passed", passes, passes + failures);
         if (failures == 0) {

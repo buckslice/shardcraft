@@ -57,7 +57,7 @@ public struct MeshJob : IJob {
     [ReadOnly]
     public NativeArray3x3<Block> blocks;
 
-    public NativeArray3x3<byte> lights;
+    public NativeArray3x3<Light> lights;
 
     public NativeList<Vector3> vertices;
     public NativeList<Vector3> uvs;
@@ -89,7 +89,7 @@ public struct MeshJob : IJob {
             LightCalculator.CalcInitialLightOps(blocks.c, lightOps);
         }
         int lightFlags = LightCalculator.ProcessLightOps(ref lights, ref blocks, lightOps, lightBFS, lightRBFS);
-        Debug.Assert(lightBFS.Count == 0);
+        //Debug.Assert(lightBFS.Count == 0);
         Debug.Assert(lightRBFS.Count == 0);
         lightBFS.Enqueue(lightFlags); // kinda stupid way to do this, but so job handle can check which chunks had their lights set
 
@@ -180,6 +180,10 @@ public class MeshJobInfo {
 
     }
 
+    public static int lightIters = 1;
+    public static int lightTotal = 0;
+    public static bool lightTracking = false;
+
     public void Finish() {
         chunk.UnlockLocalGroup();
 
@@ -197,6 +201,15 @@ public class MeshJobInfo {
         Pools.v3Pool.Return(colliderVerts);
         Pools.intPool.Return(colliderTris);
 #endif
+
+        if (lightBFS.Count > 1) {
+            int ii = lightBFS.Dequeue();
+            if (lightTracking) {
+                lightIters++;
+                lightTotal += ii;
+                Debug.Log("avg after " + lightIters + " = " + lightTotal / lightIters);
+            }
+        }
 
         int lightFlags = lightBFS.Dequeue();
 
@@ -218,7 +231,7 @@ public struct LightUpdateJob : IJob {
     // once do smooth lighting i think
     //[ReadOnly] public NativeArrayC6<byte> lights;
 
-    [ReadOnly] public NativeArray3x3<byte> lights;
+    [ReadOnly] public NativeArray3x3<Light> lights;
     [ReadOnly] public NativeList<Face> faces;
 
     public NativeList<Color32> colors;
@@ -295,7 +308,7 @@ public class JobController : MonoBehaviour {
             meshJobInfos[i].Finish();
         }
 
-        for(int i = 0; i < lightJobInfos.Count; ++i) {
+        for (int i = 0; i < lightJobInfos.Count; ++i) {
             lightJobInfos[i].handle.Complete();
             lightJobInfos[i].Finish();
         }
@@ -310,6 +323,12 @@ public class JobController : MonoBehaviour {
 
     // Update is called once per frame
     void Update() {
+
+        if (Input.GetKeyDown(KeyCode.P)) {
+            MeshJobInfo.lightTracking = !MeshJobInfo.lightTracking;
+            MeshJobInfo.lightIters = 1;
+            MeshJobInfo.lightTotal = 0;
+        }
 
         for (int i = 0; i < genJobInfos.Count; ++i) {
             if (genJobInfos[i].handle.IsCompleted) {
@@ -341,7 +360,7 @@ public class JobController : MonoBehaviour {
             }
         }
 
-        for(int i = 0; i < lightJobInfos.Count; ++i) {
+        for (int i = 0; i < lightJobInfos.Count; ++i) {
             if (lightJobInfos[i].handle.IsCompleted) {
                 lightJobInfos[i].handle.Complete();
 

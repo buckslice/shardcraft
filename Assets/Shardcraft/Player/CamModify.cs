@@ -14,6 +14,10 @@ public class CamModify : MonoBehaviour {
 
     Block[] blocks = new Block[] {
         Blocks.TORCH,
+        Blocks.TORCH_R,
+        Blocks.TORCH_G,
+        Blocks.TORCH_B,
+        Blocks.TORCH_T,
         Blocks.GRASS,
         Blocks.STONE,
         Blocks.BIRCH,
@@ -34,6 +38,12 @@ public class CamModify : MonoBehaviour {
 
     private void OnApplicationQuit() {
         MeshBuilder.DestroyBasicBlock();
+    }
+
+    private void OnApplicationFocus(bool focus) {
+        if (focus) {
+            Cursor.lockState = CursorLockMode.Locked;
+        }
     }
 
     void Update() {

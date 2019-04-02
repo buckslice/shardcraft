@@ -106,9 +106,9 @@ public class LoadChunks : MonoBehaviour {
             WorldUtils.CheckerboardChunk(world, editChunk, Blocks.STONE);
         }
 
-        if (Input.GetKeyDown(KeyCode.P)) {
-            Debug.Log(world.IsAnyChunksLocked());
-        }
+        //if (Input.GetKeyDown(KeyCode.P)) {
+        //    Debug.Log(world.IsAnyChunksLocked());
+        //}
 
         JobHandle.ScheduleBatchedJobs();
     }

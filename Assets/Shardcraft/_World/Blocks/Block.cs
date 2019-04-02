@@ -7,7 +7,7 @@ using Unity.Collections;
 public struct Block : IEquatable<Block> {
 
     public byte type;
-    
+
     public Block(byte type) {
         this.type = type;
     }
@@ -60,6 +60,10 @@ public static class Blocks {
     public static readonly Block BIRCH = new Block(3);
     public static readonly Block LEAF = new Block(4);
     public static readonly Block TORCH = new Block(5);
+    public static readonly Block TORCH_R = new Block(6);
+    public static readonly Block TORCH_G = new Block(7);
+    public static readonly Block TORCH_B = new Block(8);
+    public static readonly Block TORCH_T = new Block(9);
 }
 
 public static class BlockTypes {
@@ -70,7 +74,11 @@ public static class BlockTypes {
         new GrassBlock(),
         new BirchBlock(),
         new LeafBlock(),
-        new BlockTorch(),
+        new BlockTorch(31,31,31),
+        new BlockTorch(31,0,0),
+        new BlockTorch(0,31,0),
+        new BlockTorch(0,0,31),
+        new BlockTorch(31,31,15),
     };
 
     public static BlockType GetBlockType(int type) {
@@ -108,40 +116,39 @@ public abstract class BlockType {
     //    return new Tile() { x = 0, y = 0 };
     //}
 
-    public virtual int GetLight() {
+    public virtual ushort GetLight() {
         return 0;
     }
-
 
 
     public virtual int GetTextureIndex(Dir dir, int x, int y, int z, ref NativeArray3x3<Block> blocks) {
         return 0;
     }
 
-    public virtual void AddDataNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<byte> lights, NativeList<Face> faces) {
+    public virtual void AddDataNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeList<Face> faces) {
         if (!blocks.Get(x - 1, y, z).IsSolid(Dir.east)) {
             FaceDataWestNative(x, y, z, data, ref blocks, ref lights);
-            faces.Add(new Face { pos = (short)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.west });
+            faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.west });
         }
         if (!blocks.Get(x, y - 1, z).IsSolid(Dir.up)) {
             FaceDataDownNative(x, y, z, data, ref blocks, ref lights);
-            faces.Add(new Face { pos = (short)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.down });
+            faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.down });
         }
         if (!blocks.Get(x, y, z - 1).IsSolid(Dir.north)) {
             FaceDataSouthNative(x, y, z, data, ref blocks, ref lights);
-            faces.Add(new Face { pos = (short)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.south });
+            faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.south });
         }
         if (!blocks.Get(x + 1, y, z).IsSolid(Dir.west)) {
             FaceDataEastNative(x, y, z, data, ref blocks, ref lights);
-            faces.Add(new Face { pos = (short)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.east });
+            faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.east });
         }
         if (!blocks.Get(x, y + 1, z).IsSolid(Dir.down)) {
             FaceDataUpNative(x, y, z, data, ref blocks, ref lights);
-            faces.Add(new Face { pos = (short)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.up });
+            faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.up });
         }
         if (!blocks.Get(x, y, z + 1).IsSolid(Dir.south)) {
             FaceDataNorthNative(x, y, z, data, ref blocks, ref lights);
-            faces.Add(new Face { pos = (short)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.north });
+            faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.north });
         }
     }
 
@@ -157,7 +164,7 @@ public abstract class BlockType {
         return blocks.Get(x, y, z) != Blocks.AIR ? 1 : 0;
     }
 
-    protected virtual void FaceDataWestNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<byte> lights) {
+    protected virtual void FaceDataWestNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights) {
         Color c = LightCalculator.GetColorFromLight(lights.Get(x - 1, y, z));
 
         int up = GetOpacity(ref blocks, x - 1, y + 1, z);
@@ -189,7 +196,7 @@ public abstract class BlockType {
         data.AddFaceUVs(GetTextureIndex(Dir.west, x, y, z, ref blocks));
     }
 
-    protected virtual void FaceDataDownNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<byte> lights) {
+    protected virtual void FaceDataDownNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights) {
         Color c = LightCalculator.GetColorFromLight(lights.Get(x, y - 1, z));
 
         int north = GetOpacity(ref blocks, x, y - 1, z + 1);
@@ -221,7 +228,7 @@ public abstract class BlockType {
         data.AddFaceUVs(GetTextureIndex(Dir.down, x, y, z, ref blocks));
     }
 
-    protected virtual void FaceDataSouthNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<byte> lights) {
+    protected virtual void FaceDataSouthNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights) {
         Color c = LightCalculator.GetColorFromLight(lights.Get(x, y, z - 1));
 
         int up = GetOpacity(ref blocks, x, y + 1, z - 1);
@@ -253,7 +260,7 @@ public abstract class BlockType {
         data.AddFaceUVs(GetTextureIndex(Dir.south, x, y, z, ref blocks));
     }
 
-    protected virtual void FaceDataEastNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<byte> lights) {
+    protected virtual void FaceDataEastNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights) {
         Color c = LightCalculator.GetColorFromLight(lights.Get(x + 1, y, z));
 
         int up = GetOpacity(ref blocks, x + 1, y + 1, z);
@@ -285,7 +292,7 @@ public abstract class BlockType {
         data.AddFaceUVs(GetTextureIndex(Dir.east, x, y, z, ref blocks));
     }
 
-    protected virtual void FaceDataUpNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<byte> lights) {
+    protected virtual void FaceDataUpNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights) {
         Color c = LightCalculator.GetColorFromLight(lights.Get(x, y + 1, z));
 
         int north = GetOpacity(ref blocks, x, y + 1, z + 1);
@@ -317,7 +324,7 @@ public abstract class BlockType {
         data.AddFaceUVs(GetTextureIndex(Dir.up, x, y, z, ref blocks));
     }
 
-    protected virtual void FaceDataNorthNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<byte> lights) {
+    protected virtual void FaceDataNorthNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights) {
         Color c = LightCalculator.GetColorFromLight(lights.Get(x, y, z + 1));
 
         int up = GetOpacity(ref blocks, x, y + 1, z + 1);
