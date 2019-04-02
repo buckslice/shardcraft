@@ -29,6 +29,7 @@ public class CamModify : MonoBehaviour {
 
         blockMeshFilter = GetComponentInChildren<MeshFilter>();
         MeshBuilder.PrimeBasicBlock();
+        MeshBuilder.GetBlockMesh(blocks[blockIndex], blockMeshFilter);
     }
 
     private void OnApplicationQuit() {
@@ -37,7 +38,7 @@ public class CamModify : MonoBehaviour {
 
     void Update() {
 
-        // scroll to select blocks
+        // scroll to select blocks (create mesh as you switch)
         float scroll = Input.GetAxis("Mouse ScrollWheel");
         bool changed = true;
         if (scroll > 0.0f) {
@@ -49,7 +50,6 @@ public class CamModify : MonoBehaviour {
         }
         blockIndex = Mth.Mod(blockIndex, blocks.Length);
         if (changed) {
-            // create a new block mesh
             MeshBuilder.GetBlockMesh(blocks[blockIndex], blockMeshFilter);
         }
 
@@ -57,7 +57,7 @@ public class CamModify : MonoBehaviour {
 
         // show square around block aiming at
         // todo: have option to show 2x2 for hammering!
-        bool mainRaycast = Physics.Raycast(transform.position, transform.forward, out hit, 100);
+        bool mainRaycast = Physics.Raycast(transform.position, transform.forward, out hit, 1000);
         drawer.Clear();
         if (mainRaycast) {
             if (hit.collider.CompareTag(Tags.Terrain)) {
@@ -70,21 +70,17 @@ public class CamModify : MonoBehaviour {
         }
 
         // left click delete
-        if (Input.GetMouseButtonDown(0)) {
-            if (mainRaycast) {
-                lastPos = transform.position;
-                lastHit = hit;
-                WorldUtils.SetBlock(world, hit, Blocks.AIR);
-            }
+        if (Input.GetMouseButtonDown(0) && mainRaycast) {
+            lastPos = transform.position;
+            lastHit = hit;
+            WorldUtils.SetBlock(world, hit, Blocks.AIR);
         }
 
         // right click place
-        if (Input.GetMouseButtonDown(1)) {
-            if (Physics.Raycast(transform.position, transform.forward, out hit, 100)) {
-                lastPos = transform.position;
-                lastHit = hit;
-                WorldUtils.SetBlock(world, hit, blocks[blockIndex], true);
-            }
+        if (Input.GetMouseButtonDown(1) && mainRaycast) {
+            lastPos = transform.position;
+            lastHit = hit;
+            WorldUtils.SetBlock(world, hit, blocks[blockIndex], true);
         }
 
         if (Input.GetKeyDown(KeyCode.F1)) {

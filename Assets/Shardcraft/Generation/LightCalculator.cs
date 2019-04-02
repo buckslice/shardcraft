@@ -10,11 +10,9 @@ public struct LightOp {
     public int val;
 }
 
-// would be cool to try to compress the index to be 2^24 instead so whole struct fits into a word
 public struct LightRemovalNode {
-    //public int index; // compressed x,y,z coordinate
-    //public byte light;
-    public uint indexAndLight; // index in first 24 bits, light in last 8
+    public int index; // compressed x,y,z coordinate
+    public byte light;
 }
 
 public static class LightCalculator {
@@ -32,67 +30,62 @@ public static class LightCalculator {
 
             // linearized starting index of this operation
             // ranging from -32 -> -1 , 0 -> 31 , 32 -> 63 , so add 32 to build index from 0-95
-            uint startIndex = (uint)((op.x + 32) + (op.z + 32) * ww + (op.y + 32) * ww * ww);
+            int startIndex = (op.x + 32) + (op.z + 32) * ww + (op.y + 32) * ww * ww;
 
             if (op.val == 0) {  // remove light
-                uint lit = light.Get(op.x, op.y, op.z);
-                startIndex += lit << 24;
 
                 // get previous value before overriding
-                lrbfs.Enqueue(new LightRemovalNode { indexAndLight = startIndex });
+                lrbfs.Enqueue(new LightRemovalNode { index = startIndex, light = light.Get(op.x, op.y, op.z) });
                 lightFlags = SetLight(ref light, lightFlags, op.x, op.y, op.z, 0);
 
                 while (lrbfs.Count > 0) {
                     LightRemovalNode node = lrbfs.Dequeue();
 
-                    byte nodeLight = (byte)(node.indexAndLight >> 24);
-                    uint nodeIndex = node.indexAndLight & 0x111111; // keep only first 24 bits
-
                     // extract coords from index
-                    int x = (int)(nodeIndex % ww - 32);
-                    int y = (int)(nodeIndex / (ww * ww) - 32);
-                    int z = (int)((nodeIndex % (ww * ww)) / ww - 32);
+                    int x = node.index % ww - 32;
+                    int y = node.index / (ww * ww) - 32;
+                    int z = (node.index % (ww * ww)) / ww - 32;
 
                     byte westLight = light.Get(x - 1, y, z);
-                    if (westLight != 0 && westLight < nodeLight) {
+                    if (westLight != 0 && westLight < node.light) {
                         lightFlags = SetLight(ref light, lightFlags, x - 1, y, z, 0);
-                        lrbfs.Enqueue(new LightRemovalNode { indexAndLight = (uint)(x - 1 + 32 + (z + 32) * ww + (y + 32) * ww * ww + (uint)westLight << 24) });
-                    } else if (westLight >= nodeLight) { // add to propagate queue so can fill gaps left behind by removal
+                        lrbfs.Enqueue(new LightRemovalNode { index = x - 1 + 32 + (z + 32) * ww + (y + 32) * ww * ww, light = westLight });
+                    } else if (westLight >= node.light) { // add to propagate queue so can fill gaps left behind by removal
                         lbfs.Enqueue(x - 1 + 32 + (z + 32) * ww + (y + 32) * ww * ww);
                     }
                     byte downLight = light.Get(x, y - 1, z);
-                    if (downLight != 0 && downLight < nodeLight) {
+                    if (downLight != 0 && downLight < node.light) {
                         lightFlags = SetLight(ref light, lightFlags, x, y - 1, z, 0);
-                        lrbfs.Enqueue(new LightRemovalNode { indexAndLight = (uint)(x + 32 + (z + 32) * ww + (y - 1 + 32) * ww * ww + (uint)downLight << 24) });
-                    } else if (downLight >= nodeLight) { // add to propagate queue so can fill gaps left behind by removal
+                        lrbfs.Enqueue(new LightRemovalNode { index = x + 32 + (z + 32) * ww + (y - 1 + 32) * ww * ww, light = downLight });
+                    } else if (downLight >= node.light) { // add to propagate queue so can fill gaps left behind by removal
                         lbfs.Enqueue(x + 32 + (z + 32) * ww + (y - 1 + 32) * ww * ww);
                     }
                     byte southLight = light.Get(x, y, z - 1);
-                    if (southLight != 0 && southLight < nodeLight) {
+                    if (southLight != 0 && southLight < node.light) {
                         lightFlags = SetLight(ref light, lightFlags, x, y, z - 1, 0);
-                        lrbfs.Enqueue(new LightRemovalNode { indexAndLight = (uint)(x + 32 + (z - 1 + 32) * ww + (y + 32) * ww * ww + (uint)southLight << 24) });
-                    } else if (southLight >= nodeLight) { // add to propagate queue so can fill gaps left behind by removal
+                        lrbfs.Enqueue(new LightRemovalNode { index = x + 32 + (z - 1 + 32) * ww + (y + 32) * ww * ww, light = southLight });
+                    } else if (southLight >= node.light) { // add to propagate queue so can fill gaps left behind by removal
                         lbfs.Enqueue(x + 32 + (z - 1 + 32) * ww + (y + 32) * ww * ww);
                     }
                     byte eastLight = light.Get(x + 1, y, z);
-                    if (eastLight != 0 && eastLight < nodeLight) {
+                    if (eastLight != 0 && eastLight < node.light) {
                         lightFlags = SetLight(ref light, lightFlags, x + 1, y, z, 0);
-                        lrbfs.Enqueue(new LightRemovalNode { indexAndLight = (uint)(x + 1 + 32 + (z + 32) * ww + (y + 32) * ww * ww + (uint)eastLight << 24) });
-                    } else if (eastLight >= nodeLight) { // add to propagate queue so can fill gaps left behind by removal
+                        lrbfs.Enqueue(new LightRemovalNode { index = x + 1 + 32 + (z + 32) * ww + (y + 32) * ww * ww, light = eastLight });
+                    } else if (eastLight >= node.light) { // add to propagate queue so can fill gaps left behind by removal
                         lbfs.Enqueue(x + 1 + 32 + (z + 32) * ww + (y + 32) * ww * ww);
                     }
                     byte upLight = light.Get(x, y + 1, z);
-                    if (upLight != 0 && upLight < nodeLight) {
+                    if (upLight != 0 && upLight < node.light) {
                         lightFlags = SetLight(ref light, lightFlags, x, y + 1, z, 0);
-                        lrbfs.Enqueue(new LightRemovalNode { indexAndLight = (uint)(x + 32 + (z + 32) * ww + (y + 1 + 32) * ww * ww + (uint)upLight << 24) });
-                    } else if (upLight >= nodeLight) { // add to propagate queue so can fill gaps left behind by removal
+                        lrbfs.Enqueue(new LightRemovalNode { index = x + 32 + (z + 32) * ww + (y + 1 + 32) * ww * ww, light = upLight });
+                    } else if (upLight >= node.light) { // add to propagate queue so can fill gaps left behind by removal
                         lbfs.Enqueue(x + 32 + (z + 32) * ww + (y + 1 + 32) * ww * ww);
                     }
                     byte northLight = light.Get(x, y, z + 1);
-                    if (northLight != 0 && northLight < nodeLight) {
+                    if (northLight != 0 && northLight < node.light) {
                         lightFlags = SetLight(ref light, lightFlags, x, y, z + 1, 0);
-                        lrbfs.Enqueue(new LightRemovalNode { indexAndLight = (uint)(x + 32 + (z + 1 + 32) * ww + (y + 32) * ww * ww + (uint)northLight << 24) });
-                    } else if (northLight >= nodeLight) { // add to propagate queue so can fill gaps left behind by removal
+                        lrbfs.Enqueue(new LightRemovalNode { index = x + 32 + (z + 1 + 32) * ww + (y + 32) * ww * ww, light = northLight });
+                    } else if (northLight >= node.light) { // add to propagate queue so can fill gaps left behind by removal
                         lbfs.Enqueue(x + 32 + (z + 1 + 32) * ww + (y + 32) * ww * ww);
                     }
                 }
@@ -101,7 +94,7 @@ public static class LightCalculator {
 
                 lightFlags = SetLight(ref light, lightFlags, op.x, op.y, op.z, (byte)op.val);
 
-                lbfs.Enqueue((int)startIndex);
+                lbfs.Enqueue(startIndex);
 
             }
 
@@ -177,7 +170,7 @@ public static class LightCalculator {
 
     // queue up initial light updates for any light emitting block in loaded chunk
     // could prob work this into generation and load routines more efficiently but whatever for now
-    public static void CalcInitialLight(NativeArray<Block> blocks, NativeQueue<LightOp> lightOps) {
+    public static void CalcInitialLightOps(NativeArray<Block> blocks, NativeQueue<LightOp> lightOps) {
         for (int i = 0; i < blocks.Length; ++i) {
             int light = blocks[i].GetType().GetLight();
             if (light > 0) { // new light update
@@ -302,59 +295,97 @@ public static class LightCalculator {
 
     public static void CheckNeighborLightUpdate(Chunk chunk, int lightFlags) {
         if ((lightFlags & 0x1) != 0)
-            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].update = true;
+            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].lightUpdate = true;
         if ((lightFlags & 0x2) != 0)
-            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].update = true;
+            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].lightUpdate = true;
         if ((lightFlags & 0x4) != 0)
-            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].update = true;
+            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].lightUpdate = true;
         if ((lightFlags & 0x8) != 0)
-            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].update = true;
+            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].lightUpdate = true;
         if ((lightFlags & 0x10) != 0)
-            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].update = true;
+            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].lightUpdate = true;
         if ((lightFlags & 0x20) != 0)
-            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].update = true;
+            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].lightUpdate = true;
         if ((lightFlags & 0x40) != 0)
-            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.WEST].update = true;
+            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.WEST].lightUpdate = true;
         if ((lightFlags & 0x80) != 0)
-            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.EAST].update = true;
+            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.EAST].lightUpdate = true;
         if ((lightFlags & 0x100) != 0)
-            chunk.neighbors[Dirs.DOWN].update = true;
+            chunk.neighbors[Dirs.DOWN].lightUpdate = true;
         if ((lightFlags & 0x200) != 0)
-            chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].update = true;
+            chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].lightUpdate = true;
         if ((lightFlags & 0x400) != 0)
-            chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].update = true;
+            chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].lightUpdate = true;
         if ((lightFlags & 0x800) != 0)
-            chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].update = true;
+            chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].lightUpdate = true;
         if ((lightFlags & 0x1000) != 0)
-            chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].update = true;
+            chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].lightUpdate = true;
         if ((lightFlags & 0x2000) != 0)
-            chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].update = true;
+            chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].lightUpdate = true;
         if ((lightFlags & 0x4000) != 0)
-            chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].update = true;
+            chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].lightUpdate = true;
         if ((lightFlags & 0x8000) != 0)
-            chunk.neighbors[Dirs.UP].neighbors[Dirs.WEST].update = true;
+            chunk.neighbors[Dirs.UP].neighbors[Dirs.WEST].lightUpdate = true;
         if ((lightFlags & 0x10000) != 0)
-            chunk.neighbors[Dirs.UP].neighbors[Dirs.EAST].update = true;
+            chunk.neighbors[Dirs.UP].neighbors[Dirs.EAST].lightUpdate = true;
         if ((lightFlags & 0x20000) != 0)
-            chunk.neighbors[Dirs.UP].update = true;
+            chunk.neighbors[Dirs.UP].lightUpdate = true;
         if ((lightFlags & 0x40000) != 0)
-            chunk.neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].update = true;
+            chunk.neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].lightUpdate = true;
         if ((lightFlags & 0x80000) != 0)
-            chunk.neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].update = true;
+            chunk.neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].lightUpdate = true;
         if ((lightFlags & 0x100000) != 0)
-            chunk.neighbors[Dirs.SOUTH].update = true;
+            chunk.neighbors[Dirs.SOUTH].lightUpdate = true;
         if ((lightFlags & 0x200000) != 0)
-            chunk.neighbors[Dirs.NORTH].neighbors[Dirs.WEST].update = true;
+            chunk.neighbors[Dirs.NORTH].neighbors[Dirs.WEST].lightUpdate = true;
         if ((lightFlags & 0x400000) != 0)
-            chunk.neighbors[Dirs.NORTH].neighbors[Dirs.EAST].update = true;
+            chunk.neighbors[Dirs.NORTH].neighbors[Dirs.EAST].lightUpdate = true;
         if ((lightFlags & 0x800000) != 0)
-            chunk.neighbors[Dirs.NORTH].update = true;
+            chunk.neighbors[Dirs.NORTH].lightUpdate = true;
         if ((lightFlags & 0x1000000) != 0)
-            chunk.neighbors[Dirs.WEST].update = true;
+            chunk.neighbors[Dirs.WEST].lightUpdate = true;
         if ((lightFlags & 0x2000000) != 0)
-            chunk.neighbors[Dirs.EAST].update = true;
+            chunk.neighbors[Dirs.EAST].lightUpdate = true;
     }
 
+
+    public static void LightUpdate(ref NativeArray3x3<byte> lights, NativeList<Face> faces, NativeList<Color32> colors) {
+        for (int i = 0; i < faces.Length; ++i) {
+
+            int pos = faces[i].pos;
+            int x = pos % Chunk.SIZE;
+            int y = pos / (Chunk.SIZE * Chunk.SIZE);
+            int z = (pos % (Chunk.SIZE * Chunk.SIZE)) / Chunk.SIZE;
+
+            switch (faces[i].dir) {
+                case Dir.west:
+                    colors.Add(GetColorFromLight(lights.Get(x - 1, y, z)));
+                    break;
+                case Dir.down:
+                    colors.Add(GetColorFromLight(lights.Get(x, y - 1, z)));
+                    break;
+                case Dir.south:
+                    colors.Add(GetColorFromLight(lights.Get(x, y, z - 1)));
+                    break;
+                case Dir.east:
+                    colors.Add(GetColorFromLight(lights.Get(x + 1, y, z)));
+                    break;
+                case Dir.up:
+                    colors.Add(GetColorFromLight(lights.Get(x, y + 1, z)));
+                    break;
+                case Dir.north:
+                    colors.Add(GetColorFromLight(lights.Get(x, y, z + 1)));
+                    break;
+
+            }
+
+        }
+    }
+
+    public static Color32 GetColorFromLight(byte lights) {
+        float fl = (float)lights / MAX_LIGHT;
+        return new Color(fl, fl, fl, 1.0f);
+    }
 
 
 }

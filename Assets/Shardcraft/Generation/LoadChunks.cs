@@ -81,7 +81,7 @@ public class LoadChunks : MonoBehaviour {
 
         world.chunkPool.Dispose();
 
-        Pools.Dispose();        
+        Pools.Dispose();
 
     }
 
@@ -106,6 +106,10 @@ public class LoadChunks : MonoBehaviour {
             WorldUtils.CheckerboardChunk(world, editChunk, Blocks.STONE);
         }
 
+        if (Input.GetKeyDown(KeyCode.P)) {
+            Debug.Log(world.IsAnyChunksLocked());
+        }
+
         JobHandle.ScheduleBatchedJobs();
     }
 
@@ -119,6 +123,7 @@ public class LoadChunks : MonoBehaviour {
         chunksLoaded += Serialization.CheckNewLoaded(chunkGenQueue);
 
         Serialization.FreeSavedChunks(world.chunkPool);
+
         UnityEngine.Profiling.Profiler.BeginSample("Update Chunks");
         UpdateChunks();
         UnityEngine.Profiling.Profiler.EndSample();
@@ -128,14 +133,16 @@ public class LoadChunks : MonoBehaviour {
         text.text = string.Format(
             "Generat: {0}/{1}\n" +
             "Meshing: {2}/{3}\n" +
-            "Free/C : {4}/{5}\n" +
-            "Chunks:  {6}\n" +
-            "Loaded:  {7}\n" +
-            "Greedy:  {8}\n" +
-            "v3Pool:  {9}/{10}\n" +
-            "intPool: {11}/{12}\n",
+            "Light  : {4}/{5}\n" +
+            "Free/C : {6}/{7}\n" +
+            "Chunks:  {8}\n" +
+            "Loaded:  {9}\n" +
+            "Greedy:  {10}\n" +
+            "v3Pool:  {11}/{12}\n" +
+            "intPool: {13}/{14}\n",
             JobController.genJobFinished, JobController.genJobScheduled,
             JobController.meshJobFinished, JobController.meshJobScheduled,
+            JobController.lightJobFinished, JobController.lightJobScheduled,
             world.chunkPool.CountFree(), world.chunkPool.Count(),
             world.chunks.Count, chunksLoaded, Chunk.beGreedy,
             Pools.v3Pool.CountFree(), Pools.v3Pool.Count(),
@@ -146,14 +153,14 @@ public class LoadChunks : MonoBehaviour {
     void UpdateChunks() {
         int updates = 0;
 
+        // calls update on nearby block of chunks
+        // if others are loaded but too far out of range they won't get updated until you come closer
         Vector3i playerChunk = WorldUtils.GetChunkPosFromWorldPos(transform.position);
         for (int i = 0; i < neighborChunks.Length && updates < maxUpdatesPerFrame; ++i) {
             Vector3i p = playerChunk + neighborChunks[i];
             Chunk chunk = world.GetChunk(p);
             if (chunk != null) {
-                if (chunk.update) {
-                    updates += chunk.UpdateChunk() ? 1 : 0;
-                }
+                updates += chunk.UpdateChunk() ? 1 : 0;
             }
         }
 

@@ -34,6 +34,7 @@ public class World : MonoBehaviour {
         void ChunkDispose(Chunk chunk) {
             chunk.blocks.Dispose();
             chunk.light.Dispose();
+            chunk.faces.Dispose();
         }
         chunkPool = new Pool<Chunk>(InstantiateChunk, ChunkDispose);
 
@@ -172,6 +173,14 @@ public class World : MonoBehaviour {
         }
     }
 
+    public bool IsAnyChunksLocked() {
+        foreach(Chunk c in chunks.Values) {
+            if (c.IsDataLocked()) {
+                return true;
+            }
+        }
+        return false;
+    }
 
 
     // adds to queue to destroy it when proper time
@@ -197,6 +206,7 @@ public class World : MonoBehaviour {
                     if (n != null) {
                         n.neighbors[Dirs.Opp(i)] = null;
                     }
+                    chunk.neighbors[i] = null;
                 }
 
                 UpdateNeighborsLoadedNeighbors(chunk.cp, false);

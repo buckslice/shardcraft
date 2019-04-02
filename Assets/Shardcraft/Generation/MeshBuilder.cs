@@ -3,17 +3,21 @@ using System.Collections.Generic;
 using UnityEngine;
 using Unity.Collections;
 
+public struct Face {
+    public short pos;
+    public Dir dir;
+}
+
 public static class MeshBuilder {
 
-
-    public static void BuildNaive(NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<byte> light) {
+    public static void BuildNaive(NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<byte> lights, NativeList<Face> faces) {
 
         const int s = Chunk.SIZE;
 
         for (int y = 0; y < s; y++) {
             for (int z = 0; z < s; z++) {
                 for (int x = 0; x < s; x++) {
-                    blocks.c[x + z * s + y * s * s].GetType().AddDataNative(x, y, z, data, ref blocks, ref light);
+                    blocks.c[x + z * s + y * s * s].GetType().AddDataNative(x, y, z, data, ref blocks, ref lights, faces);
                 }
             }
         }
@@ -192,10 +196,12 @@ public static class MeshBuilder {
 
     static NativeArray3x3<Block> blockArray;
     static NativeArray3x3<byte> lightArray;
+    static NativeList<Face> faceList;
 
     public static void PrimeBasicBlock() {
         blockArray.c = new NativeArray<Block>(Chunk.SIZE * Chunk.SIZE * Chunk.SIZE, Allocator.Persistent);
         lightArray.c = new NativeArray<byte>(Chunk.SIZE * Chunk.SIZE * Chunk.SIZE, Allocator.Persistent);
+        faceList = new NativeList<Face>(Allocator.Persistent);
 
         for (int i = 0; i < lightArray.c.Length; ++i) {
             lightArray.c[i] = LightCalculator.MAX_LIGHT;
@@ -205,6 +211,7 @@ public static class MeshBuilder {
     public static void DestroyBasicBlock() {
         blockArray.c.Dispose();
         lightArray.c.Dispose();
+        faceList.Dispose();
     }
 
     public static void GetBlockMesh(Block block, MeshFilter filter) {
@@ -227,7 +234,7 @@ public static class MeshBuilder {
         const int z = 1;
         blockArray.c[x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE] = block;
 
-        bt.AddDataNative(x, y, z, data, ref blockArray, ref lightArray);
+        bt.AddDataNative(x, y, z, data, ref blockArray, ref lightArray, faceList);
 
         for (int i = 0; i < vertices.Length; ++i) {
             vertices[i] = (vertices[i] - (Vector3.one * 0.75f)) * 2.0f;

@@ -21,17 +21,23 @@ public static class Pools {
         queue.Dispose();
     }
 
+    static void NLClearer<T>(NativeList<T> list) where T : struct {
+        list.Clear();
+    }
+    static void NQClearer<T>(NativeQueue<T> list) where T : struct {
+        list.Clear();
+    }
 
-    public static Pool<NativeList<Vector3>> v3Pool = new Pool<NativeList<Vector3>>(NLBuilder<Vector3>, NLDisposer);
+    public static Pool<NativeList<Vector3>> v3Pool = new Pool<NativeList<Vector3>>(NLBuilder<Vector3>, NLDisposer, NLClearer);
     //public static Pool<NativeList<Vector2>> v2Pool = new Pool<NativeList<Vector2>>(NLBuilder<Vector2>, NLDisposer);
-    public static Pool<NativeList<Color32>> c32Pool = new Pool<NativeList<Color32>>(NLBuilder<Color32>, NLDisposer);
+    public static Pool<NativeList<Color32>> c32Pool = new Pool<NativeList<Color32>>(NLBuilder<Color32>, NLDisposer, NLClearer);
 
-    public static Pool<NativeList<int>> intPool = new Pool<NativeList<int>>(NLBuilder<int>, NLDisposer);
+    public static Pool<NativeList<int>> intPool = new Pool<NativeList<int>>(NLBuilder<int>, NLDisposer, NLClearer);
 
-    public static Pool<NativeQueue<LightOp>> loQPool = new Pool<NativeQueue<LightOp>>(NQBuilder<LightOp>, NQDisposer);
-    public static Pool<NativeQueue<int>> intQPool = new Pool<NativeQueue<int>>(NQBuilder<int>, NQDisposer);
-    public static Pool<NativeQueue<LightRemovalNode>> lrnQPool = new Pool<NativeQueue<LightRemovalNode>>(NQBuilder<LightRemovalNode>, NQDisposer);
-
+    public static Pool<NativeQueue<LightOp>> loQPool = new Pool<NativeQueue<LightOp>>(NQBuilder<LightOp>, NQDisposer, NQClearer);
+    public static Pool<NativeQueue<int>> intQPool = new Pool<NativeQueue<int>>(NQBuilder<int>, NQDisposer, NQClearer);
+    public static Pool<NativeQueue<LightRemovalNode>> lrnQPool = new Pool<NativeQueue<LightRemovalNode>>(NQBuilder<LightRemovalNode>, NQDisposer, NQClearer);
+    
     public static void Dispose() {
         v3Pool.Dispose();
         c32Pool.Dispose();
@@ -40,6 +46,7 @@ public static class Pools {
         loQPool.Dispose();
         intQPool.Dispose();
         lrnQPool.Dispose();
+
     }
 
 }
@@ -52,10 +59,12 @@ public class Pool<T> {
     int free = 0;
     readonly Func<T> buildFunc;
     readonly Action<T> disposeAction;
+    readonly Action<T> getAction;
 
-    public Pool(Func<T> buildFunc, Action<T> disposeAction) {
+    public Pool(Func<T> buildFunc, Action<T> disposeAction, Action<T> getAction=null) {
         this.buildFunc = buildFunc;
         this.disposeAction = disposeAction;
+        this.getAction = getAction;
     }
 
     public void Return(T t) {
@@ -69,6 +78,7 @@ public class Pool<T> {
         if (free >= pool.Count) {
             pool.Add(buildFunc());
         }
+        getAction?.Invoke(pool[free]);
         return pool[free++];
     }
 

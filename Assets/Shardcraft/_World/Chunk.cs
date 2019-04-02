@@ -18,6 +18,8 @@ public class Chunk {
 
     public NativeArray<byte> light;
 
+    public NativeList<Face> faces;
+
     //public HashSet<ushort> modifiedBlockIndices = new HashSet<ushort>(); // hashset to avoid duplicates
     public Queue<BlockEdit> pendingEdits = new Queue<BlockEdit>();
 
@@ -30,9 +32,10 @@ public class Chunk {
 
     public bool loaded { get; private set; }    // indicates block array is set correctly (either loaded from save or freshly gend)
     public bool update { get; set; }            // means need to update mesh for some reason
+    public bool lightUpdate { get; set; }       // mesh needs to update only light
     public bool rendered { get; private set; }  // has a mesh (may be out of date)
     public bool builtStructures { get; set; }
-    int dataLock = 0;   // if not zero means one or more jobs are reading from the data
+    int dataLock = 0;   // if not zero means one or more jobs are reading / writing from the data
     public bool needToUpdateSave { get; set; } // only gets set when generated or modified a block
     public bool dying { get; set; } // set when chunk is in process of getting destroyed
     public bool needNewCollider { get; private set; }
@@ -40,7 +43,6 @@ public class Chunk {
     public MeshRenderer mr { get; set; }
     MeshFilter filter;
     MeshCollider coll;
-
 
     // w d s e u n
     public Chunk[] neighbors = new Chunk[6];
@@ -59,6 +61,7 @@ public class Chunk {
 
         blocks = new NativeArray<Block>(SIZE * SIZE * SIZE, Allocator.Persistent);
         light = new NativeArray<byte>(SIZE * SIZE * SIZE, Allocator.Persistent);
+        faces = new NativeList<Face>(Allocator.Persistent);
 
         mr = gameObject.GetComponent<MeshRenderer>();
         filter = gameObject.GetComponent<MeshFilter>();
@@ -73,6 +76,7 @@ public class Chunk {
 
         loaded = false;
         update = false;
+        lightUpdate = false;
         rendered = false;
         dataLock = 0;
         builtStructures = false;
@@ -80,6 +84,9 @@ public class Chunk {
         dying = false;
         needNewCollider = true;
         loadedNeighbors = 0;
+
+        faces.Capacity = 32;
+        faces.Clear();
 
         gameObject.transform.position = bp.ToVector3() / BPU;
         gameObject.name = "Chunk " + cp;
@@ -112,6 +119,9 @@ public class Chunk {
     }
 
     public void TryApplyPendingEdits() {
+        if (dying) {
+            return;
+        }
         Debug.Assert(loaded);
         if (pendingEdits.Count > 0 && dataLock == 0) {
             int c = pendingEdits.Count;
@@ -122,6 +132,8 @@ public class Chunk {
             if (!NeighborsLoaded() || !IsLocalGroupFree()) {
                 update = true;
             } else {    // slam out job right away if you can
+                update = false;
+                lightUpdate = false;
                 JobController.StartMeshJob(this);
             }
         }
@@ -133,8 +145,9 @@ public class Chunk {
     }
 
     // Updates the chunk based on its contents
+    // returns whether or not a full update happens
     public bool UpdateChunk() {
-        if (!loaded || !NeighborsLoaded()) { // need to make sure you and your neighbors are loaded first
+        if(!loaded || dying || !NeighborsLoaded()) {
             return false;
         }
 
@@ -143,43 +156,17 @@ public class Chunk {
             builtStructures = true;
         }
 
-        if (update && IsLocalGroupFree()) {
+        if (lightUpdate && !update && IsLocalGroupFree()) {
+            lightUpdate = false;
+            JobController.StartLightUpdateJob(this);
+        } else if (update && IsLocalGroupFree()) {
             update = false;
+            lightUpdate = false;
             JobController.StartMeshJob(this);
             return true;
         }
 
         return false;
-    }
-
-    bool IsLocalGroupFree() {
-        return dataLock == 0 &&
-        neighbors[Dirs.WEST].dataLock == 0 &&
-        neighbors[Dirs.DOWN].dataLock == 0 &&
-        neighbors[Dirs.SOUTH].dataLock == 0 &&
-        neighbors[Dirs.EAST].dataLock == 0 &&
-        neighbors[Dirs.UP].dataLock == 0 &&
-        neighbors[Dirs.NORTH].dataLock == 0 &&
-        neighbors[Dirs.UP].neighbors[Dirs.WEST].dataLock == 0 &&
-        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].dataLock == 0 &&
-        neighbors[Dirs.UP].neighbors[Dirs.EAST].dataLock == 0 &&
-        neighbors[Dirs.UP].neighbors[Dirs.NORTH].dataLock == 0 &&
-        neighbors[Dirs.DOWN].neighbors[Dirs.WEST].dataLock == 0 &&
-        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].dataLock == 0 &&
-        neighbors[Dirs.DOWN].neighbors[Dirs.EAST].dataLock == 0 &&
-        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].dataLock == 0 &&
-        neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].dataLock == 0 &&
-        neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].dataLock == 0 &&
-        neighbors[Dirs.NORTH].neighbors[Dirs.WEST].dataLock == 0 &&
-        neighbors[Dirs.NORTH].neighbors[Dirs.EAST].dataLock == 0 &&
-        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].dataLock == 0 &&
-        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].dataLock == 0 &&
-        neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].dataLock == 0 &&
-        neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].dataLock == 0 &&
-        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].dataLock == 0 &&
-        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].dataLock == 0 &&
-        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].dataLock == 0 &&
-        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].dataLock == 0;
     }
 
     public bool NeighborsLoaded() {
@@ -208,6 +195,22 @@ public class Chunk {
         rendered = true;
 
         TryApplyPendingEdits();
+    }
+
+    public void UpdateMeshLight(NativeList<Color32> colors) {
+
+        Color32[] meshCols = filter.mesh.colors32;
+        Debug.Assert(meshCols.Length / 4 == colors.Length);
+
+        for (int i = 0; i < colors.Length; ++i) {
+            Color32 c = colors[i];
+            meshCols[i * 4] = new Color32(c.r, c.g, c.b, meshCols[i * 4].a);
+            meshCols[i * 4 + 1] = new Color32(c.r, c.g, c.b, meshCols[i * 4 + 1].a);
+            meshCols[i * 4 + 2] = new Color32(c.r, c.g, c.b, meshCols[i * 4 + 2].a);
+            meshCols[i * 4 + 3] = new Color32(c.r, c.g, c.b, meshCols[i * 4 + 3].a);
+        }
+
+        filter.mesh.colors32 = meshCols;
     }
 
     public void UpdateColliderNative(NativeList<Vector3> vertices, NativeList<int> triangles) {
@@ -258,7 +261,6 @@ public class Chunk {
                 needToUpdateSave = true; // block was modified so need to update save
                 needNewCollider = true; // block was changed so collider prob needs to be updated
                 CheckNeedToUpdateNeighbors(x, y, z);
-
                 int light = block.GetType().GetLight();
                 if (light > 0) { // new light update
                     lightOps.Enqueue(new LightOp { x = x, y = y, z = z, val = light });
@@ -304,4 +306,158 @@ public class Chunk {
         return x >= 0 && x < SIZE && y >= 0 && y < SIZE && z >= 0 && z < SIZE;
     }
 
+    bool IsLocalGroupFree() {
+        return dataLock == 0 &&
+        neighbors[Dirs.WEST].dataLock == 0 &&
+        neighbors[Dirs.DOWN].dataLock == 0 &&
+        neighbors[Dirs.SOUTH].dataLock == 0 &&
+        neighbors[Dirs.EAST].dataLock == 0 &&
+        neighbors[Dirs.UP].dataLock == 0 &&
+        neighbors[Dirs.NORTH].dataLock == 0 &&
+        neighbors[Dirs.UP].neighbors[Dirs.WEST].dataLock == 0 &&
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].dataLock == 0 &&
+        neighbors[Dirs.UP].neighbors[Dirs.EAST].dataLock == 0 &&
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].dataLock == 0 &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.WEST].dataLock == 0 &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].dataLock == 0 &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.EAST].dataLock == 0 &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].dataLock == 0 &&
+        neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].dataLock == 0 &&
+        neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].dataLock == 0 &&
+        neighbors[Dirs.NORTH].neighbors[Dirs.WEST].dataLock == 0 &&
+        neighbors[Dirs.NORTH].neighbors[Dirs.EAST].dataLock == 0 &&
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].dataLock == 0 &&
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].dataLock == 0 &&
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].dataLock == 0 &&
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].dataLock == 0 &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].dataLock == 0 &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].dataLock == 0 &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].dataLock == 0 &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].dataLock == 0;
+    }
+
+    public NativeArray3x3<Block> GetLocalBlocks() {
+        return new NativeArray3x3<Block> {
+            c = blocks,
+            w = neighbors[Dirs.WEST].blocks,
+            d = neighbors[Dirs.DOWN].blocks,
+            s = neighbors[Dirs.SOUTH].blocks,
+            e = neighbors[Dirs.EAST].blocks,
+            u = neighbors[Dirs.UP].blocks,
+            n = neighbors[Dirs.NORTH].blocks,
+            uw = neighbors[Dirs.UP].neighbors[Dirs.WEST].blocks,
+            us = neighbors[Dirs.UP].neighbors[Dirs.SOUTH].blocks,
+            ue = neighbors[Dirs.UP].neighbors[Dirs.EAST].blocks,
+            un = neighbors[Dirs.UP].neighbors[Dirs.NORTH].blocks,
+            dw = neighbors[Dirs.DOWN].neighbors[Dirs.WEST].blocks,
+            ds = neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].blocks,
+            de = neighbors[Dirs.DOWN].neighbors[Dirs.EAST].blocks,
+            dn = neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].blocks,
+            sw = neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].blocks,
+            se = neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].blocks,
+            nw = neighbors[Dirs.NORTH].neighbors[Dirs.WEST].blocks,
+            ne = neighbors[Dirs.NORTH].neighbors[Dirs.EAST].blocks,
+            usw = neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].blocks,
+            use = neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].blocks,
+            unw = neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].blocks,
+            une = neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].blocks,
+            dsw = neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].blocks,
+            dse = neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].blocks,
+            dnw = neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].blocks,
+            dne = neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].blocks,
+        };
+    }
+
+    public NativeArray3x3<byte> GetLocalLights() {
+        return new NativeArray3x3<byte> {
+            c = light,
+            w = neighbors[Dirs.WEST].light,
+            d = neighbors[Dirs.DOWN].light,
+            s = neighbors[Dirs.SOUTH].light,
+            e = neighbors[Dirs.EAST].light,
+            u = neighbors[Dirs.UP].light,
+            n = neighbors[Dirs.NORTH].light,
+            uw = neighbors[Dirs.UP].neighbors[Dirs.WEST].light,
+            us = neighbors[Dirs.UP].neighbors[Dirs.SOUTH].light,
+            ue = neighbors[Dirs.UP].neighbors[Dirs.EAST].light,
+            un = neighbors[Dirs.UP].neighbors[Dirs.NORTH].light,
+            dw = neighbors[Dirs.DOWN].neighbors[Dirs.WEST].light,
+            ds = neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].light,
+            de = neighbors[Dirs.DOWN].neighbors[Dirs.EAST].light,
+            dn = neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].light,
+            sw = neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].light,
+            se = neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].light,
+            nw = neighbors[Dirs.NORTH].neighbors[Dirs.WEST].light,
+            ne = neighbors[Dirs.NORTH].neighbors[Dirs.EAST].light,
+            usw = neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].light,
+            use = neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].light,
+            unw = neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].light,
+            une = neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].light,
+            dsw = neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].light,
+            dse = neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].light,
+            dnw = neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].light,
+            dne = neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].light,
+        };
+    }
+
+
+    public void LockLocalGroup() {
+        LockData();
+        neighbors[Dirs.WEST].LockData();
+        neighbors[Dirs.DOWN].LockData();
+        neighbors[Dirs.SOUTH].LockData();
+        neighbors[Dirs.EAST].LockData();
+        neighbors[Dirs.UP].LockData();
+        neighbors[Dirs.NORTH].LockData();
+        neighbors[Dirs.UP].neighbors[Dirs.WEST].LockData();
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].LockData();
+        neighbors[Dirs.UP].neighbors[Dirs.EAST].LockData();
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].LockData();
+        neighbors[Dirs.DOWN].neighbors[Dirs.WEST].LockData();
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].LockData();
+        neighbors[Dirs.DOWN].neighbors[Dirs.EAST].LockData();
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].LockData();
+        neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].LockData();
+        neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].LockData();
+        neighbors[Dirs.NORTH].neighbors[Dirs.WEST].LockData();
+        neighbors[Dirs.NORTH].neighbors[Dirs.EAST].LockData();
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].LockData();
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].LockData();
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].LockData();
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].LockData();
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].LockData();
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].LockData();
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].LockData();
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].LockData();
+    }
+
+    public void UnlockLocalGroup() {
+        UnlockData();
+        neighbors[Dirs.WEST].UnlockData();
+        neighbors[Dirs.DOWN].UnlockData();
+        neighbors[Dirs.SOUTH].UnlockData();
+        neighbors[Dirs.EAST].UnlockData();
+        neighbors[Dirs.UP].UnlockData();
+        neighbors[Dirs.NORTH].UnlockData();
+        neighbors[Dirs.UP].neighbors[Dirs.WEST].UnlockData();
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].UnlockData();
+        neighbors[Dirs.UP].neighbors[Dirs.EAST].UnlockData();
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].UnlockData();
+        neighbors[Dirs.DOWN].neighbors[Dirs.WEST].UnlockData();
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].UnlockData();
+        neighbors[Dirs.DOWN].neighbors[Dirs.EAST].UnlockData();
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].UnlockData();
+        neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].UnlockData();
+        neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].UnlockData();
+        neighbors[Dirs.NORTH].neighbors[Dirs.WEST].UnlockData();
+        neighbors[Dirs.NORTH].neighbors[Dirs.EAST].UnlockData();
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].UnlockData();
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].UnlockData();
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].UnlockData();
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].UnlockData();
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].UnlockData();
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].UnlockData();
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].UnlockData();
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].UnlockData();
+    }
 }

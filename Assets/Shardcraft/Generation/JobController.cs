@@ -57,7 +57,7 @@ public struct MeshJob : IJob {
     [ReadOnly]
     public NativeArray3x3<Block> blocks;
 
-    public NativeArray3x3<byte> light;
+    public NativeArray3x3<byte> lights;
 
     public NativeList<Vector3> vertices;
     public NativeList<Vector3> uvs;
@@ -69,6 +69,8 @@ public struct MeshJob : IJob {
     public NativeList<Vector3> colliderVerts;
     public NativeList<int> colliderTris;
 #endif
+
+    public NativeList<Face> faces; // save face data for easier light updates
 
     public bool calcInitialLight;
     public NativeQueue<LightOp> lightOps;     // a list of placement and deletion operations to make within this chunk?
@@ -84,15 +86,15 @@ public struct MeshJob : IJob {
 
         // if chunk hasnt been rendered before then check each block to see if it has any lights
         if (calcInitialLight) {
-            LightCalculator.CalcInitialLight(blocks.c, lightOps);
+            LightCalculator.CalcInitialLightOps(blocks.c, lightOps);
         }
-        int lightFlags = LightCalculator.ProcessLightOps(ref light, ref blocks, lightOps, lightBFS, lightRBFS);
+        int lightFlags = LightCalculator.ProcessLightOps(ref lights, ref blocks, lightOps, lightBFS, lightRBFS);
         Debug.Assert(lightBFS.Count == 0);
         Debug.Assert(lightRBFS.Count == 0);
         lightBFS.Enqueue(lightFlags); // kinda stupid way to do this, but so job handle can check which chunks had their lights set
 
         NativeMeshData data = new NativeMeshData(vertices, uvs, colors, triangles);
-        MeshBuilder.BuildNaive(data, ref blocks, ref light);
+        MeshBuilder.BuildNaive(data, ref blocks, ref lights, faces);
 
 #if GEN_COLLIDERS
         if (genCollider) {
@@ -119,6 +121,8 @@ public class MeshJobInfo {
     NativeList<int> colliderTris;
 #endif
 
+    NativeList<Face> faces;
+
     NativeQueue<LightOp> lightOps;
     NativeQueue<int> lightBFS;
     NativeQueue<LightRemovalNode> lightRBFS;
@@ -126,103 +130,16 @@ public class MeshJobInfo {
     public MeshJobInfo(Chunk chunk) {
         this.chunk = chunk;
 
-        MeshJob job = new MeshJob();
-        job.blocks = new NativeArray3x3<Block> {
-            c = chunk.blocks,
-            w = chunk.neighbors[Dirs.WEST].blocks,
-            d = chunk.neighbors[Dirs.DOWN].blocks,
-            s = chunk.neighbors[Dirs.SOUTH].blocks,
-            e = chunk.neighbors[Dirs.EAST].blocks,
-            u = chunk.neighbors[Dirs.UP].blocks,
-            n = chunk.neighbors[Dirs.NORTH].blocks,
-            uw = chunk.neighbors[Dirs.UP].neighbors[Dirs.WEST].blocks,
-            us = chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].blocks,
-            ue = chunk.neighbors[Dirs.UP].neighbors[Dirs.EAST].blocks,
-            un = chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].blocks,
-            dw = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.WEST].blocks,
-            ds = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].blocks,
-            de = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.EAST].blocks,
-            dn = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].blocks,
-            sw = chunk.neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].blocks,
-            se = chunk.neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].blocks,
-            nw = chunk.neighbors[Dirs.NORTH].neighbors[Dirs.WEST].blocks,
-            ne = chunk.neighbors[Dirs.NORTH].neighbors[Dirs.EAST].blocks,
-            usw = chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].blocks,
-            use = chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].blocks,
-            unw = chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].blocks,
-            une = chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].blocks,
-            dsw = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].blocks,
-            dse = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].blocks,
-            dnw = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].blocks,
-            dne = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].blocks,
-        };
+        chunk.LockLocalGroup();
 
-        job.light = new NativeArray3x3<byte> {
-            c = chunk.light,
-            w = chunk.neighbors[Dirs.WEST].light,
-            d = chunk.neighbors[Dirs.DOWN].light,
-            s = chunk.neighbors[Dirs.SOUTH].light,
-            e = chunk.neighbors[Dirs.EAST].light,
-            u = chunk.neighbors[Dirs.UP].light,
-            n = chunk.neighbors[Dirs.NORTH].light,
-            uw = chunk.neighbors[Dirs.UP].neighbors[Dirs.WEST].light,
-            us = chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].light,
-            ue = chunk.neighbors[Dirs.UP].neighbors[Dirs.EAST].light,
-            un = chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].light,
-            dw = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.WEST].light,
-            ds = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].light,
-            de = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.EAST].light,
-            dn = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].light,
-            sw = chunk.neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].light,
-            se = chunk.neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].light,
-            nw = chunk.neighbors[Dirs.NORTH].neighbors[Dirs.WEST].light,
-            ne = chunk.neighbors[Dirs.NORTH].neighbors[Dirs.EAST].light,
-            usw = chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].light,
-            use = chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].light,
-            unw = chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].light,
-            une = chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].light,
-            dsw = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].light,
-            dse = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].light,
-            dnw = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].light,
-            dne = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].light,
-        };
-
-        chunk.LockData();
-        chunk.neighbors[Dirs.WEST].LockData();
-        chunk.neighbors[Dirs.DOWN].LockData();
-        chunk.neighbors[Dirs.SOUTH].LockData();
-        chunk.neighbors[Dirs.EAST].LockData();
-        chunk.neighbors[Dirs.UP].LockData();
-        chunk.neighbors[Dirs.NORTH].LockData();
-        chunk.neighbors[Dirs.UP].neighbors[Dirs.WEST].LockData();
-        chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].LockData();
-        chunk.neighbors[Dirs.UP].neighbors[Dirs.EAST].LockData();
-        chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].LockData();
-        chunk.neighbors[Dirs.DOWN].neighbors[Dirs.WEST].LockData();
-        chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].LockData();
-        chunk.neighbors[Dirs.DOWN].neighbors[Dirs.EAST].LockData();
-        chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].LockData();
-        chunk.neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].LockData();
-        chunk.neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].LockData();
-        chunk.neighbors[Dirs.NORTH].neighbors[Dirs.WEST].LockData();
-        chunk.neighbors[Dirs.NORTH].neighbors[Dirs.EAST].LockData();
-        chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].LockData();
-        chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].LockData();
-        chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].LockData();
-        chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].LockData();
-        chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].LockData();
-        chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].LockData();
-        chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].LockData();
-        chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].LockData();
+        MeshJob job;
+        job.blocks = chunk.GetLocalBlocks();
+        job.lights = chunk.GetLocalLights();
 
         vertices = Pools.v3Pool.Get();
         uvs = Pools.v3Pool.Get();
         colors = Pools.c32Pool.Get();
         triangles = Pools.intPool.Get();
-        vertices.Clear();
-        uvs.Clear();
-        colors.Clear();
-        triangles.Clear();
 
         job.vertices = vertices;
         job.uvs = uvs;
@@ -232,8 +149,6 @@ public class MeshJobInfo {
 #if GEN_COLLIDERS
         colliderVerts = Pools.v3Pool.Get();
         colliderTris = Pools.intPool.Get();
-        colliderVerts.Clear();
-        colliderTris.Clear();
 
         job.colliderVerts = colliderVerts;
         job.colliderTris = colliderTris;
@@ -243,12 +158,12 @@ public class MeshJobInfo {
         job.genCollider = chunk.needNewCollider;
 #endif
 
+        chunk.faces.Clear();
+        job.faces = chunk.faces;
+
         lightOps = Pools.loQPool.Get();
         lightBFS = Pools.intQPool.Get();
         lightRBFS = Pools.lrnQPool.Get();
-        lightOps.Clear();
-        lightBFS.Clear();
-        lightRBFS.Clear();
 
         while (chunk.lightOps.Count > 0) {
             lightOps.Enqueue(chunk.lightOps.Dequeue());
@@ -258,7 +173,7 @@ public class MeshJobInfo {
         job.lightBFS = lightBFS;
         job.lightRBFS = lightRBFS;
 
-        // if chunk hasnt been rendered then it needs to chunk for existing lights
+        // if chunk hasnt been rendered then it needs to check for existing lights
         job.calcInitialLight = !chunk.rendered;
 
         handle = job.Schedule();
@@ -266,33 +181,7 @@ public class MeshJobInfo {
     }
 
     public void Finish() {
-        chunk.UnlockData();
-        chunk.neighbors[Dirs.WEST].UnlockData();
-        chunk.neighbors[Dirs.DOWN].UnlockData();
-        chunk.neighbors[Dirs.SOUTH].UnlockData();
-        chunk.neighbors[Dirs.EAST].UnlockData();
-        chunk.neighbors[Dirs.UP].UnlockData();
-        chunk.neighbors[Dirs.NORTH].UnlockData();
-        chunk.neighbors[Dirs.UP].neighbors[Dirs.WEST].UnlockData();
-        chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].UnlockData();
-        chunk.neighbors[Dirs.UP].neighbors[Dirs.EAST].UnlockData();
-        chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].UnlockData();
-        chunk.neighbors[Dirs.DOWN].neighbors[Dirs.WEST].UnlockData();
-        chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].UnlockData();
-        chunk.neighbors[Dirs.DOWN].neighbors[Dirs.EAST].UnlockData();
-        chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].UnlockData();
-        chunk.neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].UnlockData();
-        chunk.neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].UnlockData();
-        chunk.neighbors[Dirs.NORTH].neighbors[Dirs.WEST].UnlockData();
-        chunk.neighbors[Dirs.NORTH].neighbors[Dirs.EAST].UnlockData();
-        chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].UnlockData();
-        chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].UnlockData();
-        chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].UnlockData();
-        chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].UnlockData();
-        chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].UnlockData();
-        chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].UnlockData();
-        chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].UnlockData();
-        chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].UnlockData();
+        chunk.UnlockLocalGroup();
 
         chunk.UpdateMeshNative(vertices, uvs, colors, triangles);
 
@@ -323,12 +212,66 @@ public class MeshJobInfo {
     }
 }
 
+public struct LightUpdateJob : IJob {
+
+    // self and 6 neighbor lights, actually will prob need full local group eventually
+    // once do smooth lighting i think
+    //[ReadOnly] public NativeArrayC6<byte> lights;
+
+    [ReadOnly] public NativeArray3x3<byte> lights;
+    [ReadOnly] public NativeList<Face> faces;
+
+    public NativeList<Color32> colors;
+
+    public void Execute() {
+
+        LightCalculator.LightUpdate(ref lights, faces, colors);
+
+    }
+}
+
+public class LightJobInfo {
+
+    public JobHandle handle;
+    Chunk chunk;
+
+    NativeList<Color32> colors;
+
+    public LightJobInfo(Chunk chunk) {
+        this.chunk = chunk;
+
+        chunk.LockLocalGroup();
+
+        LightUpdateJob job;
+
+        job.lights = chunk.GetLocalLights();
+        job.faces = chunk.faces;
+
+        colors = Pools.c32Pool.Get();
+        job.colors = colors;
+
+        handle = job.Schedule();
+
+    }
+
+    public void Finish() {
+        chunk.UnlockLocalGroup();
+
+        chunk.UpdateMeshLight(colors);
+
+        Pools.c32Pool.Return(colors);
+    }
+
+}
+
 
 public class JobController : MonoBehaviour {
 
     static List<GenJobInfo> genJobInfos = new List<GenJobInfo>();
 
     static List<MeshJobInfo> meshJobInfos = new List<MeshJobInfo>();
+
+    static List<LightJobInfo> lightJobInfos = new List<LightJobInfo>();
 
     //static List<Task<Chunk>> genTasks = new List<Task<Chunk>>();
 
@@ -352,7 +295,18 @@ public class JobController : MonoBehaviour {
             meshJobInfos[i].Finish();
         }
 
+        for(int i = 0; i < lightJobInfos.Count; ++i) {
+            lightJobInfos[i].handle.Complete();
+            lightJobInfos[i].Finish();
+        }
     }
+
+    public static int meshJobScheduled = 0;
+    public static int meshJobFinished = 0;
+    public static int genJobScheduled = 0;
+    public static int genJobFinished = 0;
+    public static int lightJobScheduled = 0;
+    public static int lightJobFinished = 0;
 
     // Update is called once per frame
     void Update() {
@@ -381,18 +335,24 @@ public class JobController : MonoBehaviour {
                 --i;
 
                 if (meshFinishedPer >= LoadChunks.meshLoadsPerFrame) {
-                    return;
+                    break;
                 }
 
             }
         }
 
-    }
+        for(int i = 0; i < lightJobInfos.Count; ++i) {
+            if (lightJobInfos[i].handle.IsCompleted) {
+                lightJobInfos[i].handle.Complete();
 
-    public static int meshJobScheduled = 0;
-    public static int meshJobFinished = 0;
-    public static int genJobScheduled = 0;
-    public static int genJobFinished = 0;
+                lightJobInfos[i].Finish();
+                lightJobFinished++;
+                lightJobInfos.SwapAndPop(i);
+                --i;
+            }
+        }
+
+    }
 
     public static void StartGenerationJob(Chunk chunk) {
         Debug.Assert(!shutDown);
@@ -413,6 +373,16 @@ public class JobController : MonoBehaviour {
 
         meshJobScheduled++;
 
+    }
+
+    public static void StartLightUpdateJob(Chunk chunk) {
+        Debug.Assert(!chunk.update);
+
+        LightJobInfo info = new LightJobInfo(chunk);
+
+        lightJobInfos.Add(info);
+
+        lightJobScheduled++;
     }
 
     public static int GetRunningJobs() {

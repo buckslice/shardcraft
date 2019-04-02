@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using System.Collections;
 using System;
+using Unity.Collections;
 
 public class AirBlock : BlockType {
 
@@ -8,7 +9,7 @@ public class AirBlock : BlockType {
         return false;
     }
 
-    public override void AddDataNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<byte> light) {
+    public override void AddDataNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<byte> light, NativeList<Face> faces) {
     }
 
     public override bool ColliderSolid() {

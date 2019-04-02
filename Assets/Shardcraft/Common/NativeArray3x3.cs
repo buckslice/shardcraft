@@ -1,6 +1,6 @@
 ﻿using Unity.Collections;
 
-// used to store native arrays for neighbors
+// used to store native arrays for local 3x3 block of neighbors
 public struct NativeArray3x3<T> where T : struct {
 
     public NativeArray<T> c; // center
@@ -115,4 +115,45 @@ public struct NativeArray3x3<T> where T : struct {
             }
         }
     }
+}
+
+
+// used to store native arrays for center plus 6 side neighbors
+public struct NativeArrayC6<T> where T : struct {
+
+    public NativeArray<T> c; // center
+    // 26 neighbors in a 3x3 cube around center
+    public NativeArray<T> w;
+    public NativeArray<T> d;
+    public NativeArray<T> s;
+    public NativeArray<T> e;
+    public NativeArray<T> u;
+    public NativeArray<T> n;
+
+    const int S = Chunk.SIZE;
+
+    public T Get(int x, int y, int z) {
+        if (x < 0) {
+            return w[x + S + z * S + y * S * S];
+        } else if (x >= S) {
+            return e[x - S + z * S + y * S * S];
+        } else if (y < 0) {
+            return d[x + z * S + (y + S) * S * S];
+        } else if (y >= S) {
+            return u[x + z * S + (y - S) * S * S];
+        } else if (z < 0) {
+            return s[x + (z + S) * S + y * S * S];
+        } else if (z >= S) {
+            return s[x + (z - S) * S + y * S * S];
+        } else {
+            return c[x + z * S + y * S * S];
+        }
+
+        //if (x >= 0 && x < S && y >= 0 && y < S && z >= 0 && z < S) {
+        // should try reordering these if chains to favor case where you are in center block
+        // compare average job completion time in profiler instead of fps / time to complete
+        //}
+
+    }
+
 }
