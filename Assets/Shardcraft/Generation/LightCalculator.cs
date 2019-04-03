@@ -1,5 +1,4 @@
-﻿#define _DEBUG
-
+﻿
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -73,11 +72,6 @@ public static class LightCalculator {
     const int W = S + S + S; // because processing 3x3x3 block of 32x32x32 chunks
 
     public static int ProcessLightOps(ref NativeArray3x3<Light> light, ref NativeArray3x3<Block> blocks, NativeQueue<LightOp> ops, NativeQueue<int> lbfs, NativeQueue<LightRemovalNode> lrbfs) {
-
-#if _DEBUG
-        System.Diagnostics.Stopwatch watch = new System.Diagnostics.Stopwatch();
-        watch.Restart();
-#endif
 
         int lightFlags = 0;
 
@@ -178,7 +172,9 @@ public static class LightCalculator {
 
                 } else { // propagate light from this channel
 
-                    lightFlags = SetLight(ref light, lightFlags, opx, opy, opz, new Light { torch = op.val });
+                    ushort curLight = light.Get(opx, opy, opz).torch;
+                     
+                    lightFlags = SetLight(ref light, lightFlags, opx, opy, opz, new Light { torch = SetChannel(curLight, GetChannel(op.val)) });
 
                     lbfs.Enqueue(startIndex);
 
@@ -246,10 +242,6 @@ public static class LightCalculator {
             }
 
         }
-
-#if _DEBUG
-        lbfs.Enqueue((int)watch.ElapsedMilliseconds);
-#endif
 
         return lightFlags;
     }

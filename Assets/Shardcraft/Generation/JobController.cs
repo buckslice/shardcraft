@@ -1,4 +1,5 @@
 ﻿#define GEN_COLLIDERS
+#define _DEBUG
 
 using System.Collections;
 using System.Collections.Generic;
@@ -84,22 +85,61 @@ public struct MeshJob : IJob {
         // also since were passing in all these references if we split these 3 up into their own jobs
         // would have to do that 3 times instead #puke
 
+#if _DEBUG
+        long initLightTime = 0;
+        long processLightTime = 0;
+        long meshingTime = 0;
+        long colliderTime = 0;
+        System.Diagnostics.Stopwatch watch = new System.Diagnostics.Stopwatch();
+        watch.Restart();
+        UnityEngine.Profiling.Profiler.BeginSample("Lighting");
+#endif
+
         // if chunk hasnt been rendered before then check each block to see if it has any lights
         if (calcInitialLight) {
             LightCalculator.CalcInitialLightOps(blocks.c, lightOps);
+#if _DEBUG
+            initLightTime = watch.ElapsedMilliseconds;
+            watch.Restart();
+#endif
         }
         int lightFlags = LightCalculator.ProcessLightOps(ref lights, ref blocks, lightOps, lightBFS, lightRBFS);
-        //Debug.Assert(lightBFS.Count == 0);
-        Debug.Assert(lightRBFS.Count == 0);
+        Debug.Assert(lightBFS.Count == 0 && lightRBFS.Count == 0);
         lightBFS.Enqueue(lightFlags); // kinda stupid way to do this, but so job handle can check which chunks had their lights set
+
+#if _DEBUG
+        UnityEngine.Profiling.Profiler.EndSample();
+        processLightTime = watch.ElapsedMilliseconds;
+        watch.Restart();
+        UnityEngine.Profiling.Profiler.BeginSample("Meshing");
+#endif
 
         NativeMeshData data = new NativeMeshData(vertices, uvs, colors, triangles);
         MeshBuilder.BuildNaive(data, ref blocks, ref lights, faces);
 
+#if _DEBUG
+        meshingTime = watch.ElapsedMilliseconds;
+        watch.Restart();
+        UnityEngine.Profiling.Profiler.EndSample();
+#endif
+
 #if GEN_COLLIDERS
+#if _DEBUG
+        UnityEngine.Profiling.Profiler.BeginSample("Collider");
+#endif
         if (genCollider) {
             MeshBuilder.BuildGreedyCollider(ref blocks, colliderVerts, colliderTris);
         }
+#if _DEBUG
+        colliderTime = watch.ElapsedMilliseconds;
+        UnityEngine.Profiling.Profiler.EndSample();
+#endif
+#endif
+
+#if _DEBUG
+        string output = string.Format("initLight:{0}, lighting:{1}, meshing:{2}, collider:{3}",
+            initLightTime, processLightTime, meshingTime, colliderTime);
+        Debug.Log(output);
 #endif
 
     }

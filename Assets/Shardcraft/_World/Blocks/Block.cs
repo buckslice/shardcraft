@@ -63,7 +63,9 @@ public static class Blocks {
     public static readonly Block TORCH_R = new Block(6);
     public static readonly Block TORCH_G = new Block(7);
     public static readonly Block TORCH_B = new Block(8);
-    public static readonly Block TORCH_T = new Block(9);
+    public static readonly Block TORCH_M = new Block(9);
+    public static readonly Block TORCH_Y = new Block(10);
+    public static readonly Block TORCH_W = new Block(11);
 }
 
 public static class BlockTypes {
@@ -78,7 +80,9 @@ public static class BlockTypes {
         new BlockTorch(31,0,0),
         new BlockTorch(0,31,0),
         new BlockTorch(0,0,31),
-        new BlockTorch(31,31,15),
+        new BlockTorch(31,0,31),
+        new BlockTorch(31,31,0),
+        new BlockTorch(10,10,10),
     };
 
     public static BlockType GetBlockType(int type) {
