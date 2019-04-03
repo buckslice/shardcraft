@@ -112,11 +112,16 @@ public static class Tests {
             TestEqual(LightCalculator.GetGreen(torch), 6, "torch2");
             TestEqual(LightCalculator.GetBlue(torch), 19, "torch3");
 
+            TestEqual(LightCalculator.GetIsLight(torch), false, "torchb1");
+
             torch = 0b0_11111_00000_11111;
 
             TestEqual(LightCalculator.GetRed(torch), 31, "torch4");
             TestEqual(LightCalculator.GetGreen(torch), 0, "torch5");
             TestEqual(LightCalculator.GetBlue(torch), 31, "torch6");
+
+            torch = LightCalculator.SetIsLight(torch, true);
+            TestEqual(LightCalculator.GetIsLight(torch), true, "torchb1");
 
             torch = 0b0_10000_00100_01010;
 
@@ -124,12 +129,17 @@ public static class Tests {
             TestEqual(LightCalculator.GetGreen(torch), 4, "torch8");
             TestEqual(LightCalculator.GetBlue(torch), 10, "torch9");
 
-            torch = (ushort)LightCalculator.SetRed(torch, 8);
+            torch = LightCalculator.SetRed(torch, 8);
             TestEqual(torch, (ushort)0b0_01000_00100_01010, "torch10");
-            torch = (ushort)LightCalculator.SetBlue(torch, 23);
+            torch = LightCalculator.SetBlue(torch, 23);
             TestEqual(torch, (ushort)0b0_01000_00100_10111, "torch11");
-            torch = (ushort)LightCalculator.SetGreen(torch, 0);
+            torch = LightCalculator.SetGreen(torch, 0);
             TestEqual(torch, (ushort)0b0_01000_00000_10111, "torch12");
+
+            torch = LightCalculator.SetIsLight(torch, true);
+            TestEqual(LightCalculator.GetIsLight(torch), true, "torchb1");
+            torch = LightCalculator.SetIsLight(torch, false);
+            TestEqual(LightCalculator.GetIsLight(torch), false, "torchb1");
 
             int c = LightCalculator.GetColor(31, 31, 31);
             TestEqual(LightCalculator.GetRed(c), 31, "torch13");

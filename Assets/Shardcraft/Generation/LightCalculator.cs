@@ -15,15 +15,17 @@ using Unity.Collections;
 
 public struct LightOp {
     public int index;
-    public ushort val;
+    public ushort val; //should change this to Light type once sunlight is added
 }
 
 // need 5 bits for rgb each since max dist is 32
 // and 5 bits for sun... so 20 bits basically
 // so doing rgb in a short and then just a byte for sun
 // could maybe just do a byte for each, maybe thad be faster
+// greatest bit s is bool for if light is a source block or not
+// so when removing, added source blocks to propagation list, to allow different strength lighting
 public struct Light {
-    public ushort torch; // u rrrrr ggggg bbbbb
+    public ushort torch; // s rrrrr ggggg bbbbb
     //public byte sun;
 }
 
@@ -33,6 +35,13 @@ public struct LightRemovalNode {
 }
 
 public static class LightCalculator {
+
+    public static bool GetIsLight(int torch) {
+        return ((torch >> 15) & 1) == 1;
+    }
+    public static ushort SetIsLight(int torch, bool isLight) {
+        return (ushort)((torch & 0b0_11111_11111_11111) | (isLight ? 0x8000 : 0));
+    }
 
     public static int GetRed(int torch) {
         return (torch >> 10) & 0b11111; // hex 0x1F
@@ -44,13 +53,13 @@ public static class LightCalculator {
         return torch & 0b11111;
     }
     public static ushort SetRed(int torch, int val) {
-        return (ushort)((torch & 0b00000_11111_11111) | (val << 10)); // 1023, 31775, 32736
+        return (ushort)((torch & 0b1_00000_11111_11111) | (val << 10)); // 1023, 31775, 32736
     }
     public static ushort SetGreen(int torch, int val) {
-        return (ushort)((torch & 0b11111_00000_11111) | (val << 5));
+        return (ushort)((torch & 0b1_11111_00000_11111) | (val << 5));
     }
     public static ushort SetBlue(int torch, int val) {
-        return (ushort)((torch & 0b11111_11111_00000) | (val));
+        return (ushort)((torch & 0b1_11111_11111_00000) | (val));
     }
 
     // keepings these here for later, note the channels are backwards, so iterates in B G R order
@@ -89,6 +98,12 @@ public static class LightCalculator {
 
             int startIndex = (opx + S) + (opz + S) * W + (opy + S) * W * W;
 
+            // set the target light at block to have correct 'IsLight' flag
+            // lights are repropagated after removals, this allows support for lesser lights to be mixed in with the rest
+            ushort opLight = light.Get(opx, opy, opz).torch;
+            opLight = SetIsLight(opLight, op.val > 0);
+            lightFlags = SetLight(ref light, lightFlags, opx, opy, opz, new Light { torch = opLight });
+
             // loop over each channel of light maps
             for (int cIndex = 0; cIndex < 3; cIndex++) {
                 if (cIndex == 0) {
@@ -116,65 +131,116 @@ public static class LightCalculator {
                         int y = node.index / (W * W) - S;
                         int z = (node.index % (W * W)) / W - S;
 
+                        byte oneLess = (byte)(node.light - 1); // each time reduce light by one
+
                         ushort westLight = light.Get(x - 1, y, z).torch;
                         byte westChannel = (byte)GetChannel(westLight);
-                        if (westChannel != 0 && westChannel < node.light) {
-                            lightFlags = SetLight(ref light, lightFlags, x - 1, y, z, new Light { torch = SetChannel(westLight, 0) });
-                            lrbfs.Enqueue(new LightRemovalNode { index = x - 1 + S + (z + S) * W + (y + S) * W * W, light = westChannel });
-                        } else if (westChannel >= node.light) { // add to propagate queue so can fill gaps left behind by removal
-                            lbfs.Enqueue(x - 1 + S + (z + S) * W + (y + S) * W * W);
+                        if (westChannel != 0) {
+                            int index = x - 1 + S + (z + S) * W + (y + S) * W * W;
+                            if (westChannel < node.light) {
+                                if (!GetIsLight(westLight)) {
+                                    lightFlags = SetLight(ref light, lightFlags, x - 1, y, z, new Light { torch = SetChannel(westLight, 0) });
+                                } else { // if this node is a light, dont override value, but still add a removal node as if you did, then add to repropagate to fill it back in
+                                    lbfs.Enqueue(index);
+                                }
+                                lrbfs.Enqueue(new LightRemovalNode { index = index, light = oneLess });
+                            } else { // add to propagate queue so can fill gaps left behind by removal
+                                lbfs.Enqueue(index);
+                            }
                         }
+
                         ushort downLight = light.Get(x, y - 1, z).torch;
                         byte downChannel = (byte)GetChannel(downLight);
-                        if (downChannel != 0 && downChannel < node.light) {
-                            lightFlags = SetLight(ref light, lightFlags, x, y - 1, z, new Light { torch = SetChannel(downLight, 0) });
-                            lrbfs.Enqueue(new LightRemovalNode { index = x + S + (z + S) * W + (y - 1 + S) * W * W, light = downChannel });
-                        } else if (downChannel >= node.light) { // add to propagate queue so can fill gaps left behind by removal
-                            lbfs.Enqueue(x + S + (z + S) * W + (y - 1 + S) * W * W);
+                        if (downChannel != 0) {
+                            int index = x + S + (z + S) * W + (y - 1 + S) * W * W;
+                            if (downChannel < node.light) {
+                                if (!GetIsLight(downLight)) {
+                                    lightFlags = SetLight(ref light, lightFlags, x, y - 1, z, new Light { torch = SetChannel(downLight, 0) });
+                                } else {
+                                    lbfs.Enqueue(index);
+                                }
+                                lrbfs.Enqueue(new LightRemovalNode { index = index, light = oneLess });
+                            } else { // add to propagate queue so can fill gaps left behind by removal
+                                lbfs.Enqueue(index);
+                            }
                         }
 
                         ushort southLight = light.Get(x, y, z - 1).torch;
                         byte southChannel = (byte)GetChannel(southLight);
-                        if (southChannel != 0 && southChannel < node.light) {
-                            lightFlags = SetLight(ref light, lightFlags, x, y, z - 1, new Light { torch = SetChannel(southLight, 0) });
-                            lrbfs.Enqueue(new LightRemovalNode { index = x + S + (z - 1 + S) * W + (y + S) * W * W, light = southChannel });
-                        } else if (southChannel >= node.light) { // add to propagate queue so can fill gaps left behind by removal
-                            lbfs.Enqueue(x + S + (z - 1 + S) * W + (y + S) * W * W);
+                        if (southChannel != 0) {
+                            int index = x + S + (z - 1 + S) * W + (y + S) * W * W;
+                            if (southChannel < node.light) {
+                                if (!GetIsLight(southLight)) {
+                                    lightFlags = SetLight(ref light, lightFlags, x, y, z - 1, new Light { torch = SetChannel(southLight, 0) });
+                                } else {
+                                    lbfs.Enqueue(index);
+                                }
+                                lrbfs.Enqueue(new LightRemovalNode { index = index, light = oneLess });
+                            } else { // add to propagate queue so can fill gaps left behind by removal
+                                lbfs.Enqueue(index);
+                            }
                         }
 
                         ushort eastLight = light.Get(x + 1, y, z).torch;
                         byte eastChannel = (byte)GetChannel(eastLight);
-                        if (eastChannel != 0 && eastChannel < node.light) {
-                            lightFlags = SetLight(ref light, lightFlags, x + 1, y, z, new Light { torch = SetChannel(eastLight, 0) });
-                            lrbfs.Enqueue(new LightRemovalNode { index = x + 1 + S + (z + S) * W + (y + S) * W * W, light = eastChannel });
-                        } else if (eastChannel >= node.light) { // add to propagate queue so can fill gaps left behind by removal
-                            lbfs.Enqueue(x + 1 + S + (z + S) * W + (y + S) * W * W);
+                        if (eastChannel != 0) {
+                            int index = x + 1 + S + (z + S) * W + (y + S) * W * W;
+                            if (eastChannel < node.light) {
+                                if (!GetIsLight(eastLight)) {
+                                    lightFlags = SetLight(ref light, lightFlags, x + 1, y, z, new Light { torch = SetChannel(eastLight, 0) });
+                                } else {
+                                    lbfs.Enqueue(index);
+                                }
+                                lrbfs.Enqueue(new LightRemovalNode { index = index, light = oneLess });
+                            } else { // add to propagate queue so can fill gaps left behind by removal
+                                lbfs.Enqueue(index);
+                            }
                         }
 
                         ushort upLight = light.Get(x, y + 1, z).torch;
                         byte upChannel = (byte)GetChannel(upLight);
-                        if (upChannel != 0 && upChannel < node.light) {
-                            lightFlags = SetLight(ref light, lightFlags, x, y + 1, z, new Light { torch = SetChannel(upLight, 0) });
-                            lrbfs.Enqueue(new LightRemovalNode { index = x + S + (z + S) * W + (y + 1 + S) * W * W, light = upChannel });
-                        } else if (upChannel >= node.light) { // add to propagate queue so can fill gaps left behind by removal
-                            lbfs.Enqueue(x + S + (z + S) * W + (y + 1 + S) * W * W);
+                        if (upChannel != 0) {
+                            int index = x + S + (z + S) * W + (y + 1 + S) * W * W;
+                            if (upChannel < node.light) {
+                                if (!GetIsLight(upLight)) {
+                                    lightFlags = SetLight(ref light, lightFlags, x, y + 1, z, new Light { torch = SetChannel(upLight, 0) });
+                                } else {
+                                    lbfs.Enqueue(index);
+                                }
+                                lrbfs.Enqueue(new LightRemovalNode { index = index, light = oneLess });
+                            } else { // add to propagate queue so can fill gaps left behind by removal
+                                lbfs.Enqueue(index);
+                            }
                         }
 
                         ushort northLight = light.Get(x, y, z + 1).torch;
                         byte northChannel = (byte)GetChannel(northLight);
-                        if (northChannel != 0 && northChannel < node.light) {
-                            lightFlags = SetLight(ref light, lightFlags, x, y, z + 1, new Light { torch = SetChannel(northLight, 0) });
-                            lrbfs.Enqueue(new LightRemovalNode { index = x + S + (z + 1 + S) * W + (y + S) * W * W, light = northChannel });
-                        } else if (northChannel >= node.light) { // add to propagate queue so can fill gaps left behind by removal
-                            lbfs.Enqueue(x + S + (z + 1 + S) * W + (y + S) * W * W);
+                        if (northChannel != 0) {
+                            int index = x + S + (z + 1 + S) * W + (y + S) * W * W;
+                            if (northChannel < node.light) {
+                                if (!GetIsLight(northLight)) {
+                                    lightFlags = SetLight(ref light, lightFlags, x, y, z + 1, new Light { torch = SetChannel(northLight, 0) });
+                                } else {
+                                    lbfs.Enqueue(index);
+                                }
+                                lrbfs.Enqueue(new LightRemovalNode { index = index, light = oneLess });
+                            } else { // add to propagate queue so can fill gaps left behind by removal
+                                lbfs.Enqueue(index);
+                            }
                         }
+
+
                     }
 
                 } else { // propagate light from this channel
-
                     ushort curLight = light.Get(opx, opy, opz).torch;
-                     
+
                     lightFlags = SetLight(ref light, lightFlags, opx, opy, opz, new Light { torch = SetChannel(curLight, GetChannel(op.val)) });
+
+                    // if the ops channel is same or less than current channel, dont need to progagate
+                    if (GetChannel(op.val) <= GetChannel(curLight)) {
+                        continue;
+                    }
 
                     lbfs.Enqueue(startIndex);
 
