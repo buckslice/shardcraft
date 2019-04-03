@@ -1,5 +1,5 @@
 ﻿#define GEN_COLLIDERS
-#define _DEBUG
+//#define _DEBUG
 
 using System.Collections;
 using System.Collections.Generic;
@@ -137,9 +137,10 @@ public struct MeshJob : IJob {
 #endif
 
 #if _DEBUG
-        string output = string.Format("initLight:{0}, lighting:{1}, meshing:{2}, collider:{3}",
-            initLightTime, processLightTime, meshingTime, colliderTime);
-        Debug.Log(output);
+        lightBFS.Enqueue((int)initLightTime);
+        lightBFS.Enqueue((int)processLightTime);
+        lightBFS.Enqueue((int)meshingTime);
+        lightBFS.Enqueue((int)colliderTime);
 #endif
 
     }
@@ -220,9 +221,14 @@ public class MeshJobInfo {
 
     }
 
-    public static int lightIters = 1;
-    public static int lightTotal = 0;
-    public static bool lightTracking = false;
+#if _DEBUG
+    public static int totalsIters = 1;
+    public static int initLightTime = 0;
+    public static int processLightTime = 0;
+    public static int meshingTime = 0;
+    public static int colliderTime = 0;
+    public static bool tracking = true;
+#endif
 
     public void Finish() {
         chunk.UnlockLocalGroup();
@@ -242,22 +248,33 @@ public class MeshJobInfo {
         Pools.intPool.Return(colliderTris);
 #endif
 
-        if (lightBFS.Count > 1) {
-            int ii = lightBFS.Dequeue();
-            if (lightTracking) {
-                lightIters++;
-                lightTotal += ii;
-                Debug.Log("avg after " + lightIters + " = " + lightTotal / lightIters);
+        int lightFlags = lightBFS.Dequeue();
+
+#if _DEBUG
+        if (lightBFS.Count > 0) {
+            if (tracking) {
+                totalsIters++;
+                initLightTime += lightBFS.Dequeue();
+                processLightTime += lightBFS.Dequeue();
+                meshingTime += lightBFS.Dequeue();
+                colliderTime += lightBFS.Dequeue();
+
+                string output = string.Format("initLight:{0:0.0}, lighting:{1:0.0}, meshing:{2:0.0}, collider:{3:0.0}",
+                    initLightTime / (float)totalsIters,
+                    processLightTime / (float)totalsIters,
+                    meshingTime / (float)totalsIters,
+                    colliderTime / (float)totalsIters);
+
+                Debug.Log(output);
             }
         }
+#endif
 
-        int lightFlags = lightBFS.Dequeue();
 
         Pools.loQPool.Return(lightOps);
         Pools.intQPool.Return(lightBFS);
         Pools.lrnQPool.Return(lightRBFS);
 
-        //Debug.Log(lightFlags);
 
         // notify neighbors whom should update based on set light flags
         LightCalculator.CheckNeighborLightUpdate(chunk, lightFlags);
@@ -317,7 +334,7 @@ public class LightJobInfo {
 
 }
 
-
+// make the jobinfo handling into a class u moron
 public class JobController : MonoBehaviour {
 
     static List<GenJobInfo> genJobInfos = new List<GenJobInfo>();
@@ -364,11 +381,16 @@ public class JobController : MonoBehaviour {
     // Update is called once per frame
     void Update() {
 
+#if _DEBUG
         if (Input.GetKeyDown(KeyCode.P)) {
-            MeshJobInfo.lightTracking = !MeshJobInfo.lightTracking;
-            MeshJobInfo.lightIters = 1;
-            MeshJobInfo.lightTotal = 0;
+            MeshJobInfo.tracking = !MeshJobInfo.tracking;
+            MeshJobInfo.totalsIters = 1;
+            MeshJobInfo.initLightTime = 0;
+            MeshJobInfo.processLightTime = 0;
+            MeshJobInfo.meshingTime = 0;
+            MeshJobInfo.colliderTime = 0;
         }
+#endif
 
         for (int i = 0; i < genJobInfos.Count; ++i) {
             if (genJobInfos[i].handle.IsCompleted) {

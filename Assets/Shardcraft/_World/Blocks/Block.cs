@@ -65,7 +65,8 @@ public static class Blocks {
     public static readonly Block TORCH_B = new Block(8);
     public static readonly Block TORCH_M = new Block(9);
     public static readonly Block TORCH_Y = new Block(10);
-    public static readonly Block TORCH_W = new Block(11);
+    public static readonly Block TORCH_O = new Block(11);
+    public static readonly Block TORCH_W = new Block(12);
 }
 
 public static class BlockTypes {
@@ -82,6 +83,7 @@ public static class BlockTypes {
         new BlockTorch(0,0,31),
         new BlockTorch(31,0,31),
         new BlockTorch(31,31,0),
+        new BlockTorch(31,15,0),
         new BlockTorch(10,10,10),
     };
 
@@ -107,8 +109,9 @@ public abstract class BlockType {
                 return true;
             case Dir.down:
                 return true;
+            default:
+                return true;
         }
-        return false;
     }
 
     // not sure how to handle above IsSolid cases, seems more for blocks with visually transparent faces but should still have a collider there
@@ -157,15 +160,15 @@ public abstract class BlockType {
     }
 
     const float AOMIN = 0.2f;
-    static float CalcAO(int side1, int side2, ref NativeArray3x3<Block> blocks, int c1, int c2, int c3) {
+    protected static float CalcAO(int side1, int side2, ref NativeArray3x3<Block> blocks, int c1, int c2, int c3) {
         if (side1 + side2 == 2) {
             return AOMIN;
         }
         return (3.0f - side1 - side2 - GetOpacity(ref blocks, c1, c2, c3)) / 3.0f * (1.0f - AOMIN) + AOMIN;
     }
 
-    static int GetOpacity(ref NativeArray3x3<Block> blocks, int x, int y, int z) {
-        return blocks.Get(x, y, z) != Blocks.AIR ? 1 : 0;
+    protected static int GetOpacity(ref NativeArray3x3<Block> blocks, int x, int y, int z) {
+        return blocks.Get(x, y, z).IsSolid(Dir.none) ? 1 : 0; // dir.none for now since all blocks are either transparent or not
     }
 
     protected virtual void FaceDataWestNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights) {

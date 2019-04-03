@@ -258,7 +258,7 @@ public static class LightCalculator {
                     // get light level at this node
                     int mChan = GetChannel(light.Get(x, y, z).torch);
 
-                    // check each neighbor if its air (should later be any transparent block)
+                    // check each neighbor if its air (should be any non solid except torches)
                     // if neighbor light level is 2 or more levels less than this node, set them to this light-1 and add to queue
                     if (blocks.Get(x - 1, y, z) == Blocks.AIR) {
                         ushort nLight = light.Get(x - 1, y, z).torch;
@@ -514,6 +514,9 @@ public static class LightCalculator {
                     continue;
                 case Dir.north:
                     colors.Add(GetColorFromLight(lights.Get(x, y, z + 1)));
+                    continue;
+                default:
+                    colors.Add(GetColorFromLight(lights.Get(x, y, z)));
                     continue;
 
             }

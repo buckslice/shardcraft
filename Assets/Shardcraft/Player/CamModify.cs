@@ -17,10 +17,13 @@ public class CamModify : MonoBehaviour {
         Blocks.TORCH_R,
         Blocks.TORCH_G,
         Blocks.TORCH_B,
-        Blocks.TORCH_T,
-        Blocks.GRASS,
-        Blocks.STONE,
-        Blocks.BIRCH,
+        Blocks.TORCH_M,
+        Blocks.TORCH_Y,
+        Blocks.TORCH_O,
+        Blocks.TORCH_W,
+        //Blocks.GRASS,
+        //Blocks.STONE,
+        //Blocks.BIRCH,
     };
     int blockIndex = 0;
 

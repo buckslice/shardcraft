@@ -1,5 +1,5 @@
 ﻿using UnityEngine;
-using System.Collections;
+using Unity.Collections;
 
 public class BlockTorch : BlockType {
 
@@ -10,11 +10,7 @@ public class BlockTorch : BlockType {
     }
 
     public override bool IsSolid(Dir dir) {
-        return true;
-    }
-
-    public override bool ColliderSolid() {
-        return true;
+        return false;
     }
 
     public override int GetTextureIndex(Dir dir, int x, int y, int z, ref NativeArray3x3<Block> blocks) {
@@ -25,86 +21,97 @@ public class BlockTorch : BlockType {
         return torchCol;
     }
 
-    //const float w = 0.25f;
-    //public override void AddDataNative(int x, int y, int z, NativeMeshData data) {
-    //    FaceDataEastNative(x, y, z, data);
-    //    FaceDataUpNative(x, y, z, data);
-    //    FaceDataNorthNative(x, y, z, data);
-    //    FaceDataWestNative(x, y, z, data);
-    //    FaceDataDownNative(x, y, z, data);
-    //    FaceDataSouthNative(x, y, z, data);
+    public override void AddDataNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeList<Face> faces) {
 
-    //}
+        FaceDataWestNative(x, y, z, data, ref blocks, ref lights);
+        faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.none });
 
-    //protected override void FaceDataWestNative(int x, int y, int z, NativeMeshData data) {
-    //    data.AddVertex(new Vector3(x + w, y, z + 1.0f - w));
-    //    data.AddVertex(new Vector3(x + w, y + 1.0f, z + 1.0f - w));
-    //    data.AddVertex(new Vector3(x + w, y + 1.0f, z + w));
-    //    data.AddVertex(new Vector3(x + w, y, z + w));
+        if (!blocks.Get(x, y - 1, z).IsSolid(Dir.up)) {
+            FaceDataDownNative(x, y, z, data, ref blocks, ref lights);
+            faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.none });
+        }
 
-    //    data.AddQuadTriangles();
+        FaceDataSouthNative(x, y, z, data, ref blocks, ref lights);
+        faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.none });
 
-    //    data.AddFaceUVs(TexturePosition(Dir.west));
-    //}
+        FaceDataEastNative(x, y, z, data, ref blocks, ref lights);
+        faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.none });
 
-    //protected override void FaceDataDownNative(int x, int y, int z, NativeMeshData data) {
-    //    data.AddVertex(new Vector3(x + w, y, z + w));
-    //    data.AddVertex(new Vector3(x + 1.0f - w, y, z + w));
-    //    data.AddVertex(new Vector3(x + 1.0f - w, y, z + 1.0f - w));
-    //    data.AddVertex(new Vector3(x + w, y, z + 1.0f - w));
+        if (!blocks.Get(x, y + 1, z).IsSolid(Dir.down)) {
+            FaceDataUpNative(x, y, z, data, ref blocks, ref lights);
+            faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.none });
+        }
 
-    //    data.AddQuadTriangles();
+        FaceDataNorthNative(x, y, z, data, ref blocks, ref lights);
+        faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.none });
 
-    //    data.AddFaceUVs(TexturePosition(Dir.down));
-    //}
+    }
 
-    //protected override void FaceDataSouthNative(int x, int y, int z, NativeMeshData data) {
-    //    data.AddVertex(new Vector3(x + w, y, z + w));
-    //    data.AddVertex(new Vector3(x + w, y + 1.0f, z + w));
-    //    data.AddVertex(new Vector3(x + 1.0f - w, y + 1.0f, z + w));
-    //    data.AddVertex(new Vector3(x + 1.0f - w, y, z + w));
+    const float sub = 0.35f;
+    protected override void FaceDataWestNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights) {
+        Color c = LightCalculator.GetColorFromLight(lights.Get(x, y, z));
 
-    //    data.AddQuadTriangles();
+        data.AddVertex(new Vector3(x + sub, y, z + 1.0f - sub) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x + sub, y + 1.0f, z + 1.0f - sub) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x + sub, y + 1.0f, z + sub) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x + sub, y, z + sub) / Chunk.BPU, c);
+        data.AddQuadTriangles();
+        data.AddFaceUVs(GetTextureIndex(Dir.west, x, y, z, ref blocks));
+    }
 
-    //    data.AddFaceUVs(TexturePosition(Dir.south));
-    //}
+    protected override void FaceDataDownNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights) {
+        Color c = LightCalculator.GetColorFromLight(lights.Get(x, y, z));
 
-    //protected override void FaceDataEastNative(int x, int y, int z, NativeMeshData data) {
-    //    data.AddVertex(new Vector3(x + 1.0f - w, y, z + w));
-    //    data.AddVertex(new Vector3(x + 1.0f - w, y + 1.0f, z + w));
-    //    data.AddVertex(new Vector3(x + 1.0f - w, y + 1.0f, z + 1.0f - w));
-    //    data.AddVertex(new Vector3(x + 1.0f - w, y, z + 1.0f - w));
+        data.AddVertex(new Vector3(x + sub, y, z + sub) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x + 1.0f - sub, y, z + sub) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x + 1.0f - sub, y, z + 1.0f - sub) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x + sub, y, z + 1.0f - sub) / Chunk.BPU, c);
+        data.AddQuadTriangles();
+        data.AddFaceUVs(GetTextureIndex(Dir.down, x, y, z, ref blocks));
+    }
 
-    //    data.AddQuadTriangles();
+    protected override void FaceDataSouthNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights) {
+        Color c = LightCalculator.GetColorFromLight(lights.Get(x, y, z));
 
-    //    data.AddFaceUVs(TexturePosition(Dir.east));
-    //}
+        data.AddVertex(new Vector3(x + sub, y, z + sub) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x + sub, y + 1.0f, z + sub) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x + 1.0f - sub, y + 1.0f, z + sub) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x + 1.0f - sub, y, z + sub) / Chunk.BPU, c);
+        data.AddQuadTriangles();
+        data.AddFaceUVs(GetTextureIndex(Dir.south, x, y, z, ref blocks));
+    }
 
-    //protected override void FaceDataUpNative(int x, int y, int z, NativeMeshData data) {
-    //    data.AddVertex(new Vector3(x + w, y + 1.0f, z + 1.0f - w));
-    //    data.AddVertex(new Vector3(x + 1.0f - w, y + 1.0f, z + 1.0f - w));
-    //    data.AddVertex(new Vector3(x + 1.0f - w, y + 1.0f, z + w));
-    //    data.AddVertex(new Vector3(x + w, y + 1.0f, z + w));
+    protected override void FaceDataEastNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights) {
+        Color c = LightCalculator.GetColorFromLight(lights.Get(x, y, z));
 
-    //    data.AddQuadTriangles();
+        data.AddVertex(new Vector3(x + 1.0f - sub, y, z + sub) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x + 1.0f - sub, y + 1.0f, z + sub) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x + 1.0f - sub, y + 1.0f, z + 1.0f - sub) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x + 1.0f - sub, y, z + 1.0f - sub) / Chunk.BPU, c);
+        data.AddQuadTriangles();
+        data.AddFaceUVs(GetTextureIndex(Dir.east, x, y, z, ref blocks));
+    }
 
-    //    data.AddFaceUVs(TexturePosition(Dir.up));
-    //}
+    protected override void FaceDataUpNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights) {
+        Color c = LightCalculator.GetColorFromLight(lights.Get(x, y, z));
 
-    //protected override void FaceDataNorthNative(int x, int y, int z, NativeMeshData data) {
-    //    data.AddVertex(new Vector3(x + 1.0f - w, y, z + 1.0f - w));
-    //    data.AddVertex(new Vector3(x + 1.0f - w, y + 1.0f, z + 1.0f - w));
-    //    data.AddVertex(new Vector3(x + w, y + 1.0f, z + 1.0f - w));
-    //    data.AddVertex(new Vector3(x + w, y, z + 1.0f - w));
+        data.AddVertex(new Vector3(x + sub, y + 1.0f, z + 1.0f - sub) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x + 1.0f - sub, y + 1.0f, z + 1.0f - sub) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x + 1.0f - sub, y + 1.0f, z + sub) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x + sub, y + 1.0f, z + sub) / Chunk.BPU, c);
+        data.AddQuadTriangles();
+        data.AddFaceUVs(GetTextureIndex(Dir.up, x, y, z, ref blocks));
+    }
 
-    //    data.AddQuadTriangles();
+    protected override void FaceDataNorthNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights) {
+        Color c = LightCalculator.GetColorFromLight(lights.Get(x, y, z));
 
-    //    data.AddFaceUVs(TexturePosition(Dir.north));
-    //}
-
-    //// test smiley texture
-    //public override Tile TexturePosition(Dir dir, int x, int y, int z, NativeMeshData data) {
-    //    return new Tile(1, 1);
-    //}
+        data.AddVertex(new Vector3(x + 1.0f - sub, y, z + 1.0f - sub) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x + 1.0f - sub, y + 1.0f, z + 1.0f - sub) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x + sub, y + 1.0f, z + 1.0f - sub) / Chunk.BPU, c);
+        data.AddVertex(new Vector3(x + sub, y, z + 1.0f - sub) / Chunk.BPU, c);
+        data.AddQuadTriangles();
+        data.AddFaceUVs(GetTextureIndex(Dir.north, x, y, z, ref blocks));
+    }
 
 }

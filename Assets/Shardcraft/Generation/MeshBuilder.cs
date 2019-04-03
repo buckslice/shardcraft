@@ -160,7 +160,6 @@ public static class MeshBuilder {
                         Vector3 topLeft = new Vector3(x[0] + du[0], x[1] + du[1], x[2] + du[2]) + MeshUtils.padOffset[s][2];
                         Vector3 topRight = new Vector3(x[0] + du[0] + dv[0], x[1] + du[1] + dv[1], x[2] + du[2] + dv[2]) + MeshUtils.padOffset[s][3];
 
-                        // not using for now
                         botLeft /= Chunk.BPU;
                         topLeft /= Chunk.BPU;
                         topRight /= Chunk.BPU;

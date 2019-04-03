@@ -11,6 +11,7 @@ public enum Dir : byte {
     east = 3,   //front faces
     up = 4,
     north = 5,
+    none = 6,
 };
 
 
