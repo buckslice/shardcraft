@@ -1,4 +1,6 @@
-﻿//#define _DEBUG
+﻿#if UNITY_EDITOR
+//#define _DEBUG
+#endif
 
 using UnityEngine;
 using System.Collections;

@@ -162,6 +162,14 @@ public class World : MonoBehaviour {
         }
     }
 
+    public void SetBlock(Vector3i bp, Block block) {
+        Chunk chunk = GetChunkByWorldBlockPos(bp.x, bp.y, bp.z);
+
+        if (chunk != null) {
+            chunk.SetBlock(bp.x - chunk.bp.x, bp.y - chunk.bp.y, bp.z - chunk.bp.z, block);
+        }
+    }
+
     public void SwapGreedy() {
         Chunk.beGreedy = !Chunk.beGreedy;
 
@@ -174,7 +182,7 @@ public class World : MonoBehaviour {
     }
 
     public bool IsAnyChunksLocked() {
-        foreach(Chunk c in chunks.Values) {
+        foreach (Chunk c in chunks.Values) {
             if (c.IsDataLocked()) {
                 return true;
             }

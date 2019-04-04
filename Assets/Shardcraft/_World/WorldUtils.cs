@@ -115,11 +115,21 @@ public struct BlockEdit {
 }
 
 public static class Mth {
+
+    // true modulo implementation
     public static int Mod(int x, int m) {
         return (x % m + m) % m;
-
         //int r = x % m;
         //return r < 0 ? r + m : r;
+    }
+
+    // better not to use extra mod with floats if can i guess
+    public static float Mod(float a, float b) {
+        float c = a % b;
+        if ((c < 0 && b > 0) || (c > 0 && b < 0)) {
+            c += b;
+        }
+        return c;
     }
 
     public static int Mod16(int x) {

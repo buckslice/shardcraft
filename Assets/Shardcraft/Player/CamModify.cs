@@ -3,7 +3,7 @@ using System.Collections;
 
 public class CamModify : MonoBehaviour {
 
-    RaycastHit lastHit;
+    RaycastVoxelHit lastHit;
     Vector3 lastPos;
 
     World world;
@@ -66,34 +66,31 @@ public class CamModify : MonoBehaviour {
             MeshBuilder.GetBlockMesh(blocks[blockIndex], blockMeshFilter);
         }
 
-        RaycastHit hit;
-
         // show square around block aiming at
         // todo: have option to show 2x2 for hammering!
-        bool mainRaycast = Physics.Raycast(transform.position, transform.forward, out hit, 1000);
+        //bool mainRaycast = Physics.Raycast(transform.position, transform.forward, out hit, 1000);
         drawer.Clear();
-        if (mainRaycast) {
-            if (hit.collider.CompareTag(Tags.Terrain)) {
-                Vector3i bp = WorldUtils.GetBlockPos(hit, false);
 
-                // move cube towards camera direction a little so it looks better when intersecting with other blocks
-                Vector3 center = (bp.ToVector3() + Vector3.one * 0.5f) / Chunk.BPU;
-                drawer.AddBounds(new Bounds(center - transform.forward * 0.01f, Vector3.one / Chunk.BPU), Color.white);
-            }
+        RaycastVoxelHit vhit;
+        bool success = BlonkPhysics.RaycastVoxel(world, transform.position, transform.forward, out vhit);
+        if (success) {
+            // move cube towards camera direction a little so it looks better when intersecting with other blocks
+            Vector3 center = (vhit.bpos.ToVector3() + Vector3.one * 0.5f) / Chunk.BPU;
+            drawer.AddBounds(new Bounds(center - transform.forward * 0.01f, Vector3.one / Chunk.BPU), Color.white);
         }
 
         // left click delete
-        if (Input.GetMouseButtonDown(0) && mainRaycast) {
+        if (Input.GetMouseButtonDown(0) && success) {
             lastPos = transform.position;
-            lastHit = hit;
-            WorldUtils.SetBlock(world, hit, Blocks.AIR);
+            lastHit = vhit;
+            world.SetBlock(vhit.bpos, Blocks.AIR);
         }
 
         // right click place
-        if (Input.GetMouseButtonDown(1) && mainRaycast) {
+        if (Input.GetMouseButtonDown(1) && success) {
             lastPos = transform.position;
-            lastHit = hit;
-            WorldUtils.SetBlock(world, hit, blocks[blockIndex], true);
+            lastHit = vhit;
+            world.SetBlock(vhit.bpos + Dirs.GetNormal(vhit.dir), blocks[blockIndex]);
         }
 
         if (Input.GetKeyDown(KeyCode.F1)) {
@@ -103,17 +100,13 @@ public class CamModify : MonoBehaviour {
             DrawChunkBorders();
         }
 
-        //if (Input.GetKeyDown(KeyCode.P)) {
-        //    world.SwapGreedy();
-        //}
-
     }
 
-    private void OnDrawGizmos() {
-        Debug.DrawLine(lastPos, lastHit.point, Color.green, 1.0f);
-        Debug.DrawRay(lastHit.point, lastHit.normal, Color.magenta, 1.0f);
-
-    }
+    //private void OnDrawGizmos() {
+    //    Vector3 p = lastHit.bpos.ToVector3() / Chunk.BPU;
+    //    Debug.DrawLine(lastPos, p, Color.green, 1.0f);
+    //    Debug.DrawRay(p, Dirs.GetNormal(lastHit.dir).ToVector3(), Color.magenta, 1.0f);
+    //}
 
     void DrawChunkBorders() {
         // local function to add chunks quick

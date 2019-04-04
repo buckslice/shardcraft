@@ -1,5 +1,7 @@
-﻿#define GEN_COLLIDERS
+﻿#if UNITY_EDITOR
 //#define _DEBUG
+#endif
+//#define GEN_COLLIDERS
 
 using System.Collections;
 using System.Collections.Generic;

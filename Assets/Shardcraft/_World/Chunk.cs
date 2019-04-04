@@ -11,6 +11,7 @@ public class Chunk {
     public const int CHUNK_HEIGHT = SIZE;
 
     public const int BPU = 2; // blocks per unit
+    public const float BLOCK_SIZE = 1.0f / BPU;
 
     //public Block[] blocks;
 

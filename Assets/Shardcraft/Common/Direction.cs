@@ -28,6 +28,20 @@ public static class Dirs {
         return (Dir)Opp((int)dir);
     }
 
+    static Vector3i[] norms = new Vector3i[] {
+        new Vector3i(-1,0,0),
+        new Vector3i(0,-1,0),
+        new Vector3i(0,0,-1),
+        new Vector3i(1,0,0),
+        new Vector3i(0,1,0),
+        new Vector3i(0,0,1),
+        new Vector3i(0,0,0),
+    };
+
+    public static Vector3i GetNormal(Dir dir) {
+        return norms[(int)dir];
+    }
+
     public static int Opp(int dir) {
         return (dir + 3) % 6;
     }
