@@ -33,7 +33,7 @@ public class World : MonoBehaviour {
         }
         void ChunkDispose(Chunk chunk) {
             chunk.blocks.Dispose();
-            chunk.light.Dispose();
+            chunk.lights.Dispose();
             chunk.faces.Dispose();
         }
         chunkPool = new Pool<Chunk>(InstantiateChunk, ChunkDispose);

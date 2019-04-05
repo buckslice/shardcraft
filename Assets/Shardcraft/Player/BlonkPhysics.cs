@@ -197,7 +197,7 @@ public class BlonkPhysics : MonoBehaviour {
 #if _DEBUG
     private void OnDrawGizmos() {
         Gizmos.color = Color.green;
-        Gizmos.DrawLine(lastOrigin, lastOrigin + lastDir * SELECT_RADIUS);
+        Gizmos.DrawLine(lastOrigin, lastOrigin + lastDir * (SELECT_RADIUS / 2.0f + 1.0f)); // cus its like manhattan radius
 
         Gizmos.color = Color.magenta;
         for (int i = 0; i < posAlong.Count; ++i) {

@@ -58,7 +58,8 @@
             fixed4 texCol = UNITY_SAMPLE_TEX2DARRAY(_MainTex, IN.blockUVs);
 
             half3 light = GammaToLinearSpace(IN.color.rgb);
-            o.Albedo = lerp(0.005, 1.0, light);//*texCol.rgb;
+            //light = saturate(light*5.0); // kinda like bright mode in minecraft
+            o.Albedo = lerp(0.005, 1.0, light)*texCol.rgb;
             //o.Albedo = col.rgb;
             o.Albedo *= IN.color.a; // multiply by ambient occlusion stored in alpha channel of color
             o.Alpha = texCol.a; // set from transparent textures

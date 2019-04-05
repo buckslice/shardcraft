@@ -30,7 +30,7 @@ public static class WorldGenerator {
     }
 
 
-    public static void Generate(Vector3 chunkWorldPos, NativeArray<Block> blocks) {
+    public static void Generate(Vector3 chunkWorldPos, NativeArray<Block> blocks, NativeArray<Light> lights) {
         // make this single loop instead and calculate x,y,z from index i
         for (int y = 0; y < Chunk.SIZE; ++y) {
             for (int z = 0; z < Chunk.SIZE; ++z) {
@@ -67,6 +67,11 @@ public static class WorldGenerator {
 
                 }
             }
+        }
+
+        // clear light array
+        for (int i = 0; i < lights.Length; ++i) {
+            lights[i] = new Light { torch = 0 };
         }
     }
 

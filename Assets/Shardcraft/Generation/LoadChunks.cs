@@ -11,9 +11,9 @@ public class LoadChunks : MonoBehaviour {
 
     Vector3i[] neighborChunks; // list of chunk offsets to generate in order of closeness
 
-    public const int maxUpdatesPerFrame = 2; // number of update per frame (sends mesh jobs among other things)
+    public const int maxUpdatesPerFrame = 8; // number of update per frame (sends mesh jobs among other things)
     public const int genJobLimit = 16; // limit on number of active generation jobs
-    public const int meshLoadsPerFrame = 8; // number of meshes and colliders uploaded per frame
+    public const int meshLoadsPerFrame = 16; // number of meshes and colliders uploaded per frame
 
     public Text text;
 

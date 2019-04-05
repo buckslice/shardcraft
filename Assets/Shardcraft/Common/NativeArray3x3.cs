@@ -115,6 +115,88 @@ public struct NativeArray3x3<T> where T : struct {
             }
         }
     }
+
+    public void Set(int x, int y, int z, T val) {
+        if (y < 0) {
+            if (z < 0) {
+                if (x < 0) {
+                    dsw[(x + S) + (z + S) * S + (y + S) * S * S] = val;
+                } else if (x >= S) {
+                    dse[(x - S) + (z + S) * S + (y + S) * S * S] = val;
+                } else {
+                    ds[x + (z + S) * S + (y + S) * S * S] = val;
+                }
+            } else if (z >= S) {
+                if (x < 0) {
+                    dnw[(x + S) + (z - S) * S + (y + S) * S * S] = val;
+                } else if (x >= S) {
+                    dne[(x - S) + (z - S) * S + (y + S) * S * S] = val;
+                } else {
+                    dn[x + (z - S) * S + (y + S) * S * S] = val;
+                }
+            } else {
+                if (x < 0) {
+                    dw[(x + S) + z * S + (y + S) * S * S] = val;
+                } else if (x >= S) {
+                    de[(x - S) + z * S + (y + S) * S * S] = val;
+                } else {
+                    d[x + z * S + (y + S) * S * S] = val;
+                }
+            }
+        } else if (y >= S) {
+            if (z < 0) {
+                if (x < 0) {
+                    usw[(x + S) + (z + S) * S + (y - S) * S * S] = val;
+                } else if (x >= S) {
+                    use[(x - S) + (z + S) * S + (y - S) * S * S] = val;
+                } else {
+                    us[x + (z + S) * S + (y - S) * S * S] = val;
+                }
+            } else if (z >= S) {
+                if (x < 0) {
+                    unw[(x + S) + (z - S) * S + (y - S) * S * S] = val;
+                } else if (x >= S) {
+                    une[(x - S) + (z - S) * S + (y - S) * S * S] = val;
+                } else {
+                    un[x + (z - S) * S + (y - S) * S * S] = val;
+                }
+            } else {
+                if (x < 0) {
+                    uw[(x + S) + z * S + (y - S) * S * S] = val;
+                } else if (x >= S) {
+                    ue[(x - S) + z * S + (y - S) * S * S] = val;
+                } else {
+                    u[x + z * S + (y - S) * S * S] = val;
+                }
+            }
+        } else {
+            if (z < 0) {
+                if (x < 0) {
+                    sw[(x + S) + (z + S) * S + y * S * S] = val;
+                } else if (x >= S) {
+                    se[(x - S) + (z + S) * S + y * S * S] = val;
+                } else {
+                    s[x + (z + S) * S + y * S * S] = val;
+                }
+            } else if (z >= S) {
+                if (x < 0) {
+                    nw[(x + S) + (z - S) * S + y * S * S] = val;
+                } else if (x >= S) {
+                    ne[(x - S) + (z - S) * S + y * S * S] = val;
+                } else {
+                    n[x + (z - S) * S + y * S * S] = val;
+                }
+            } else {
+                if (x < 0) {
+                    w[(x + S) + z * S + y * S * S] = val;
+                } else if (x >= S) {
+                    e[(x - S) + z * S + y * S * S] = val;
+                } else {
+                    c[x + z * S + y * S * S] = val;
+                }
+            }
+        }
+    }
 }
 
 

@@ -491,14 +491,17 @@ public static class Serialization {
     // decode given byte array into nativearray for chunk
     static void DecodeChunk(byte[] buffer, int bytes, Chunk chunk) {
         var blocks = chunk.blocks;
+        var lights = chunk.lights; // just resetting this here
 
         reader.Start(buffer, 0, uintBuffer, bytes);
 
         chunk.builtStructures = reader.ReadBool();
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-        var handle = AtomicSafetyHandle.Create();
-        NativeArrayUnsafeUtility.SetAtomicSafetyHandle(ref blocks, handle);
+        var bh = AtomicSafetyHandle.Create();
+        NativeArrayUnsafeUtility.SetAtomicSafetyHandle(ref blocks, bh);
+        var lh = AtomicSafetyHandle.Create();
+        NativeArrayUnsafeUtility.SetAtomicSafetyHandle(ref lights, bh);
 #endif
 
         int i = 0;
@@ -510,8 +513,14 @@ public static class Serialization {
             }
         }
 
+        // clear light array
+        for (i = 0; i < lights.Length; ++i) {
+            lights[i] = new Light { torch = 0 };
+        }
+
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
-        AtomicSafetyHandle.Release(handle);
+        AtomicSafetyHandle.Release(bh);
+        AtomicSafetyHandle.Release(lh);
 #endif
     }
 
@@ -563,7 +572,7 @@ public static class Serialization {
         }
 
         FlyCam player = Camera.main.transform.GetComponent<FlyCam>();
-        if(player == null) {
+        if (player == null) {
             return;
         }
 

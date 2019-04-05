@@ -17,7 +17,7 @@ public class Chunk {
 
     public NativeArray<Block> blocks;
 
-    public NativeArray<Light> light;
+    public NativeArray<Light> lights;
 
     public NativeList<Face> faces;
 
@@ -47,20 +47,15 @@ public class Chunk {
     // w d s e u n
     public Chunk[] neighbors = new Chunk[6];
 
-    public int loadedNeighbors = 0;
-    // dont think having all 26 neighbors would be good. not too hard to say neighbors[0].neighbors[3] for example or something
-    // 12 edge neighbors, uw, us, ue, un, sw, se, nw, ne, dw, ds, de, dn
-    // 8 corner neighbors, usw, use, unw, une, dsw, dse, dnw, dne
-    // or just figure out way to index them like this neighbors[-1,0,1]; so that would be up west neighbor
-    // could just be a method that remaps -1,0,1 indices to 0,1,2 array
+    public int loadedNeighbors = 0; // 26 if whole local group is loaded
 
     public static bool beGreedy = false;
 
     public Chunk(GameObject gameObject) {
         this.gameObject = gameObject;
 
-        blocks = new NativeArray<Block>(SIZE * SIZE * SIZE, Allocator.Persistent);
-        light = new NativeArray<Light>(SIZE * SIZE * SIZE, Allocator.Persistent);
+        blocks = new NativeArray<Block>(SIZE * SIZE * SIZE, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+        lights = new NativeArray<Light>(SIZE * SIZE * SIZE, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
         faces = new NativeList<Face>(Allocator.Persistent);
 
         mr = gameObject.GetComponent<MeshRenderer>();
@@ -85,8 +80,9 @@ public class Chunk {
         needNewCollider = true;
         loadedNeighbors = 0;
 
-        faces.Capacity = 32;
         faces.Clear();
+        // just to make sure list doesnt get too large
+        faces.Capacity = 32;
 
         gameObject.transform.position = bp.ToVector3() / BPU;
         gameObject.name = "Chunk " + cp;
@@ -365,33 +361,33 @@ public class Chunk {
 
     public NativeArray3x3<Light> GetLocalLights() {
         return new NativeArray3x3<Light> {
-            c = light,
-            w = neighbors[Dirs.WEST].light,
-            d = neighbors[Dirs.DOWN].light,
-            s = neighbors[Dirs.SOUTH].light,
-            e = neighbors[Dirs.EAST].light,
-            u = neighbors[Dirs.UP].light,
-            n = neighbors[Dirs.NORTH].light,
-            uw = neighbors[Dirs.UP].neighbors[Dirs.WEST].light,
-            us = neighbors[Dirs.UP].neighbors[Dirs.SOUTH].light,
-            ue = neighbors[Dirs.UP].neighbors[Dirs.EAST].light,
-            un = neighbors[Dirs.UP].neighbors[Dirs.NORTH].light,
-            dw = neighbors[Dirs.DOWN].neighbors[Dirs.WEST].light,
-            ds = neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].light,
-            de = neighbors[Dirs.DOWN].neighbors[Dirs.EAST].light,
-            dn = neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].light,
-            sw = neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].light,
-            se = neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].light,
-            nw = neighbors[Dirs.NORTH].neighbors[Dirs.WEST].light,
-            ne = neighbors[Dirs.NORTH].neighbors[Dirs.EAST].light,
-            usw = neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].light,
-            use = neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].light,
-            unw = neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].light,
-            une = neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].light,
-            dsw = neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].light,
-            dse = neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].light,
-            dnw = neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].light,
-            dne = neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].light,
+            c = lights,
+            w = neighbors[Dirs.WEST].lights,
+            d = neighbors[Dirs.DOWN].lights,
+            s = neighbors[Dirs.SOUTH].lights,
+            e = neighbors[Dirs.EAST].lights,
+            u = neighbors[Dirs.UP].lights,
+            n = neighbors[Dirs.NORTH].lights,
+            uw = neighbors[Dirs.UP].neighbors[Dirs.WEST].lights,
+            us = neighbors[Dirs.UP].neighbors[Dirs.SOUTH].lights,
+            ue = neighbors[Dirs.UP].neighbors[Dirs.EAST].lights,
+            un = neighbors[Dirs.UP].neighbors[Dirs.NORTH].lights,
+            dw = neighbors[Dirs.DOWN].neighbors[Dirs.WEST].lights,
+            ds = neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].lights,
+            de = neighbors[Dirs.DOWN].neighbors[Dirs.EAST].lights,
+            dn = neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].lights,
+            sw = neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].lights,
+            se = neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].lights,
+            nw = neighbors[Dirs.NORTH].neighbors[Dirs.WEST].lights,
+            ne = neighbors[Dirs.NORTH].neighbors[Dirs.EAST].lights,
+            usw = neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].lights,
+            use = neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].lights,
+            unw = neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].lights,
+            une = neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].lights,
+            dsw = neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].lights,
+            dse = neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].lights,
+            dnw = neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].lights,
+            dne = neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].lights,
         };
     }
 

@@ -17,10 +17,11 @@ public struct GenerationJob : IJob {
 
     public Vector3 chunkWorldPos;
     public NativeArray<Block> blocks;
+    public NativeArray<Light> lights;
 
     public void Execute() {
 
-        WorldGenerator.Generate(chunkWorldPos, blocks);
+        WorldGenerator.Generate(chunkWorldPos, blocks, lights);
 
     }
 }
@@ -30,13 +31,18 @@ public class GenJobInfo {
 
     Chunk chunk;
     NativeArray<Block> blocks;
+    NativeArray<Light> lights;
 
     public GenJobInfo(Chunk chunk) {
         this.chunk = chunk;
         blocks = chunk.blocks;
+        lights = chunk.lights;
+
+        //lights.
 
         GenerationJob job = new GenerationJob {
             blocks = blocks,
+            lights = lights,
             chunkWorldPos = chunk.GetWorldPos(),
         };
 
