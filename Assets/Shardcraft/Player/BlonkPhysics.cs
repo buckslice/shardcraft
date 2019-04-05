@@ -74,6 +74,12 @@ public class BlonkPhysics : MonoBehaviour {
         }
 
         Vector3i pos = WorldUtils.GetBlockPos(origin);
+        // check if inside a block already
+        if (world.GetBlock(pos.x, pos.y, pos.z).ColliderSolid()) {
+            hit.bpos = pos;
+            hit.dir = Dir.none;
+            return true;
+        }
 
 #if _DEBUG
         lastOrigin = origin;

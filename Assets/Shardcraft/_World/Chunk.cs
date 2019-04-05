@@ -54,8 +54,8 @@ public class Chunk {
     public Chunk(GameObject gameObject) {
         this.gameObject = gameObject;
 
-        blocks = new NativeArray<Block>(SIZE * SIZE * SIZE, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
-        lights = new NativeArray<Light>(SIZE * SIZE * SIZE, Allocator.Persistent, NativeArrayOptions.UninitializedMemory);
+        blocks = new NativeArray<Block>(SIZE * SIZE * SIZE, Allocator.Persistent);// NativeArrayOptions.UninitializedMemory);
+        lights = new NativeArray<Light>(SIZE * SIZE * SIZE, Allocator.Persistent);// NativeArrayOptions.UninitializedMemory);
         faces = new NativeList<Face>(Allocator.Persistent);
 
         mr = gameObject.GetComponent<MeshRenderer>();
