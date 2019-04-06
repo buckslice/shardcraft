@@ -12,22 +12,316 @@ public static class MeshBuilder {
 
     const int S = Chunk.SIZE;
 
-    public static void BuildNaive(NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeList<Face> faces) {
+    public static void BuildNaive(ref NativeMeshData meshData, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeArray<BlockData> blockData) {
 
         for (int y = 0; y < S; y++) {
             for (int z = 0; z < S; z++) {
                 for (int x = 0; x < S; x++) {
-                    blocks.c[x + z * S + y * S * S].GetType().AddDataNative(x, y, z, data, ref blocks, ref lights, faces);
+                    //blocks.c[x + z * S + y * S * S].GetType().AddDataNative(x, y, z, ref data, ref blocks, ref lights, faces);
+
+                    BlockData bd = blockData[blocks.c[x + z * S + y * S * S].type];
+
+                    if (bd.hasMesh == 1) {
+                        AddDataNative(x, y, z, ref meshData, ref blocks, ref lights, blockData);
+                    }
+
                 }
             }
         }
+    }
+
+    static int GetTextureIndex(Dir dir, int x, int y, int z, ref NativeArray3x3<Block> blocks, NativeArray<BlockData> blockData) {
+        Block b = blocks.Get(x, y, z);
+        int texture = blockData[b.type].texture;
+        if (texture >= 0) {
+            return texture;
+        }
+
+        if (b == Blocks.GRASS) {
+            switch (dir) {
+                case Dir.up:
+                    return 2;
+                case Dir.down:
+                    return 1;
+            }
+
+            if (blocks.Get(x, y + 1, z) != Blocks.AIR) {
+                return 1;
+            }
+
+            switch (dir) {
+                case Dir.west:
+                    if (blocks.Get(x - 1, y - 1, z) == Blocks.GRASS) {
+                        return 2;
+                    }
+                    break;
+                case Dir.east:
+                    if (blocks.Get(x + 1, y - 1, z) == Blocks.GRASS) {
+                        return 2;
+                    }
+                    break;
+                case Dir.south:
+                    if (blocks.Get(x, y - 1, z - 1) == Blocks.GRASS) {
+                        return 2;
+                    }
+                    break;
+                case Dir.north:
+                    if (blocks.Get(x, y - 1, z + 1) == Blocks.GRASS) {
+                        return 2;
+                    }
+                    break;
+            }
+
+            return 3;
+        } else if (b == Blocks.BIRCH) {
+            switch (dir) {
+                case Dir.up:
+                case Dir.down:
+                    return 5;
+                default:
+                    return 4;
+            }
+        }
+
+        return -1; // shouldnt ever reach this point
+    }
+
+    static void AddDataNative(int x, int y, int z, ref NativeMeshData meshData, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeArray<BlockData> blockData) {
+        if (!BlockData.RenderSolid(blockData, blocks.Get(x - 1, y, z), Dir.east)) {
+            FaceDataWestNative(x, y, z, ref meshData, ref blocks, ref lights, blockData);
+            meshData.faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.west });
+        }
+        if (!BlockData.RenderSolid(blockData, blocks.Get(x, y - 1, z), Dir.up)) {
+            FaceDataDownNative(x, y, z, ref meshData, ref blocks, ref lights, blockData);
+            meshData.faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.down });
+        }
+        if (!BlockData.RenderSolid(blockData, blocks.Get(x, y, z - 1), Dir.north)) {
+            FaceDataSouthNative(x, y, z, ref meshData, ref blocks, ref lights, blockData);
+            meshData.faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.south });
+        }
+        if (!BlockData.RenderSolid(blockData, blocks.Get(x + 1, y, z), Dir.west)) {
+            FaceDataEastNative(x, y, z, ref meshData, ref blocks, ref lights, blockData);
+            meshData.faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.east });
+        }
+        if (!BlockData.RenderSolid(blockData, blocks.Get(x, y + 1, z), Dir.down)) {
+            FaceDataUpNative(x, y, z, ref meshData, ref blocks, ref lights, blockData);
+            meshData.faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.up });
+        }
+        if (!BlockData.RenderSolid(blockData, blocks.Get(x, y, z + 1), Dir.south)) {
+            FaceDataNorthNative(x, y, z, ref meshData, ref blocks, ref lights, blockData);
+            meshData.faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.north });
+        }
+    }
+
+    const float AOMIN = 0.2f;
+    static float CalcAO(int side1, int side2, ref NativeArray3x3<Block> blocks, NativeArray<BlockData> blockData, int c1, int c2, int c3) {
+        if (side1 + side2 == 2) {
+            return AOMIN;
+        }
+        return (3.0f - side1 - side2 - GetOpacity(ref blocks, blockData, c1, c2, c3)) / 3.0f * (1.0f - AOMIN) + AOMIN;
+    }
+
+    static int GetOpacity(ref NativeArray3x3<Block> blocks, NativeArray<BlockData> blockData, int x, int y, int z) {
+        return BlockData.RenderSolid(blockData, blocks.Get(x, y, z), Dir.none) ? 1 : 0; // dir.none for now since all blocks are either transparent or not
+    }
+
+    static void FaceDataWestNative(int x, int y, int z, ref NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeArray<BlockData> blockData) {
+        Color c = LightCalculator.GetColorFromLight(lights.Get(x - 1, y, z));
+
+        int up = GetOpacity(ref blocks, blockData, x - 1, y + 1, z);
+        int down = GetOpacity(ref blocks, blockData, x - 1, y - 1, z);
+        int north = GetOpacity(ref blocks, blockData, x - 1, y, z + 1);
+        int south = GetOpacity(ref blocks, blockData, x - 1, y, z - 1);
+
+        float a0 = CalcAO(down, north, ref blocks, blockData, x - 1, y - 1, z + 1);
+        float a1 = CalcAO(up, north, ref blocks, blockData, x - 1, y + 1, z + 1);
+        float a2 = CalcAO(up, south, ref blocks, blockData, x - 1, y + 1, z - 1);
+        float a3 = CalcAO(down, south, ref blocks, blockData, x - 1, y - 1, z - 1);
+
+        c.a = a0;
+        data.AddVertex(new Vector3(x, y, z + 1.0f) / Chunk.BPU, c);
+        c.a = a1;
+        data.AddVertex(new Vector3(x, y + 1.0f, z + 1.0f) / Chunk.BPU, c);
+        c.a = a2;
+        data.AddVertex(new Vector3(x, y + 1.0f, z) / Chunk.BPU, c);
+        c.a = a3;
+        data.AddVertex(new Vector3(x, y, z) / Chunk.BPU, c);
+
+        // do anisotropy flip
+        if (a0 + a2 > a1 + a3) {
+            data.AddQuadTriangles();
+        } else {
+            data.AddFlippedQuadTriangles();
+        }
+
+        data.AddFaceUVs(GetTextureIndex(Dir.west, x, y, z, ref blocks, blockData));
+    }
+
+    static void FaceDataDownNative(int x, int y, int z, ref NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeArray<BlockData> blockData) {
+        Color c = LightCalculator.GetColorFromLight(lights.Get(x, y - 1, z));
+
+        int north = GetOpacity(ref blocks, blockData, x, y - 1, z + 1);
+        int south = GetOpacity(ref blocks, blockData, x, y - 1, z - 1);
+        int east = GetOpacity(ref blocks, blockData, x + 1, y - 1, z);
+        int west = GetOpacity(ref blocks, blockData, x - 1, y - 1, z);
+
+        float a0 = CalcAO(south, west, ref blocks, blockData, x - 1, y - 1, z - 1);
+        float a1 = CalcAO(south, east, ref blocks, blockData, x + 1, y - 1, z - 1);
+        float a2 = CalcAO(north, east, ref blocks, blockData, x + 1, y - 1, z + 1);
+        float a3 = CalcAO(north, west, ref blocks, blockData, x - 1, y - 1, z + 1);
+
+        c.a = a0;
+        data.AddVertex(new Vector3(x, y, z) / Chunk.BPU, c);
+        c.a = a1;
+        data.AddVertex(new Vector3(x + 1.0f, y, z) / Chunk.BPU, c);
+        c.a = a2;
+        data.AddVertex(new Vector3(x + 1.0f, y, z + 1.0f) / Chunk.BPU, c);
+        c.a = a3;
+        data.AddVertex(new Vector3(x, y, z + 1.0f) / Chunk.BPU, c);
+
+        // do anisotropy flip
+        if (a0 + a2 > a1 + a3) {
+            data.AddQuadTriangles();
+        } else {
+            data.AddFlippedQuadTriangles();
+        }
+
+        data.AddFaceUVs(GetTextureIndex(Dir.down, x, y, z, ref blocks, blockData));
+    }
+
+    static void FaceDataSouthNative(int x, int y, int z, ref NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeArray<BlockData> blockData) {
+        Color c = LightCalculator.GetColorFromLight(lights.Get(x, y, z - 1));
+
+        int up = GetOpacity(ref blocks, blockData, x, y + 1, z - 1);
+        int down = GetOpacity(ref blocks, blockData, x, y - 1, z - 1);
+        int east = GetOpacity(ref blocks, blockData, x + 1, y, z - 1);
+        int west = GetOpacity(ref blocks, blockData, x - 1, y, z - 1);
+
+        float a0 = CalcAO(down, west, ref blocks, blockData, x - 1, y - 1, z - 1);
+        float a1 = CalcAO(up, west, ref blocks, blockData, x - 1, y + 1, z - 1);
+        float a2 = CalcAO(up, east, ref blocks, blockData, x + 1, y + 1, z - 1);
+        float a3 = CalcAO(down, east, ref blocks, blockData, x + 1, y - 1, z - 1);
+
+        c.a = a0;
+        data.AddVertex(new Vector3(x, y, z) / Chunk.BPU, c);
+        c.a = a1;
+        data.AddVertex(new Vector3(x, y + 1.0f, z) / Chunk.BPU, c);
+        c.a = a2;
+        data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z) / Chunk.BPU, c);
+        c.a = a3;
+        data.AddVertex(new Vector3(x + 1.0f, y, z) / Chunk.BPU, c);
+
+        // do anisotropy flip
+        if (a0 + a2 > a1 + a3) {
+            data.AddQuadTriangles();
+        } else {
+            data.AddFlippedQuadTriangles();
+        }
+
+        data.AddFaceUVs(GetTextureIndex(Dir.south, x, y, z, ref blocks, blockData));
+    }
+
+    static void FaceDataEastNative(int x, int y, int z, ref NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeArray<BlockData> blockData) {
+        Color c = LightCalculator.GetColorFromLight(lights.Get(x + 1, y, z));
+
+        int up = GetOpacity(ref blocks, blockData, x + 1, y + 1, z);
+        int down = GetOpacity(ref blocks, blockData, x + 1, y - 1, z);
+        int north = GetOpacity(ref blocks, blockData, x + 1, y, z + 1);
+        int south = GetOpacity(ref blocks, blockData, x + 1, y, z - 1);
+
+        float a0 = CalcAO(down, south, ref blocks, blockData, x + 1, y - 1, z - 1);
+        float a1 = CalcAO(up, south, ref blocks, blockData, x + 1, y + 1, z - 1);
+        float a2 = CalcAO(up, north, ref blocks, blockData, x + 1, y + 1, z + 1);
+        float a3 = CalcAO(down, north, ref blocks, blockData, x + 1, y - 1, z + 1);
+
+        c.a = a0;
+        data.AddVertex(new Vector3(x + 1.0f, y, z) / Chunk.BPU, c);
+        c.a = a1;
+        data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z) / Chunk.BPU, c);
+        c.a = a2;
+        data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z + 1.0f) / Chunk.BPU, c);
+        c.a = a3;
+        data.AddVertex(new Vector3(x + 1.0f, y, z + 1.0f) / Chunk.BPU, c);
+
+        // do anisotropy flip
+        if (a0 + a2 > a1 + a3) {
+            data.AddQuadTriangles();
+        } else {
+            data.AddFlippedQuadTriangles();
+        }
+
+        data.AddFaceUVs(GetTextureIndex(Dir.east, x, y, z, ref blocks, blockData));
+    }
+
+    static void FaceDataUpNative(int x, int y, int z, ref NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeArray<BlockData> blockData) {
+        Color c = LightCalculator.GetColorFromLight(lights.Get(x, y + 1, z));
+
+        int north = GetOpacity(ref blocks, blockData, x, y + 1, z + 1);
+        int south = GetOpacity(ref blocks, blockData, x, y + 1, z - 1);
+        int east = GetOpacity(ref blocks, blockData, x + 1, y + 1, z);
+        int west = GetOpacity(ref blocks, blockData, x - 1, y + 1, z);
+
+        float a0 = CalcAO(north, west, ref blocks, blockData, x - 1, y + 1, z + 1);
+        float a1 = CalcAO(north, east, ref blocks, blockData, x + 1, y + 1, z + 1);
+        float a2 = CalcAO(south, east, ref blocks, blockData, x + 1, y + 1, z - 1);
+        float a3 = CalcAO(south, west, ref blocks, blockData, x - 1, y + 1, z - 1);
+
+        c.a = a0;
+        data.AddVertex(new Vector3(x, y + 1.0f, z + 1.0f) / Chunk.BPU, c);
+        c.a = a1;
+        data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z + 1.0f) / Chunk.BPU, c);
+        c.a = a2;
+        data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z) / Chunk.BPU, c);
+        c.a = a3;
+        data.AddVertex(new Vector3(x, y + 1.0f, z) / Chunk.BPU, c);
+
+        // do anisotropy flip
+        if (a0 + a2 > a1 + a3) {
+            data.AddQuadTriangles();
+        } else {
+            data.AddFlippedQuadTriangles();
+        }
+
+        data.AddFaceUVs(GetTextureIndex(Dir.up, x, y, z, ref blocks, blockData));
+    }
+
+    static void FaceDataNorthNative(int x, int y, int z, ref NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeArray<BlockData> blockData) {
+        Color c = LightCalculator.GetColorFromLight(lights.Get(x, y, z + 1));
+
+        int up = GetOpacity(ref blocks, blockData, x, y + 1, z + 1);
+        int down = GetOpacity(ref blocks, blockData, x, y - 1, z + 1);
+        int east = GetOpacity(ref blocks, blockData, x + 1, y, z + 1);
+        int west = GetOpacity(ref blocks, blockData, x - 1, y, z + 1);
+
+        float a0 = CalcAO(down, east, ref blocks, blockData, x + 1, y - 1, z + 1);
+        float a1 = CalcAO(up, east, ref blocks, blockData, x + 1, y + 1, z + 1);
+        float a2 = CalcAO(up, west, ref blocks, blockData, x - 1, y + 1, z + 1);
+        float a3 = CalcAO(down, west, ref blocks, blockData, x - 1, y - 1, z + 1);
+
+        c.a = a0;
+        data.AddVertex(new Vector3(x + 1.0f, y, z + 1.0f) / Chunk.BPU, c);
+        c.a = a1;
+        data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z + 1.0f) / Chunk.BPU, c);
+        c.a = a2;
+        data.AddVertex(new Vector3(x, y + 1.0f, z + 1.0f) / Chunk.BPU, c);
+        c.a = a3;
+        data.AddVertex(new Vector3(x, y, z + 1.0f) / Chunk.BPU, c);
+
+        // do anisotropy flip
+        if (a0 + a2 > a1 + a3) {
+            data.AddQuadTriangles();
+        } else {
+            data.AddFlippedQuadTriangles();
+        }
+
+        data.AddFaceUVs(GetTextureIndex(Dir.north, x, y, z, ref blocks, blockData));
     }
 
     //public const int VOXEL_SIZE = 1;
     //https://github.com/roboleary/GreedyMesh/blob/master/src/mygame/Main.java
     //https://github.com/darkedge/starlight/blob/master/starlight/starlight_game.cpp
 
-    public static void BuildGreedyCollider(ref NativeArray3x3<Block> blocks, NativeList<Vector3> vertices, NativeList<int> triangles) {
+    public static void BuildGreedyCollider(ref NativeArray3x3<Block> blocks, NativeList<Vector3> vertices, NativeList<int> triangles, NativeArray<BlockData> blockData) {
 
         void AddQuadTrianglesGreedy(bool clockwise) {
             if (!clockwise) {
@@ -99,7 +393,7 @@ public static class MeshBuilder {
                         // the second part of the ors are to make sure you dont add collision data for other chunk block faces on your borders
                         Block block1 = (backFace || x[d0] >= 0) ? blocks.Get(x[0], x[1], x[2]) : Blocks.AIR; // block were at
                         Block block2 = (!backFace || x[d0] < S - 1) ? blocks.Get(x[0] + q[0], x[1] + q[1], x[2] + q[2]) : Blocks.AIR;
-                        slice[n++] = block1.ColliderSolid() && block2.ColliderSolid() ? Blocks.AIR : backFace ? block2 : block1;
+                        slice[n++] = BlockData.ColliderSolid(blockData, block1) && BlockData.ColliderSolid(blockData, block2) ? Blocks.AIR : backFace ? block2 : block1;
 
                         // saving this for when porting back to meshing
                         //slice[n++] = block1.IsSolid(side) && block2.IsSolid(Dirs.Opp(side)) ?
@@ -115,7 +409,7 @@ public static class MeshBuilder {
                 n = 0;
                 for (j = 0; j < maxDim[d2]; ++j) {
                     for (i = 0; i < maxDim[d1];) {
-                        if (!slice[n].ColliderSolid()) {
+                        if (!BlockData.ColliderSolid(blockData, slice[n])) {
                             ++i;
                             ++n;
                             continue;
@@ -125,13 +419,13 @@ public static class MeshBuilder {
                         // just need to change this below line and the line like 8 lines down
 
                         // compute width
-                        for (w = 1; i + w < maxDim[d1] && slice[n + w].ColliderSolid() == slice[n].ColliderSolid(); ++w) { }
+                        for (w = 1; i + w < maxDim[d1] && BlockData.ColliderSolid(blockData, slice[n + w]) == BlockData.ColliderSolid(blockData, slice[n]); ++w) { }
 
                         // compute height
                         bool done = false;
                         for (h = 1; j + h < maxDim[d2]; ++h) {
                             for (k = 0; k < w; ++k) {
-                                if (slice[n + k + h * maxDim[d1]].ColliderSolid() != slice[n].ColliderSolid()) {
+                                if (BlockData.ColliderSolid(blockData, slice[n + k + h * maxDim[d1]]) != BlockData.ColliderSolid(blockData, slice[n])) {
                                     done = true;
                                     break;
                                 }
@@ -212,7 +506,9 @@ public static class MeshBuilder {
 
     public static void GetBlockMesh(Block block, MeshFilter filter) {
 
-        BlockType bt = block.GetType();
+        var blockData = JobController.instance.blockData;
+
+        BlockData bd = blockData[block.type];
 
         var vertices = Pools.v3Pool.Get();
         var uvs = Pools.v3Pool.Get();
@@ -223,14 +519,14 @@ public static class MeshBuilder {
         colors.Clear();
         triangles.Clear();
 
-        NativeMeshData data = new NativeMeshData(vertices, uvs, colors, triangles);
+        NativeMeshData data = new NativeMeshData(vertices, uvs, colors, triangles, faceList);
 
         const int x = 1;
         const int y = 1;
         const int z = 1;
         blockArray.c[x + z * S + y * S * S] = block;
 
-        ushort light = bt.GetLight();
+        ushort light = bd.light;
         if (light == 0) {
             light = ushort.MaxValue;
         }
@@ -243,7 +539,7 @@ public static class MeshBuilder {
         lightArray.c[x + (z + 1) * S + y * S * S] = new Light { torch = light };
         lightArray.c[x + z * S + (y + 1) * S * S] = new Light { torch = light };
 
-        bt.AddDataNative(x, y, z, data, ref blockArray, ref lightArray, faceList);
+        AddDataNative(x, y, z, ref data, ref blockArray, ref lightArray, blockData);
 
         for (int i = 0; i < vertices.Length; ++i) {
             vertices[i] = (vertices[i] - (Vector3.one * 0.75f)) * 2.0f;

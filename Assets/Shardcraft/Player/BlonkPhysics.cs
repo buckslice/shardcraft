@@ -75,7 +75,7 @@ public class BlonkPhysics : MonoBehaviour {
 
         Vector3i pos = WorldUtils.GetBlockPos(origin);
         // check if inside a block already
-        if (world.GetBlock(pos.x, pos.y, pos.z).ColliderSolid()) {
+        if (BlockDatas.ColliderSolid(world.GetBlock(pos.x, pos.y, pos.z))) {
             hit.bpos = pos;
             hit.dir = Dir.none;
             return true;
@@ -186,8 +186,8 @@ public class BlonkPhysics : MonoBehaviour {
 #if _DEBUG
             posAlong.Add(pos);
 #endif
-            // hit a solid block so return!
-            if (world.GetBlock(pos.x, pos.y, pos.z).ColliderSolid()) {
+            // if hit a solid block then return successfully!
+            if (BlockDatas.ColliderSolid(world.GetBlock(pos.x, pos.y, pos.z))) {
                 hit.bpos = pos;
                 return true;
             }

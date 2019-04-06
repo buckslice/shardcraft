@@ -56,7 +56,8 @@ namespace Kino {
             set { _fadeToSkybox = value; }
         }
 
-        // added these here. skybox is is a cubemap material
+		// way to capture any skybox, even procedural and get the fog color from with this
+        // added these here. skybox is a cubemap material
         public Material skybox;
         // then probe is in scene set to refresh every frame capturing skybox
         public ReflectionProbe probe;

@@ -158,44 +158,65 @@ public static class Tests {
 
 
             torch = 0b0_00010_00110_10011;
-            TestEqual(LightCalculator.GetChan(torch, 2), 2, "torch1");
-            TestEqual(LightCalculator.GetChan(torch, 1), 6, "torch2");
-            TestEqual(LightCalculator.GetChan(torch, 0), 19, "torch3");
+            TestEqual(LightCalculator.GetChannel(torch, 2), 2, "torch1");
+            TestEqual(LightCalculator.GetChannel(torch, 1), 6, "torch2");
+            TestEqual(LightCalculator.GetChannel(torch, 0), 19, "torch3");
 
-            torch = 0b0_11111_00000_11111;
+            TestEqual(LightCalculator.GetIsLight(torch), false, "torchb1");
 
-            TestEqual(LightCalculator.GetChan(torch, 2), 31, "torch4");
-            TestEqual(LightCalculator.GetChan(torch, 1), 0, "torch5");
-            TestEqual(LightCalculator.GetChan(torch, 0), 31, "torch6");
+            torch = 0b1_11111_00000_11111;
 
-            torch = 0b0_10000_00100_01010;
+            TestEqual(LightCalculator.GetIsLight(torch), true, "torchb1");
 
-            TestEqual(LightCalculator.GetChan(torch, 2), 16, "torch7");
-            TestEqual(LightCalculator.GetChan(torch, 1), 4, "torch8");
-            TestEqual(LightCalculator.GetChan(torch, 0), 10, "torch9");
+            TestEqual(LightCalculator.GetChannel(torch, 2), 31, "torch4");
+            TestEqual(LightCalculator.GetChannel(torch, 1), 0, "torch5");
+            TestEqual(LightCalculator.GetChannel(torch, 0), 31, "torch6");
 
-            torch = LightCalculator.SetChan(torch, 2, 8);
-            TestEqual(torch, (ushort)0b0_01000_00100_01010, "torch10");
-            torch = LightCalculator.SetChan(torch, 0, 23);
-            TestEqual(torch, (ushort)0b0_01000_00100_10111, "torch11");
-            torch = LightCalculator.SetChan(torch, 1, 0);
-            TestEqual(torch, (ushort)0b0_01000_00000_10111, "torch12");
+            TestEqual(LightCalculator.GetIsLight(torch), true, "torchb1");
+
+            torch = 0b1_10000_00100_01010;
+
+            TestEqual(LightCalculator.GetChannel(torch, 2), 16, "torch7");
+            TestEqual(LightCalculator.GetChannel(torch, 1), 4, "torch8");
+            TestEqual(LightCalculator.GetChannel(torch, 0), 10, "torch9");
+
+            torch = LightCalculator.SetChannel(torch, 2, 8);
+            TestEqual(torch, (ushort)0b1_01000_00100_01010, "torch10");
+            torch = LightCalculator.SetChannel(torch, 0, 23);
+            TestEqual(torch, (ushort)0b1_01000_00100_10111, "torch11");
+            torch = LightCalculator.SetChannel(torch, 1, 0);
+            TestEqual(torch, (ushort)0b1_01000_00000_10111, "torch12");
+
+            TestEqual(LightCalculator.GetIsLight(torch), true, "torchb1");
 
             c = LightCalculator.GetColor(31, 31, 31);
-            TestEqual(LightCalculator.GetChan(c, 2), 31, "torch13");
-            TestEqual(LightCalculator.GetChan(c, 1), 31, "torch14");
-            TestEqual(LightCalculator.GetChan(c, 0), 31, "torch15");
+            TestEqual(LightCalculator.GetChannel(c, 2), 31, "torch13");
+            TestEqual(LightCalculator.GetChannel(c, 1), 31, "torch14");
+            TestEqual(LightCalculator.GetChannel(c, 0), 31, "torch15");
 
             c = LightCalculator.GetColor(1, 7, 30);
-            TestEqual(LightCalculator.GetChan(c, 2), 1, "torch16");
-            TestEqual(LightCalculator.GetChan(c, 1), 7, "torch17");
-            TestEqual(LightCalculator.GetChan(c, 0), 30, "torch18");
+            TestEqual(LightCalculator.GetChannel(c, 2), 1, "torch16");
+            TestEqual(LightCalculator.GetChannel(c, 1), 7, "torch17");
+            TestEqual(LightCalculator.GetChannel(c, 0), 30, "torch18");
 
             c = LightCalculator.GetColor(0, 0, 0);
-            TestEqual(LightCalculator.GetChan(c, 2), 0, "torch19");
-            TestEqual(LightCalculator.GetChan(c, 1), 0, "torch20");
-            TestEqual(LightCalculator.GetChan(c, 0), 0, "torch21");
+            TestEqual(LightCalculator.GetChannel(c, 2), 0, "torch19");
+            TestEqual(LightCalculator.GetChannel(c, 1), 0, "torch20");
+            TestEqual(LightCalculator.GetChannel(c, 0), 0, "torch21");
 
+            TestEqual(LightCalculator.GetIsLight(torch), true, "torchb1");
+
+        }
+
+        {
+            BlockData test = new BlockData(0) {
+                colliderSolid = 0,
+            };
+            TestEqual(test.texture, 0, "bd1");
+            TestEqual(test.light, (ushort)0, "bd2");
+            TestEqual(test.hasMesh, (byte)1, "bd3");
+            TestEqual(test.colliderSolid, (byte)0, "bd4");
+            TestEqual(test.renderSolid, (byte)1, "bd5");
         }
 
 

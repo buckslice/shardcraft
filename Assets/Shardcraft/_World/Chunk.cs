@@ -257,7 +257,7 @@ public class Chunk {
                 needToUpdateSave = true; // block was modified so need to update save
                 needNewCollider = true; // block was changed so collider prob needs to be updated
                 CheckNeedToUpdateNeighbors(x, y, z);
-                lightOps.Enqueue(new LightOp { index = x + z * SIZE + y * SIZE * SIZE, val = block.GetType().GetLight() });
+                lightOps.Enqueue(new LightOp { index = x + z * SIZE + y * SIZE * SIZE, val = BlockDatas.GetBlockData(block).light });
             }
         } else {
             world.SetBlock(bp.x + x, bp.y + y, bp.z + z, block);

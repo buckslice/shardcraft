@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using Unity.Jobs;
+using Unity.Collections;
 using UnityEngine.UI;
 
 public class LoadChunks : MonoBehaviour {
@@ -20,7 +21,7 @@ public class LoadChunks : MonoBehaviour {
     public Vector3i editChunk;
 
     // Start is called before the first frame update
-    void Start() {
+    void Awake() {
         world = FindObjectOfType<World>();
         GenerateNeighborChunks(loadRadius);
     }
@@ -83,6 +84,7 @@ public class LoadChunks : MonoBehaviour {
 
         Pools.Dispose();
 
+        JobController.instance.blockData.Dispose();
     }
 
 

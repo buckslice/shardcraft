@@ -56,17 +56,19 @@ public class MeshData {
 
 }
 
-public class NativeMeshData {
+public struct NativeMeshData {
     public NativeList<Vector3> vertices;
     public NativeList<Vector3> uvs;
     public NativeList<Color32> colors;
     public NativeList<int> triangles;
+    public NativeList<Face> faces;
 
-    public NativeMeshData(NativeList<Vector3> vertices, NativeList<Vector3> uvs, NativeList<Color32> colors, NativeList<int> triangles) {
+    public NativeMeshData(NativeList<Vector3> vertices, NativeList<Vector3> uvs, NativeList<Color32> colors, NativeList<int> triangles, NativeList<Face> faces) {
         this.vertices = vertices;
         this.uvs = uvs;
         this.colors = colors;
         this.triangles = triangles;
+        this.faces = faces;
     }
 
     public void AddVertex(Vector3 vertex, Color32 color) {

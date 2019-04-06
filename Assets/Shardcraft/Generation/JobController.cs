@@ -58,10 +58,12 @@ public class GenJobInfo {
     }
 }
 
-// this whole file is somethin else... somethin else...
 
-//[BurstCompile] // need to get rid of all class references for burst...??? yeaaa...
+[BurstCompile]
 public struct MeshJob : IJob {
+
+    [ReadOnly]
+    public NativeArray<BlockData> blockData;
 
     [ReadOnly]
     public NativeArray3x3<Block> blocks;
@@ -105,7 +107,7 @@ public struct MeshJob : IJob {
 
         // if chunk hasnt been rendered before then check each block to see if it has any lights
         if (calcInitialLight) {
-            LightCalculator.CalcInitialLightOps(blocks.c, lightOps);
+            LightCalculator.CalcInitialLightOps(blocks.c, blockData, lightOps);
 #if _DEBUG
             initLightTime = watch.ElapsedMilliseconds;
             watch.Restart();
@@ -122,8 +124,8 @@ public struct MeshJob : IJob {
         UnityEngine.Profiling.Profiler.BeginSample("Meshing");
 #endif
 
-        NativeMeshData data = new NativeMeshData(vertices, uvs, colors, triangles);
-        MeshBuilder.BuildNaive(data, ref blocks, ref lights, faces);
+        NativeMeshData meshData = new NativeMeshData(vertices, uvs, colors, triangles, faces); // add faces to this
+        MeshBuilder.BuildNaive(ref meshData, ref blocks, ref lights, blockData);
 
 #if _DEBUG
         meshingTime = watch.ElapsedMilliseconds;
@@ -182,6 +184,7 @@ public class MeshJobInfo {
         chunk.LockLocalGroup();
 
         MeshJob job;
+        job.blockData = JobController.instance.blockData;
         job.blocks = chunk.GetLocalBlocks();
         job.lights = chunk.GetLocalLights();
 
@@ -290,6 +293,7 @@ public class MeshJobInfo {
     }
 }
 
+[BurstCompile]
 public struct LightUpdateJob : IJob {
 
     // self and 6 neighbor lights, actually will prob need full local group eventually
@@ -351,13 +355,25 @@ public class JobController : MonoBehaviour {
 
     static List<LightJobInfo> lightJobInfos = new List<LightJobInfo>();
 
+    public NativeArray<BlockData> blockData;
+
     //static List<Task<Chunk>> genTasks = new List<Task<Chunk>>();
+
+    public static JobController instance;
 
     World world;
 
     // Start is called before the first frame update
-    void Start() {
+    void Awake() {
+        if (instance == null) {
+            instance = this;
+        } else {
+            Debug.Assert(false);
+        }
+
         world = FindObjectOfType<World>();
+
+        blockData = BlockDatas.InitBlockData();
     }
 
     static bool shutDown = false;
@@ -377,6 +393,7 @@ public class JobController : MonoBehaviour {
             lightJobInfos[i].handle.Complete();
             lightJobInfos[i].Finish();
         }
+
     }
 
     public static int meshJobScheduled = 0;

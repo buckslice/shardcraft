@@ -2,6 +2,8 @@
 using System.Collections;
 using System;
 using Unity.Collections;
+using System.Runtime.InteropServices;
+using Unity.Mathematics;
 
 [Serializable]
 public struct Block : IEquatable<Block> {
@@ -10,22 +12,6 @@ public struct Block : IEquatable<Block> {
 
     public Block(byte type) {
         this.type = type;
-    }
-
-    public new BlockType GetType() {
-        return BlockTypes.GetBlockType(type);
-    }
-
-    // returns whether the block has a solid face from this direction
-    // consider stairs, bottom and back are solid but other sides aren't completely
-    // air is not solid on any sides, also torches because they dont cover any whole face
-    public bool IsSolid(Dir dir) {
-        return BlockTypes.GetBlockType(type).IsSolid(dir);
-    }
-
-    // todo: add way to specify custom collider data for different shapes
-    public bool ColliderSolid() {
-        return BlockTypes.GetBlockType(type).ColliderSolid();
     }
 
     public static bool operator ==(Block a, Block b) {
@@ -52,8 +38,124 @@ public struct Block : IEquatable<Block> {
 
 }
 
+public struct BlockData {
+    public int texture; // index into tex array
+    public ushort light;
+    public byte hasMesh; // could later become mesh type, like block, cross for grass, or billboard or something
+    public byte colliderSolid;
+    public byte renderSolid;
+    //public Vector3 scale;
+    //public Vector3 offset;
+
+    public BlockData(int i) {
+        // later have string name here once jobs can support that
+        texture = 0;
+        light = 0;
+        hasMesh = 1;
+        colliderSolid = 1;
+        renderSolid = 1;
+        //scale = Vector3.one; // block scale in each dimension
+        //offset = Vector3.zero; // face offset in each dimension
+    }
+
+    public static bool RenderSolid(NativeArray<BlockData> blockData, Block b, Dir dir) {
+        return blockData[b.type].renderSolid == 1;
+    }
+
+    public static bool ColliderSolid(NativeArray<BlockData> blockData, Block b) {
+        return blockData[b.type].colliderSolid == 1;
+    }
+}
+
+public static class BlockDatas {
+
+    public static BlockData GetBlockData(Block b) {
+        return data[b.type];
+    }
+    public static bool RenderSolid(Block b, Dir dir) { // not using dir for now but keeping it there for later possibly
+        return data[b.type].renderSolid == 1;
+    }
+    public static bool ColliderSolid(Block b) {
+        return data[b.type].colliderSolid == 1;
+    }
+
+    public static BlockData[] data;
+
+    // inits BlockData[] array for managed and also
+    // returns a NativeArray version for jobs
+    public static NativeArray<BlockData> InitBlockData() {
+
+        data = new BlockData[] {
+
+        new BlockData(0) { // AIR
+            hasMesh = 0,
+            renderSolid = 0,
+            colliderSolid = 0
+        },
+
+        new BlockData(0) { // STONE
+            texture = 0
+        },
+
+        new BlockData(0) { // GRASS
+            texture = -1 // figured out dynamically
+        },
+
+        new BlockData(0) { // BIRCH
+            texture = -1
+        },
+
+        new BlockData(0) { // LEAF
+            renderSolid = 0,
+            texture = 6
+        },
+
+        new BlockData(0) { // TORCH
+            light = LightCalculator.GetColor(31, 31, 31),
+            texture = 7,
+        },
+
+        new BlockData(0) { // TORCH R
+            light = LightCalculator.GetColor(31, 0, 0),
+            texture = 7,
+        },
+        new BlockData(0) { // TORCH B
+            light = LightCalculator.GetColor(0, 31, 0),
+            texture = 7,
+        },
+        new BlockData(0) { // TORCH G
+            light = LightCalculator.GetColor(0, 0, 31),
+            texture = 7,
+        },
+        new BlockData(0) { // TORCH M
+            light = LightCalculator.GetColor(31, 0, 31),
+            texture = 7,
+        },
+        new BlockData(0) { // TORCH Y
+            light = LightCalculator.GetColor(31, 31, 0),
+            texture = 7,
+        },
+        new BlockData(0) { // TORCH O
+            light = LightCalculator.GetColor(31, 15, 0),
+            texture = 7,
+        },
+        new BlockData(0) { // TORCH W
+            light = LightCalculator.GetColor(10, 10, 10),
+            texture = 7,
+        },
+
+        };
+
+        return new NativeArray<BlockData>(data, Allocator.Persistent);
+
+    }
+
+}
+
+
 // make sure this matches types array below
 public static class Blocks {
+
     public static readonly Block AIR = new Block(0);
     public static readonly Block STONE = new Block(1);
     public static readonly Block GRASS = new Block(2);
@@ -69,318 +171,88 @@ public static class Blocks {
     public static readonly Block TORCH_W = new Block(12);
 }
 
-public static class BlockTypes {
-    // make sure these match Blocks above
-    private static BlockType[] types = new BlockType[] {
-        new AirBlock(),
-        new StoneBlock(),
-        new GrassBlock(),
-        new BirchBlock(),
-        new LeafBlock(),
-        new BlockTorch(31,31,31),
-        new BlockTorch(31,0,0),
-        new BlockTorch(0,31,0),
-        new BlockTorch(0,0,31),
-        new BlockTorch(31,0,31),
-        new BlockTorch(31,31,0),
-        new BlockTorch(31,15,0),
-        new BlockTorch(10,10,10),
-    };
+//public static class BlockTypes {
+//    // make sure these match Blocks above
+//    private static BlockType[] types = new BlockType[] {
+//        new AirBlock(),
+//        new StoneBlock(),
+//        new GrassBlock(),
+//        new BirchBlock(),
+//        new LeafBlock(),
+//        new BlockTorch(31,31,31),
+//        new BlockTorch(31,0,0),
+//        new BlockTorch(0,31,0),
+//        new BlockTorch(0,0,31),
+//        new BlockTorch(31,0,31),
+//        new BlockTorch(31,31,0),
+//        new BlockTorch(31,15,0),
+//        new BlockTorch(10,10,10),
+//    };
 
-    public static BlockType GetBlockType(int type) {
-        return types[type];
-    }
+//    public static BlockType GetBlockType(int type) {
+//        return types[type];
+//    }
 
-}
+//}
 
-public abstract class BlockType {
+//public abstract class BlockType {
 
-    public virtual bool IsSolid(Dir dir) { // checking if this side is opaque basically
-        switch (dir) {
-            case Dir.north:
-                return true;
-            case Dir.east:
-                return true;
-            case Dir.south:
-                return true;
-            case Dir.west:
-                return true;
-            case Dir.up:
-                return true;
-            case Dir.down:
-                return true;
-            default:
-                return true;
-        }
-    }
+//    public virtual bool IsSolid(Dir dir) { // checking if this side is opaque basically
+//        switch (dir) {
+//            case Dir.north:
+//                return true;
+//            case Dir.east:
+//                return true;
+//            case Dir.south:
+//                return true;
+//            case Dir.west:
+//                return true;
+//            case Dir.up:
+//                return true;
+//            case Dir.down:
+//                return true;
+//            default:
+//                return true;
+//        }
+//    }
 
-    // not sure how to handle above IsSolid cases, seems more for blocks with visually transparent faces but should still have a collider there
-    public virtual bool ColliderSolid() {
-        return true;
-    }
+//    // not sure how to handle above IsSolid cases, seems more for blocks with visually transparent faces but should still have a collider there
+//    public virtual bool ColliderSolid() {
+//        return true;
+//    }
 
-    //public virtual Tile TexturePosition(Dir dir, int x, int y, int z, NativeMeshData data) {
-    //    return new Tile() { x = 0, y = 0 };
-    //}
+//    //public virtual Tile TexturePosition(Dir dir, int x, int y, int z, NativeMeshData data) {
+//    //    return new Tile() { x = 0, y = 0 };
+//    //}
 
-    public virtual ushort GetLight() {
-        return 0;
-    }
+//    public virtual ushort GetLight() {
+//        return 0;
+//    }
 
 
-    public virtual int GetTextureIndex(Dir dir, int x, int y, int z, ref NativeArray3x3<Block> blocks) {
-        return 0;
-    }
+//    public virtual int GetTextureIndex(Dir dir, int x, int y, int z, ref NativeArray3x3<Block> blocks) {
+//        return 0;
+//    }
 
-    public virtual void AddDataNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeList<Face> faces) {
-        if (!blocks.Get(x - 1, y, z).IsSolid(Dir.east)) {
-            FaceDataWestNative(x, y, z, data, ref blocks, ref lights);
-            faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.west });
-        }
-        if (!blocks.Get(x, y - 1, z).IsSolid(Dir.up)) {
-            FaceDataDownNative(x, y, z, data, ref blocks, ref lights);
-            faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.down });
-        }
-        if (!blocks.Get(x, y, z - 1).IsSolid(Dir.north)) {
-            FaceDataSouthNative(x, y, z, data, ref blocks, ref lights);
-            faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.south });
-        }
-        if (!blocks.Get(x + 1, y, z).IsSolid(Dir.west)) {
-            FaceDataEastNative(x, y, z, data, ref blocks, ref lights);
-            faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.east });
-        }
-        if (!blocks.Get(x, y + 1, z).IsSolid(Dir.down)) {
-            FaceDataUpNative(x, y, z, data, ref blocks, ref lights);
-            faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.up });
-        }
-        if (!blocks.Get(x, y, z + 1).IsSolid(Dir.south)) {
-            FaceDataNorthNative(x, y, z, data, ref blocks, ref lights);
-            faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.north });
-        }
-    }
 
-    const float AOMIN = 0.2f;
-    protected static float CalcAO(int side1, int side2, ref NativeArray3x3<Block> blocks, int c1, int c2, int c3) {
-        if (side1 + side2 == 2) {
-            return AOMIN;
-        }
-        return (3.0f - side1 - side2 - GetOpacity(ref blocks, c1, c2, c3)) / 3.0f * (1.0f - AOMIN) + AOMIN;
-    }
+//    // todo: translate to native array job option
+//    //public virtual void FaceUVsGreedy(Dir dir, MeshData data, int w, int h) {
+//    //    Tile tp = TexturePosition(dir, data);
 
-    protected static int GetOpacity(ref NativeArray3x3<Block> blocks, int x, int y, int z) {
-        return blocks.Get(x, y, z).IsSolid(Dir.none) ? 1 : 0; // dir.none for now since all blocks are either transparent or not
-    }
+//    //    // store the offset
+//    //    data.uv.Add(new Vector2(tp.x, tp.y) * Tile.SIZE);
+//    //    data.uv.Add(new Vector2(tp.x, tp.y) * Tile.SIZE);
+//    //    data.uv.Add(new Vector2(tp.x, tp.y) * Tile.SIZE);
+//    //    data.uv.Add(new Vector2(tp.x, tp.y) * Tile.SIZE);
 
-    protected virtual void FaceDataWestNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights) {
-        Color c = LightCalculator.GetColorFromLight(lights.Get(x - 1, y, z));
+//    //    // then add width and height in uv2, shader will calculate coordinate from this
+//    //    data.uv2.Add(new Vector2(0, 0));
+//    //    data.uv2.Add(new Vector2(h, 0));
+//    //    data.uv2.Add(new Vector2(0, w));
+//    //    data.uv2.Add(new Vector2(h, w));
+//    //}
 
-        int up = GetOpacity(ref blocks, x - 1, y + 1, z);
-        int down = GetOpacity(ref blocks, x - 1, y - 1, z);
-        int north = GetOpacity(ref blocks, x - 1, y, z + 1);
-        int south = GetOpacity(ref blocks, x - 1, y, z - 1);
-
-        float a0 = CalcAO(down, north, ref blocks, x - 1, y - 1, z + 1);
-        float a1 = CalcAO(up, north, ref blocks, x - 1, y + 1, z + 1);
-        float a2 = CalcAO(up, south, ref blocks, x - 1, y + 1, z - 1);
-        float a3 = CalcAO(down, south, ref blocks, x - 1, y - 1, z - 1);
-
-        c.a = a0;
-        data.AddVertex(new Vector3(x, y, z + 1.0f) / Chunk.BPU, c);
-        c.a = a1;
-        data.AddVertex(new Vector3(x, y + 1.0f, z + 1.0f) / Chunk.BPU, c);
-        c.a = a2;
-        data.AddVertex(new Vector3(x, y + 1.0f, z) / Chunk.BPU, c);
-        c.a = a3;
-        data.AddVertex(new Vector3(x, y, z) / Chunk.BPU, c);
-
-        // do anisotropy flip
-        if (a0 + a2 > a1 + a3) {
-            data.AddQuadTriangles();
-        } else {
-            data.AddFlippedQuadTriangles();
-        }
-
-        data.AddFaceUVs(GetTextureIndex(Dir.west, x, y, z, ref blocks));
-    }
-
-    protected virtual void FaceDataDownNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights) {
-        Color c = LightCalculator.GetColorFromLight(lights.Get(x, y - 1, z));
-
-        int north = GetOpacity(ref blocks, x, y - 1, z + 1);
-        int south = GetOpacity(ref blocks, x, y - 1, z - 1);
-        int east = GetOpacity(ref blocks, x + 1, y - 1, z);
-        int west = GetOpacity(ref blocks, x - 1, y - 1, z);
-
-        float a0 = CalcAO(south, west, ref blocks, x - 1, y - 1, z - 1);
-        float a1 = CalcAO(south, east, ref blocks, x + 1, y - 1, z - 1);
-        float a2 = CalcAO(north, east, ref blocks, x + 1, y - 1, z + 1);
-        float a3 = CalcAO(north, west, ref blocks, x - 1, y - 1, z + 1);
-
-        c.a = a0;
-        data.AddVertex(new Vector3(x, y, z) / Chunk.BPU, c);
-        c.a = a1;
-        data.AddVertex(new Vector3(x + 1.0f, y, z) / Chunk.BPU, c);
-        c.a = a2;
-        data.AddVertex(new Vector3(x + 1.0f, y, z + 1.0f) / Chunk.BPU, c);
-        c.a = a3;
-        data.AddVertex(new Vector3(x, y, z + 1.0f) / Chunk.BPU, c);
-
-        // do anisotropy flip
-        if (a0 + a2 > a1 + a3) {
-            data.AddQuadTriangles();
-        } else {
-            data.AddFlippedQuadTriangles();
-        }
-
-        data.AddFaceUVs(GetTextureIndex(Dir.down, x, y, z, ref blocks));
-    }
-
-    protected virtual void FaceDataSouthNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights) {
-        Color c = LightCalculator.GetColorFromLight(lights.Get(x, y, z - 1));
-
-        int up = GetOpacity(ref blocks, x, y + 1, z - 1);
-        int down = GetOpacity(ref blocks, x, y - 1, z - 1);
-        int east = GetOpacity(ref blocks, x + 1, y, z - 1);
-        int west = GetOpacity(ref blocks, x - 1, y, z - 1);
-
-        float a0 = CalcAO(down, west, ref blocks, x - 1, y - 1, z - 1);
-        float a1 = CalcAO(up, west, ref blocks, x - 1, y + 1, z - 1);
-        float a2 = CalcAO(up, east, ref blocks, x + 1, y + 1, z - 1);
-        float a3 = CalcAO(down, east, ref blocks, x + 1, y - 1, z - 1);
-
-        c.a = a0;
-        data.AddVertex(new Vector3(x, y, z) / Chunk.BPU, c);
-        c.a = a1;
-        data.AddVertex(new Vector3(x, y + 1.0f, z) / Chunk.BPU, c);
-        c.a = a2;
-        data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z) / Chunk.BPU, c);
-        c.a = a3;
-        data.AddVertex(new Vector3(x + 1.0f, y, z) / Chunk.BPU, c);
-
-        // do anisotropy flip
-        if (a0 + a2 > a1 + a3) {
-            data.AddQuadTriangles();
-        } else {
-            data.AddFlippedQuadTriangles();
-        }
-
-        data.AddFaceUVs(GetTextureIndex(Dir.south, x, y, z, ref blocks));
-    }
-
-    protected virtual void FaceDataEastNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights) {
-        Color c = LightCalculator.GetColorFromLight(lights.Get(x + 1, y, z));
-
-        int up = GetOpacity(ref blocks, x + 1, y + 1, z);
-        int down = GetOpacity(ref blocks, x + 1, y - 1, z);
-        int north = GetOpacity(ref blocks, x + 1, y, z + 1);
-        int south = GetOpacity(ref blocks, x + 1, y, z - 1);
-
-        float a0 = CalcAO(down, south, ref blocks, x + 1, y - 1, z - 1);
-        float a1 = CalcAO(up, south, ref blocks, x + 1, y + 1, z - 1);
-        float a2 = CalcAO(up, north, ref blocks, x + 1, y + 1, z + 1);
-        float a3 = CalcAO(down, north, ref blocks, x + 1, y - 1, z + 1);
-
-        c.a = a0;
-        data.AddVertex(new Vector3(x + 1.0f, y, z) / Chunk.BPU, c);
-        c.a = a1;
-        data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z) / Chunk.BPU, c);
-        c.a = a2;
-        data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z + 1.0f) / Chunk.BPU, c);
-        c.a = a3;
-        data.AddVertex(new Vector3(x + 1.0f, y, z + 1.0f) / Chunk.BPU, c);
-
-        // do anisotropy flip
-        if (a0 + a2 > a1 + a3) {
-            data.AddQuadTriangles();
-        } else {
-            data.AddFlippedQuadTriangles();
-        }
-
-        data.AddFaceUVs(GetTextureIndex(Dir.east, x, y, z, ref blocks));
-    }
-
-    protected virtual void FaceDataUpNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights) {
-        Color c = LightCalculator.GetColorFromLight(lights.Get(x, y + 1, z));
-
-        int north = GetOpacity(ref blocks, x, y + 1, z + 1);
-        int south = GetOpacity(ref blocks, x, y + 1, z - 1);
-        int east = GetOpacity(ref blocks, x + 1, y + 1, z);
-        int west = GetOpacity(ref blocks, x - 1, y + 1, z);
-
-        float a0 = CalcAO(north, west, ref blocks, x - 1, y + 1, z + 1);
-        float a1 = CalcAO(north, east, ref blocks, x + 1, y + 1, z + 1);
-        float a2 = CalcAO(south, east, ref blocks, x + 1, y + 1, z - 1);
-        float a3 = CalcAO(south, west, ref blocks, x - 1, y + 1, z - 1);
-
-        c.a = a0;
-        data.AddVertex(new Vector3(x, y + 1.0f, z + 1.0f) / Chunk.BPU, c);
-        c.a = a1;
-        data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z + 1.0f) / Chunk.BPU, c);
-        c.a = a2;
-        data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z) / Chunk.BPU, c);
-        c.a = a3;
-        data.AddVertex(new Vector3(x, y + 1.0f, z) / Chunk.BPU, c);
-
-        // do anisotropy flip
-        if (a0 + a2 > a1 + a3) {
-            data.AddQuadTriangles();
-        } else {
-            data.AddFlippedQuadTriangles();
-        }
-
-        data.AddFaceUVs(GetTextureIndex(Dir.up, x, y, z, ref blocks));
-    }
-
-    protected virtual void FaceDataNorthNative(int x, int y, int z, NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights) {
-        Color c = LightCalculator.GetColorFromLight(lights.Get(x, y, z + 1));
-
-        int up = GetOpacity(ref blocks, x, y + 1, z + 1);
-        int down = GetOpacity(ref blocks, x, y - 1, z + 1);
-        int east = GetOpacity(ref blocks, x + 1, y, z + 1);
-        int west = GetOpacity(ref blocks, x - 1, y, z + 1);
-
-        float a0 = CalcAO(down, east, ref blocks, x + 1, y - 1, z + 1);
-        float a1 = CalcAO(up, east, ref blocks, x + 1, y + 1, z + 1);
-        float a2 = CalcAO(up, west, ref blocks, x - 1, y + 1, z + 1);
-        float a3 = CalcAO(down, west, ref blocks, x - 1, y - 1, z + 1);
-
-        c.a = a0;
-        data.AddVertex(new Vector3(x + 1.0f, y, z + 1.0f) / Chunk.BPU, c);
-        c.a = a1;
-        data.AddVertex(new Vector3(x + 1.0f, y + 1.0f, z + 1.0f) / Chunk.BPU, c);
-        c.a = a2;
-        data.AddVertex(new Vector3(x, y + 1.0f, z + 1.0f) / Chunk.BPU, c);
-        c.a = a3;
-        data.AddVertex(new Vector3(x, y, z + 1.0f) / Chunk.BPU, c);
-
-        // do anisotropy flip
-        if (a0 + a2 > a1 + a3) {
-            data.AddQuadTriangles();
-        } else {
-            data.AddFlippedQuadTriangles();
-        }
-
-        data.AddFaceUVs(GetTextureIndex(Dir.north, x, y, z, ref blocks));
-    }
-
-    // todo: translate to native array job option
-    //public virtual void FaceUVsGreedy(Dir dir, MeshData data, int w, int h) {
-    //    Tile tp = TexturePosition(dir, data);
-
-    //    // store the offset
-    //    data.uv.Add(new Vector2(tp.x, tp.y) * Tile.SIZE);
-    //    data.uv.Add(new Vector2(tp.x, tp.y) * Tile.SIZE);
-    //    data.uv.Add(new Vector2(tp.x, tp.y) * Tile.SIZE);
-    //    data.uv.Add(new Vector2(tp.x, tp.y) * Tile.SIZE);
-
-    //    // then add width and height in uv2, shader will calculate coordinate from this
-    //    data.uv2.Add(new Vector2(0, 0));
-    //    data.uv2.Add(new Vector2(h, 0));
-    //    data.uv2.Add(new Vector2(0, w));
-    //    data.uv2.Add(new Vector2(h, w));
-    //}
-
-}
+//}
 
 
 //public struct Tile {
@@ -394,10 +266,10 @@ public abstract class BlockType {
 //    }
 //}
 
-public class StoneBlock : BlockType {
+//public class StoneBlock : BlockType {
 
-    // test smiley texture
-    //public override Tile TexturePosition(Dir dir) {
-    //    return new Tile(1, 1);
-    //}
-}
+//    // test smiley texture
+//    //public override Tile TexturePosition(Dir dir) {
+//    //    return new Tile(1, 1);
+//    //}
+//}
