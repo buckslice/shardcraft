@@ -34,7 +34,7 @@ public struct NativeArray3x3<T> where T : struct {
 
     const int S = Chunk.SIZE;
 
-    int flags; // keeps track of which native arrays were set during usage
+    public int flags; // keeps track of which native arrays were set during usage
 
     public T Get(int x, int y, int z) {
         if (y < 0) {

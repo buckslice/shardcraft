@@ -80,9 +80,9 @@ public static class LightCalculator {
     const int S = Chunk.SIZE;
     const int W = S + S + S; // because processing 3x3x3 block of 32x32x32 chunks
 
-    public static int ProcessLightOps(ref NativeArray3x3<Light> light, ref NativeArray3x3<Block> blocks, NativeQueue<LightOp> ops, NativeQueue<int> lbfs, NativeQueue<LightRemovalNode> lrbfs) {
+    public static void ProcessLightOps(ref NativeArray3x3<Light> light, ref NativeArray3x3<Block> blocks, NativeQueue<LightOp> ops, NativeQueue<int> lbfs, NativeQueue<LightRemovalNode> lrbfs) {
 
-        int lightFlags = 0;
+        light.flags = 0;
 
         while (ops.Count > 0) {
             LightOp op = ops.Dequeue();
@@ -99,7 +99,7 @@ public static class LightCalculator {
             // lights are repropagated after removals, this allows support for lesser lights to be mixed in with the rest
             ushort opLight = light.Get(opx, opy, opz).torch;
             opLight = SetIsLight(opLight, op.val > 0);
-            lightFlags = SetLight(ref light, lightFlags, opx, opy, opz, new Light { torch = opLight });
+            light.Set(opx, opy, opz, new Light { torch = opLight });
 
             // loop over each channel of light maps
             for (int cIndex = 0; cIndex < 3; cIndex++) {
@@ -108,7 +108,7 @@ public static class LightCalculator {
                     // get current light value before overriding
                     ushort curLight = light.Get(opx, opy, opz).torch;
                     lrbfs.Enqueue(new LightRemovalNode { index = startIndex, light = (byte)GetChannel(curLight, cIndex) });
-                    lightFlags = SetLight(ref light, lightFlags, opx, opy, opz, new Light { torch = SetChannel(curLight, cIndex, 0) });
+                    light.Set(opx, opy, opz, new Light { torch = SetChannel(curLight, cIndex, 0) });
 
                     while (lrbfs.Count > 0) {
                         LightRemovalNode node = lrbfs.Dequeue();
@@ -126,7 +126,7 @@ public static class LightCalculator {
                             int index = x - 1 + S + (z + S) * W + (y + S) * W * W;
                             if (westChannel < node.light) {
                                 if (!GetIsLight(westLight)) {
-                                    lightFlags = SetLight(ref light, lightFlags, x - 1, y, z, new Light { torch = SetChannel(westLight, cIndex, 0) });
+                                    light.Set(x - 1, y, z, new Light { torch = SetChannel(westLight, cIndex, 0) });
                                 } else { // if this node is a light, dont override value, but still add a removal node as if you did, then add to repropagate to fill it back in
                                     lbfs.Enqueue(index);
                                 }
@@ -142,7 +142,7 @@ public static class LightCalculator {
                             int index = x + S + (z + S) * W + (y - 1 + S) * W * W;
                             if (downChannel < node.light) {
                                 if (!GetIsLight(downLight)) {
-                                    lightFlags = SetLight(ref light, lightFlags, x, y - 1, z, new Light { torch = SetChannel(downLight, cIndex, 0) });
+                                    light.Set(x, y - 1, z, new Light { torch = SetChannel(downLight, cIndex, 0) });
                                 } else {
                                     lbfs.Enqueue(index);
                                 }
@@ -158,7 +158,7 @@ public static class LightCalculator {
                             int index = x + S + (z - 1 + S) * W + (y + S) * W * W;
                             if (southChannel < node.light) {
                                 if (!GetIsLight(southLight)) {
-                                    lightFlags = SetLight(ref light, lightFlags, x, y, z - 1, new Light { torch = SetChannel(southLight, cIndex, 0) });
+                                    light.Set(x, y, z - 1, new Light { torch = SetChannel(southLight, cIndex, 0) });
                                 } else {
                                     lbfs.Enqueue(index);
                                 }
@@ -174,7 +174,7 @@ public static class LightCalculator {
                             int index = x + 1 + S + (z + S) * W + (y + S) * W * W;
                             if (eastChannel < node.light) {
                                 if (!GetIsLight(eastLight)) {
-                                    lightFlags = SetLight(ref light, lightFlags, x + 1, y, z, new Light { torch = SetChannel(eastLight, cIndex, 0) });
+                                    light.Set(x + 1, y, z, new Light { torch = SetChannel(eastLight, cIndex, 0) });
                                 } else {
                                     lbfs.Enqueue(index);
                                 }
@@ -190,7 +190,7 @@ public static class LightCalculator {
                             int index = x + S + (z + S) * W + (y + 1 + S) * W * W;
                             if (upChannel < node.light) {
                                 if (!GetIsLight(upLight)) {
-                                    lightFlags = SetLight(ref light, lightFlags, x, y + 1, z, new Light { torch = SetChannel(upLight, cIndex, 0) });
+                                    light.Set(x, y + 1, z, new Light { torch = SetChannel(upLight, cIndex, 0) });
                                 } else {
                                     lbfs.Enqueue(index);
                                 }
@@ -206,7 +206,7 @@ public static class LightCalculator {
                             int index = x + S + (z + 1 + S) * W + (y + S) * W * W;
                             if (northChannel < node.light) {
                                 if (!GetIsLight(northLight)) {
-                                    lightFlags = SetLight(ref light, lightFlags, x, y, z + 1, new Light { torch = SetChannel(northLight, cIndex, 0) });
+                                    light.Set(x, y, z + 1, new Light { torch = SetChannel(northLight, cIndex, 0) });
                                 } else {
                                     lbfs.Enqueue(index);
                                 }
@@ -222,7 +222,7 @@ public static class LightCalculator {
                 } else { // propagate light from this channel
                     ushort curLight = light.Get(opx, opy, opz).torch;
 
-                    lightFlags = SetLight(ref light, lightFlags, opx, opy, opz, new Light { torch = SetChannel(curLight, cIndex, GetChannel(op.val, cIndex)) });
+                    light.Set(opx, opy, opz, new Light { torch = SetChannel(curLight, cIndex, GetChannel(op.val, cIndex)) });
 
                     // if the ops channel is same or less than current channel, dont need to progagate
                     if (GetChannel(op.val, cIndex) <= GetChannel(curLight, cIndex)) {
@@ -250,42 +250,42 @@ public static class LightCalculator {
                     if (blocks.Get(x - 1, y, z) == Blocks.AIR) {
                         ushort nLight = light.Get(x - 1, y, z).torch;
                         if (GetChannel(nLight, cIndex) + 2 <= mChan) {
-                            lightFlags = SetLight(ref light, lightFlags, x - 1, y, z, new Light { torch = SetChannel(nLight, cIndex, mChan - 1) });
+                            light.Set(x - 1, y, z, new Light { torch = SetChannel(nLight, cIndex, mChan - 1) });
                             lbfs.Enqueue(x - 1 + S + (z + S) * W + (y + S) * W * W);
                         }
                     }
                     if (blocks.Get(x, y - 1, z) == Blocks.AIR) {
                         ushort nLight = light.Get(x, y - 1, z).torch;
                         if (GetChannel(nLight, cIndex) + 2 <= mChan) {
-                            lightFlags = SetLight(ref light, lightFlags, x, y - 1, z, new Light { torch = SetChannel(nLight, cIndex, mChan - 1) });
+                            light.Set(x, y - 1, z, new Light { torch = SetChannel(nLight, cIndex, mChan - 1) });
                             lbfs.Enqueue(x + S + (z + S) * W + (y - 1 + S) * W * W);
                         }
                     }
                     if (blocks.Get(x, y, z - 1) == Blocks.AIR) {
                         ushort nLight = light.Get(x, y, z - 1).torch;
                         if (GetChannel(nLight, cIndex) + 2 <= mChan) {
-                            lightFlags = SetLight(ref light, lightFlags, x, y, z - 1, new Light { torch = SetChannel(nLight, cIndex, mChan - 1) });
+                            light.Set(x, y, z - 1, new Light { torch = SetChannel(nLight, cIndex, mChan - 1) });
                             lbfs.Enqueue(x + S + (z - 1 + S) * W + (y + S) * W * W);
                         }
                     }
                     if (blocks.Get(x + 1, y, z) == Blocks.AIR) {
                         ushort nLight = light.Get(x + 1, y, z).torch;
                         if (GetChannel(nLight, cIndex) + 2 <= mChan) {
-                            lightFlags = SetLight(ref light, lightFlags, x + 1, y, z, new Light { torch = SetChannel(nLight, cIndex, mChan - 1) });
+                            light.Set(x + 1, y, z, new Light { torch = SetChannel(nLight, cIndex, mChan - 1) });
                             lbfs.Enqueue(x + 1 + S + (z + S) * W + (y + S) * W * W);
                         }
                     }
                     if (blocks.Get(x, y + 1, z) == Blocks.AIR) {
                         ushort nLight = light.Get(x, y + 1, z).torch;
                         if (GetChannel(nLight, cIndex) + 2 <= mChan) {
-                            lightFlags = SetLight(ref light, lightFlags, x, y + 1, z, new Light { torch = SetChannel(nLight, cIndex, mChan - 1) });
+                            light.Set(x, y + 1, z, new Light { torch = SetChannel(nLight, cIndex, mChan - 1) });
                             lbfs.Enqueue(x + S + (z + S) * W + (y + 1 + S) * W * W);
                         }
                     }
                     if (blocks.Get(x, y, z + 1) == Blocks.AIR) {
                         ushort nLight = light.Get(x, y, z + 1).torch;
                         if (GetChannel(nLight, cIndex) + 2 <= mChan) {
-                            lightFlags = SetLight(ref light, lightFlags, x, y, z + 1, new Light { torch = SetChannel(nLight, cIndex, mChan - 1) });
+                            light.Set(x, y, z + 1, new Light { torch = SetChannel(nLight, cIndex, mChan - 1) });
                             lbfs.Enqueue(x + S + (z + 1 + S) * W + (y + S) * W * W);
                         }
                     }
@@ -296,7 +296,6 @@ public static class LightCalculator {
 
         }
 
-        return lightFlags;
     }
 
     // queue up initial light updates for any light emitting block in loaded chunk
@@ -309,114 +308,6 @@ public static class LightCalculator {
             }
         }
 
-    }
-    static int SetLight(ref NativeArray3x3<Light> light, int lightFlags, int x, int y, int z, Light v) {
-        if (y < 0) {
-            if (z < 0) {
-                if (x < 0) {
-                    light.dsw[(x + S) + (z + S) * S + (y + S) * S * S] = v;
-                    return lightFlags | 0x1;
-                } else if (x >= S) {
-                    light.dse[(x - S) + (z + S) * S + (y + S) * S * S] = v;
-                    return lightFlags | 0x2;
-                } else {
-                    light.ds[x + (z + S) * S + (y + S) * S * S] = v;
-                    return lightFlags | 0x4;
-                }
-            } else if (z >= S) {
-                if (x < 0) {
-                    light.dnw[(x + S) + (z - S) * S + (y + S) * S * S] = v;
-                    return lightFlags | 0x8;
-                } else if (x >= S) {
-                    light.dne[(x - S) + (z - S) * S + (y + S) * S * S] = v;
-                    return lightFlags | 0x10;
-                } else {
-                    light.dn[x + (z - S) * S + (y + S) * S * S] = v;
-                    return lightFlags | 0x20;
-                }
-            } else {
-                if (x < 0) {
-                    light.dw[(x + S) + z * S + (y + S) * S * S] = v;
-                    return lightFlags | 0x40;
-                } else if (x >= S) {
-                    light.de[(x - S) + z * S + (y + S) * S * S] = v;
-                    return lightFlags | 0x80;
-                } else {
-                    light.d[x + z * S + (y + S) * S * S] = v;
-                    return lightFlags | 0x100;
-                }
-            }
-        } else if (y >= S) {
-            if (z < 0) {
-                if (x < 0) {
-                    light.usw[(x + S) + (z + S) * S + (y - S) * S * S] = v;
-                    return lightFlags | 0x200;
-                } else if (x >= S) {
-                    light.use[(x - S) + (z + S) * S + (y - S) * S * S] = v;
-                    return lightFlags | 0x400;
-                } else {
-                    light.us[x + (z + S) * S + (y - S) * S * S] = v;
-                    return lightFlags | 0x800;
-                }
-            } else if (z >= S) {
-                if (x < 0) {
-                    light.unw[(x + S) + (z - S) * S + (y - S) * S * S] = v;
-                    return lightFlags | 0x1000;
-                } else if (x >= S) {
-                    light.une[(x - S) + (z - S) * S + (y - S) * S * S] = v;
-                    return lightFlags | 0x2000;
-                } else {
-                    light.un[x + (z - S) * S + (y - S) * S * S] = v;
-                    return lightFlags | 0x4000;
-                }
-            } else {
-                if (x < 0) {
-                    light.uw[(x + S) + z * S + (y - S) * S * S] = v;
-                    return lightFlags | 0x8000;
-                } else if (x >= S) {
-                    light.ue[(x - S) + z * S + (y - S) * S * S] = v;
-                    return lightFlags | 0x10000;
-                } else {
-                    light.u[x + z * S + (y - S) * S * S] = v;
-                    return lightFlags | 0x20000;
-                }
-            }
-        } else {
-            if (z < 0) {
-                if (x < 0) {
-                    light.sw[(x + S) + (z + S) * S + y * S * S] = v;
-                    return lightFlags | 0x40000;
-                } else if (x >= S) {
-                    light.se[(x - S) + (z + S) * S + y * S * S] = v;
-                    return lightFlags | 0x80000;
-                } else {
-                    light.s[x + (z + S) * S + y * S * S] = v;
-                    return lightFlags | 0x100000;
-                }
-            } else if (z >= S) {
-                if (x < 0) {
-                    light.nw[(x + S) + (z - S) * S + y * S * S] = v;
-                    return lightFlags | 0x200000;
-                } else if (x >= S) {
-                    light.ne[(x - S) + (z - S) * S + y * S * S] = v;
-                    return lightFlags | 0x400000;
-                } else {
-                    light.n[x + (z - S) * S + y * S * S] = v;
-                    return lightFlags | 0x800000;
-                }
-            } else {
-                if (x < 0) {
-                    light.w[(x + S) + z * S + y * S * S] = v;
-                    return lightFlags | 0x1000000;
-                } else if (x >= S) {
-                    light.e[(x - S) + z * S + y * S * S] = v;
-                    return lightFlags | 0x2000000;
-                } else {
-                    light.c[x + z * S + y * S * S] = v;
-                    return lightFlags;
-                }
-            }
-        }
     }
 
     public static void CheckNeighborLightUpdate(Chunk chunk, int lightFlags) {

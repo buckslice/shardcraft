@@ -56,25 +56,30 @@ public struct StructureJob : IJob {
     public NativeArray3x3<Block> blocks;
     public Vector3i chunkBlockPos;
     public int seed;
+    public NativeQueue<int> flagHolder;
 
     public void Execute() {
         StructureGenerator.BuildStructures(chunkBlockPos, seed, ref blocks);
+        flagHolder.Enqueue(blocks.flags);
     }
 }
 
 public class StructureJobInfo {
     public JobHandle handle;
-
     Chunk chunk;
+    NativeQueue<int> flagHolder;
 
     public StructureJobInfo(Chunk chunk) {
         this.chunk = chunk;
         chunk.LockLocalGroupForStructuring();
 
+        flagHolder = Pools.intQPool.Get();
+
         StructureJob job = new StructureJob {
             blocks = chunk.GetLocalBlocks(),
             chunkBlockPos = chunk.bp,
             seed = chunk.world.seed,
+            flagHolder = flagHolder,
         };
 
         handle = job.Schedule();
@@ -83,9 +88,12 @@ public class StructureJobInfo {
 
     public void Finish() {
         chunk.UnlockLocalGroupForStructuring();
-        chunk.update = true;
+
+        chunk.BlocksWereUpdated();
+        StructureGenerator.CheckNeighborNeedUpdate(chunk, flagHolder.Dequeue());
+        Pools.intQPool.Return(flagHolder);
+
         chunk.builtStructures = true;
-        chunk.needToUpdateSave = true;
     }
 
 }
@@ -145,9 +153,9 @@ public struct MeshJob : IJob {
             watch.Restart();
 #endif
         }
-        int lightFlags = LightCalculator.ProcessLightOps(ref lights, ref blocks, lightOps, lightBFS, lightRBFS);
+        LightCalculator.ProcessLightOps(ref lights, ref blocks, lightOps, lightBFS, lightRBFS);
         Debug.Assert(lightBFS.Count == 0 && lightRBFS.Count == 0);
-        lightBFS.Enqueue(lightFlags); // kinda stupid way to do this, but so job handle can check which chunks had their lights set
+        lightBFS.Enqueue(lights.flags); // kinda stupid way to do this, but so job handle can check which chunks had their lights set
 
 #if _DEBUG
         UnityEngine.Profiling.Profiler.EndSample();
@@ -209,6 +217,8 @@ public class MeshJobInfo {
     NativeQueue<LightOp> lightOps;
     NativeQueue<int> lightBFS;
     NativeQueue<LightRemovalNode> lightRBFS;
+
+    NativeArray3x3<Light> lights;
 
     public MeshJobInfo(Chunk chunk) {
         this.chunk = chunk;

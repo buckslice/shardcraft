@@ -256,6 +256,13 @@ public class Chunk {
         }
     }
 
+    // called by structure job
+    public void BlocksWereUpdated() {
+        update = true;
+        needToUpdateSave = true;
+        needNewCollider = true;
+    }
+
     // if block is on a chunk edge then update neighbor chunks
     // given x,y,z of block in local chunk space, check if you need to update your neighbors
     void CheckNeedToUpdateNeighbors(int x, int y, int z) {

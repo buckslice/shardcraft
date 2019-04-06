@@ -1,6 +1,8 @@
 ﻿#if UNITY_EDITOR
 //#define _DEBUG
+#define DONT_SAVE
 #endif
+
 
 using UnityEngine;
 using System.Collections;
@@ -286,6 +288,14 @@ public static class Serialization {
         watch.Restart();
 #endif
 
+#if DONT_SAVE
+        lock (chunksSaved) { // ya all these chunks saved... uhhhuh
+            while (chunks.Count > 0) {
+                chunksSaved.Enqueue(chunks.Dequeue());
+            }
+        }
+#else
+
         // check if region file exists
         string regionFile = RegionFileName(regionCoord);
         bool alreadyExisted = File.Exists(regionFile);
@@ -369,6 +379,7 @@ public static class Serialization {
 
 #if _DEBUG
         Debug.Log("saved in " + watch.ElapsedMilliseconds + " ms");
+#endif
 #endif
     }
 

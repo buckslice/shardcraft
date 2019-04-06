@@ -21,9 +21,9 @@ public class CamModify : MonoBehaviour {
         Blocks.TORCH_Y,
         Blocks.TORCH_O,
         Blocks.TORCH_W,
-        //Blocks.GRASS,
-        //Blocks.STONE,
-        //Blocks.BIRCH,
+        Blocks.GRASS,
+        Blocks.STONE,
+        Blocks.BIRCH,
     };
     int blockIndex = 0;
 

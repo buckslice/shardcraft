@@ -8,11 +8,17 @@ public static class StructureGenerator {
     // called only once all neighbors are generated
     public static void BuildStructures(Vector3i chunkBlockPos, int seed, ref NativeArray3x3<Block> blocks) {
         // not sure here lol
-        Random urand = new Random((uint)(chunkBlockPos.GetHashCode() + seed));        
+        Random urand = new Random((uint)(chunkBlockPos.GetHashCode() + seed));
 
         for (int y = 0; y < Chunk.SIZE; ++y) {
             for (int z = 0; z < Chunk.SIZE; ++z) {
                 for (int x = 0; x < Chunk.SIZE; ++x) {
+
+                    //if (blocks.Get(x, y, z) == Blocks.AIR && blocks.Get(x, y - 1, z) == Blocks.STONE) {
+                    //    blocks.Set(x, y, z, Blocks.GRASS);
+                    //    blocks.Set(x, y - 1, z, Blocks.GRASS);
+                    //}
+
                     // random chance to try to spawn tree
                     if (urand.NextFloat() < 0.01f) {
                         TrySpawnTree(ref blocks, urand, x, y, z);
@@ -95,12 +101,70 @@ public static class StructureGenerator {
                        width == 3 && (u >= -1 && u <= 1) && (v >= -1 && v <= 1)) {
                         blocks.Set(x + u, y + i, z + v, Blocks.BIRCH);
                     } else if (i >= width * 2 && i % 2 == 0 || i > height - 1) { // otherwise leaves
-                        blocks.Set(x + u, y + i, z + v, Blocks.LEAF);
+                        if (blocks.Get(x + u, y + i, z + v) == Blocks.AIR) {
+                            blocks.Set(x + u, y + i, z + v, Blocks.LEAF);
+                        }
                     }
                 }
             }
         }
 
+    }
+
+
+    public static void CheckNeighborNeedUpdate(Chunk chunk, int flags) {
+        if ((flags & 0x1) != 0)
+            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].BlocksWereUpdated();
+        if ((flags & 0x2) != 0)
+            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].BlocksWereUpdated();
+        if ((flags & 0x4) != 0)
+            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].BlocksWereUpdated();
+        if ((flags & 0x8) != 0)
+            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].BlocksWereUpdated();
+        if ((flags & 0x10) != 0)
+            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].BlocksWereUpdated();
+        if ((flags & 0x20) != 0)
+            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].BlocksWereUpdated();
+        if ((flags & 0x40) != 0)
+            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.WEST].BlocksWereUpdated();
+        if ((flags & 0x80) != 0)
+            chunk.neighbors[Dirs.DOWN].neighbors[Dirs.EAST].BlocksWereUpdated();
+        if ((flags & 0x100) != 0)
+            chunk.neighbors[Dirs.DOWN].BlocksWereUpdated();
+        if ((flags & 0x200) != 0)
+            chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].BlocksWereUpdated();
+        if ((flags & 0x400) != 0)
+            chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].BlocksWereUpdated();
+        if ((flags & 0x800) != 0)
+            chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].BlocksWereUpdated();
+        if ((flags & 0x1000) != 0)
+            chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].BlocksWereUpdated();
+        if ((flags & 0x2000) != 0)
+            chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].BlocksWereUpdated();
+        if ((flags & 0x4000) != 0)
+            chunk.neighbors[Dirs.UP].neighbors[Dirs.NORTH].BlocksWereUpdated();
+        if ((flags & 0x8000) != 0)
+            chunk.neighbors[Dirs.UP].neighbors[Dirs.WEST].BlocksWereUpdated();
+        if ((flags & 0x10000) != 0)
+            chunk.neighbors[Dirs.UP].neighbors[Dirs.EAST].BlocksWereUpdated();
+        if ((flags & 0x20000) != 0)
+            chunk.neighbors[Dirs.UP].BlocksWereUpdated();
+        if ((flags & 0x40000) != 0)
+            chunk.neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].BlocksWereUpdated();
+        if ((flags & 0x80000) != 0)
+            chunk.neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].BlocksWereUpdated();
+        if ((flags & 0x100000) != 0)
+            chunk.neighbors[Dirs.SOUTH].BlocksWereUpdated();
+        if ((flags & 0x200000) != 0)
+            chunk.neighbors[Dirs.NORTH].neighbors[Dirs.WEST].BlocksWereUpdated();
+        if ((flags & 0x400000) != 0)
+            chunk.neighbors[Dirs.NORTH].neighbors[Dirs.EAST].BlocksWereUpdated();
+        if ((flags & 0x800000) != 0)
+            chunk.neighbors[Dirs.NORTH].BlocksWereUpdated();
+        if ((flags & 0x1000000) != 0)
+            chunk.neighbors[Dirs.WEST].BlocksWereUpdated();
+        if ((flags & 0x2000000) != 0)
+            chunk.neighbors[Dirs.EAST].BlocksWereUpdated();
     }
 
 }
