@@ -21,7 +21,7 @@ public static class MeshBuilder {
 
                     BlockData bd = blockData[blocks.c[x + z * S + y * S * S].type];
 
-                    if (bd.hasMesh == 1) {
+                    if (bd.renderType > 0) {
                         AddDataNative(x, y, z, ref meshData, ref blocks, ref lights, blockData);
                     }
 
@@ -30,12 +30,79 @@ public static class MeshBuilder {
         }
     }
 
-    static int GetTextureIndex(Dir dir, int x, int y, int z, ref NativeArray3x3<Block> blocks, NativeArray<BlockData> blockData) {
-        Block b = blocks.Get(x, y, z);
-        int texture = blockData[b.type].texture;
-        if (texture >= 0) {
-            return texture;
+    static void AddUVs(ref NativeMeshData data, ref NativeArray3x3<Block> blocks, NativeArray<BlockData> blockData, Dir dir, int x, int y, int z) {
+
+        BlockData bd = blockData[blocks.Get(x, y, z).type];
+        if (bd.renderType == 1) {
+            if (bd.texture < 0) { // dynamic, depends on nearby blocks
+                data.AddFaceUVs(GetTextureIndex(dir, x, y, z, ref blocks));
+            } else {
+                data.AddFaceUVs(bd.texture);
+            }
+        } else if (bd.renderType == 2) {
+            if (bd.texture < 0) {
+                int texture = GetTileTextureIndex(dir, x, y, z, ref blocks);
+                data.AddTileUvs(texture, dir, x, y, z, ref blocks, blockData);
+            } else {
+                data.AddTileUvs(bd.texture, dir, x, y, z, ref blocks, blockData);
+            }
         }
+    }
+
+    static int GetTileTextureIndex(Dir dir, int x, int y, int z, ref NativeArray3x3<Block> blocks) {
+        Block b = blocks.Get(x, y, z);
+
+        if (b == Blocks.GRASS) {
+            switch (dir) {
+                case Dir.up:
+                    return 2;
+                case Dir.down:
+                    return 3;
+            }
+
+            if (blocks.Get(x, y + 1, z) != Blocks.AIR) {
+                return 3;
+            }
+
+            switch (dir) {
+                case Dir.west:
+                    if (blocks.Get(x - 1, y - 1, z) == Blocks.GRASS) {
+                        return 2;
+                    }
+                    break;
+                case Dir.east:
+                    if (blocks.Get(x + 1, y - 1, z) == Blocks.GRASS) {
+                        return 2;
+                    }
+                    break;
+                case Dir.south:
+                    if (blocks.Get(x, y - 1, z - 1) == Blocks.GRASS) {
+                        return 2;
+                    }
+                    break;
+                case Dir.north:
+                    if (blocks.Get(x, y - 1, z + 1) == Blocks.GRASS) {
+                        return 2;
+                    }
+                    break;
+            }
+
+            return 3;
+        } else if (b == Blocks.STONE) {
+            switch (dir) {
+                case Dir.up:
+                case Dir.down:
+                    return 0;
+                default:
+                    return 1;
+            }
+        }
+
+        return -1;
+    }
+
+    static int GetTextureIndex(Dir dir, int x, int y, int z, ref NativeArray3x3<Block> blocks) {
+        Block b = blocks.Get(x, y, z);
 
         if (b == Blocks.GRASS) {
             switch (dir) {
@@ -89,26 +156,32 @@ public static class MeshBuilder {
     static void AddDataNative(int x, int y, int z, ref NativeMeshData meshData, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeArray<BlockData> blockData) {
         if (!BlockData.RenderSolid(blockData, blocks.Get(x - 1, y, z), Dir.east)) {
             FaceDataWestNative(x, y, z, ref meshData, ref blocks, ref lights, blockData);
+            AddUVs(ref meshData, ref blocks, blockData, Dir.west, x, y, z);
             meshData.faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.west });
         }
         if (!BlockData.RenderSolid(blockData, blocks.Get(x, y - 1, z), Dir.up)) {
             FaceDataDownNative(x, y, z, ref meshData, ref blocks, ref lights, blockData);
+            AddUVs(ref meshData, ref blocks, blockData, Dir.down, x, y, z);
             meshData.faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.down });
         }
         if (!BlockData.RenderSolid(blockData, blocks.Get(x, y, z - 1), Dir.north)) {
             FaceDataSouthNative(x, y, z, ref meshData, ref blocks, ref lights, blockData);
+            AddUVs(ref meshData, ref blocks, blockData, Dir.south, x, y, z);
             meshData.faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.south });
         }
         if (!BlockData.RenderSolid(blockData, blocks.Get(x + 1, y, z), Dir.west)) {
             FaceDataEastNative(x, y, z, ref meshData, ref blocks, ref lights, blockData);
+            AddUVs(ref meshData, ref blocks, blockData, Dir.east, x, y, z);
             meshData.faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.east });
         }
         if (!BlockData.RenderSolid(blockData, blocks.Get(x, y + 1, z), Dir.down)) {
             FaceDataUpNative(x, y, z, ref meshData, ref blocks, ref lights, blockData);
+            AddUVs(ref meshData, ref blocks, blockData, Dir.up, x, y, z);
             meshData.faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.up });
         }
         if (!BlockData.RenderSolid(blockData, blocks.Get(x, y, z + 1), Dir.south)) {
             FaceDataNorthNative(x, y, z, ref meshData, ref blocks, ref lights, blockData);
+            AddUVs(ref meshData, ref blocks, blockData, Dir.north, x, y, z);
             meshData.faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.north });
         }
     }
@@ -154,7 +227,6 @@ public static class MeshBuilder {
             data.AddFlippedQuadTriangles();
         }
 
-        data.AddFaceUVs(GetTextureIndex(Dir.west, x, y, z, ref blocks, blockData));
     }
 
     static void FaceDataDownNative(int x, int y, int z, ref NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeArray<BlockData> blockData) {
@@ -186,7 +258,6 @@ public static class MeshBuilder {
             data.AddFlippedQuadTriangles();
         }
 
-        data.AddFaceUVs(GetTextureIndex(Dir.down, x, y, z, ref blocks, blockData));
     }
 
     static void FaceDataSouthNative(int x, int y, int z, ref NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeArray<BlockData> blockData) {
@@ -218,7 +289,6 @@ public static class MeshBuilder {
             data.AddFlippedQuadTriangles();
         }
 
-        data.AddFaceUVs(GetTextureIndex(Dir.south, x, y, z, ref blocks, blockData));
     }
 
     static void FaceDataEastNative(int x, int y, int z, ref NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeArray<BlockData> blockData) {
@@ -250,7 +320,6 @@ public static class MeshBuilder {
             data.AddFlippedQuadTriangles();
         }
 
-        data.AddFaceUVs(GetTextureIndex(Dir.east, x, y, z, ref blocks, blockData));
     }
 
     static void FaceDataUpNative(int x, int y, int z, ref NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeArray<BlockData> blockData) {
@@ -282,7 +351,6 @@ public static class MeshBuilder {
             data.AddFlippedQuadTriangles();
         }
 
-        data.AddFaceUVs(GetTextureIndex(Dir.up, x, y, z, ref blocks, blockData));
     }
 
     static void FaceDataNorthNative(int x, int y, int z, ref NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeArray<BlockData> blockData) {
@@ -314,7 +382,6 @@ public static class MeshBuilder {
             data.AddFlippedQuadTriangles();
         }
 
-        data.AddFaceUVs(GetTextureIndex(Dir.north, x, y, z, ref blocks, blockData));
     }
 
     //public const int VOXEL_SIZE = 1;
@@ -512,14 +579,11 @@ public static class MeshBuilder {
 
         var vertices = Pools.v3Pool.Get();
         var uvs = Pools.v3Pool.Get();
+        var uv2s = Pools.v3Pool.Get();
         var colors = Pools.c32Pool.Get();
         var triangles = Pools.intPool.Get();
-        vertices.Clear();
-        uvs.Clear();
-        colors.Clear();
-        triangles.Clear();
 
-        NativeMeshData data = new NativeMeshData(vertices, uvs, colors, triangles, faceList);
+        NativeMeshData data = new NativeMeshData(vertices, uvs, uv2s, colors, triangles, faceList);
 
         const int x = 1;
         const int y = 1;
@@ -548,6 +612,7 @@ public static class MeshBuilder {
         filter.mesh.Clear();
         filter.mesh.vertices = vertices.ToArray();
         filter.mesh.SetUVs(0, new List<Vector3>(uvs.ToArray()));
+        filter.mesh.SetUVs(1, new List<Vector3>(uv2s.ToArray()));
         filter.mesh.colors32 = colors.ToArray();
 
         filter.mesh.triangles = triangles.ToArray();
@@ -555,6 +620,7 @@ public static class MeshBuilder {
 
         Pools.v3Pool.Return(vertices);
         Pools.v3Pool.Return(uvs);
+        Pools.v3Pool.Return(uv2s);
         Pools.c32Pool.Return(colors);
         Pools.intPool.Return(triangles);
 

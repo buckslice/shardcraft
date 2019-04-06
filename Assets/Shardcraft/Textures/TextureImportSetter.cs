@@ -11,7 +11,7 @@ public class TextureImportSetter : AssetPostprocessor {
             ti.wrapMode = TextureWrapMode.Repeat;
 
             //ti.textureCompression = TextureImporterCompression.Uncompressed;
-            ti.textureFormat = TextureImporterFormat.RGBA32; // this doesnt work with the importer anymore apparently
+            //ti.textureFormat = TextureImporterFormat.RGBA32; // this doesnt work with the importer anymore apparently
 
             ti.mipmapEnabled = true;
         }

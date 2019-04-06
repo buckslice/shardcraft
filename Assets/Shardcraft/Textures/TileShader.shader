@@ -2,7 +2,8 @@
 {
     Properties
     {
-        _MainTex ("TerrainTextureArray", 2DArray) = "white" {}
+        _MainTex ("BlockTextureArray", 2DArray) = "white" {}
+        _TileTex("BlockTiledTextureArray", 2DArray) = "white" {}
         _Glossiness ("Smoothness", Range(0,1)) = 0.5
         _Metallic ("Metallic", Range(0,1)) = 0.0
         _Cutoff("Alpha cutoff", Range(0,1)) = 0.5
@@ -25,10 +26,12 @@
         #pragma target 3.5
 
         UNITY_DECLARE_TEX2DARRAY(_MainTex);
+        UNITY_DECLARE_TEX2DARRAY(_TileTex);
 
         struct Input
         {
             float3 blockUVs;
+            float textureType;
             float4 color : COLOR;
         }; 
 
@@ -38,6 +41,7 @@
         void vert(inout appdata_full v, out Input OUT) {
             UNITY_INITIALIZE_OUTPUT(Input, OUT);
             OUT.blockUVs = v.texcoord.xyz;
+            OUT.textureType = v.texcoord2.x;
             OUT.color = v.color;
         }
 
@@ -82,9 +86,17 @@
         void surf (Input IN, inout SurfaceOutputStandard o)
         {
             // Albedo comes from a texture tinted by color
-            fixed4 texCol = UNITY_SAMPLE_TEX2DARRAY(_MainTex, IN.blockUVs);
+            fixed4 texCol;
+
+            if (IN.textureType > 1.0) {
+                texCol = UNITY_SAMPLE_TEX2DARRAY(_TileTex, IN.blockUVs);
+            } else {
+                texCol = UNITY_SAMPLE_TEX2DARRAY(_MainTex, IN.blockUVs);
+            }
 
             half3 light = GammaToLinearSpace(IN.color.rgb);
+
+            // makes non perfect attenuators (like orange) look weird
             //light = saturate(light*5.0); // kinda like bright mode in minecraft
 
             o.Albedo = texCol.rgb;

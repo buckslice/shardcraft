@@ -59,13 +59,15 @@ public class MeshData {
 public struct NativeMeshData {
     public NativeList<Vector3> vertices;
     public NativeList<Vector3> uvs;
+    public NativeList<Vector3> uv2s;
     public NativeList<Color32> colors;
     public NativeList<int> triangles;
     public NativeList<Face> faces;
 
-    public NativeMeshData(NativeList<Vector3> vertices, NativeList<Vector3> uvs, NativeList<Color32> colors, NativeList<int> triangles, NativeList<Face> faces) {
+    public NativeMeshData(NativeList<Vector3> vertices, NativeList<Vector3> uvs, NativeList<Vector3> uv2s, NativeList<Color32> colors, NativeList<int> triangles, NativeList<Face> faces) {
         this.vertices = vertices;
         this.uvs = uvs;
+        this.uv2s = uv2s;
         this.colors = colors;
         this.triangles = triangles;
         this.faces = faces;
@@ -107,10 +109,59 @@ public struct NativeMeshData {
 
     // given slice into texture2Darray, selecting it by the z uv coordinate
     public void AddFaceUVs(int slice) {
-        uvs.Add(new Vector3(1, 0, slice));
-        uvs.Add(new Vector3(1, 1, slice));
-        uvs.Add(new Vector3(0, 1, slice));
         uvs.Add(new Vector3(0, 0, slice));
+        uvs.Add(new Vector3(0, 1, slice));
+        uvs.Add(new Vector3(1, 1, slice));
+        uvs.Add(new Vector3(1, 0, slice));
+        uv2s.Add(new Vector3(0, 0, 0));
+        uv2s.Add(new Vector3(0, 0, 0));
+        uv2s.Add(new Vector3(0, 0, 0));
+        uv2s.Add(new Vector3(0, 0, 0));
+    }
+
+    const int t = 8; // tiles per texture (going for 32x32 and each texture is 256) so 8x8 can fit in there
+    const float ft = t;
+    // not sure if i really need separate case for signs of each direction, could prob just have them together
+    public void AddTileUvs(int slice, Dir dir, int x, int y, int z, ref NativeArray3x3<Block> blocks, NativeArray<BlockData> blockData) {
+
+        // tried also adding +x to X directions and +y to Ys and etc but made more tiling artifacts
+        // maybe adding x*2 or something. but current setup is not bad looking... can think about tiling options
+        if (dir == Dir.west) {
+            uvs.Add(new Vector3((z) / ft, (y) / ft, slice));
+            uvs.Add(new Vector3((z) / ft, (y + 1) / ft, slice));
+            uvs.Add(new Vector3((z - 1) / ft, (y + 1) / ft, slice));
+            uvs.Add(new Vector3((z - 1) / ft, (y) / ft, slice));
+        } else if (dir == Dir.east) {
+            uvs.Add(new Vector3((z) / ft, (y) / ft, slice));
+            uvs.Add(new Vector3((z) / ft, (y + 1) / ft, slice));
+            uvs.Add(new Vector3((z + 1) / ft, (y + 1) / ft, slice));
+            uvs.Add(new Vector3((z + 1) / ft, (y) / ft, slice));
+        } else if (dir == Dir.up) {
+            uvs.Add(new Vector3((z) / ft, (x) / ft, slice));
+            uvs.Add(new Vector3((z) / ft, (x + 1) / ft, slice));
+            uvs.Add(new Vector3((z - 1) / ft, (x + 1) / ft, slice));
+            uvs.Add(new Vector3((z - 1) / ft, (x) / ft, slice));
+        } else if (dir == Dir.down) {
+            uvs.Add(new Vector3((z) / ft, (x) / ft, slice));
+            uvs.Add(new Vector3((z) / ft, (x + 1) / ft, slice));
+            uvs.Add(new Vector3((z + 1) / ft, (x + 1) / ft, slice));
+            uvs.Add(new Vector3((z + 1) / ft, (x) / ft, slice));
+        } else if (dir == Dir.north) {
+            uvs.Add(new Vector3((x) / ft, (y) / ft, slice));
+            uvs.Add(new Vector3((x) / ft, (y + 1) / ft, slice));
+            uvs.Add(new Vector3((x - 1) / ft, (y + 1) / ft, slice));
+            uvs.Add(new Vector3((x - 1) / ft, (y) / ft, slice));
+        } else if (dir == Dir.south) {
+            uvs.Add(new Vector3((x) / ft, (y) / ft, slice));
+            uvs.Add(new Vector3((x) / ft, (y + 1) / ft, slice));
+            uvs.Add(new Vector3((x + 1) / ft, (y + 1) / ft, slice));
+            uvs.Add(new Vector3((x + 1) / ft, (y) / ft, slice));
+        }
+
+        uv2s.Add(new Vector3(1.5f, 0, 0));
+        uv2s.Add(new Vector3(1.5f, 0, 0));
+        uv2s.Add(new Vector3(1.5f, 0, 0));
+        uv2s.Add(new Vector3(1.5f, 0, 0));
     }
 
 }

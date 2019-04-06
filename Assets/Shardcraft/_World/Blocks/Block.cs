@@ -39,9 +39,9 @@ public struct Block : IEquatable<Block> {
 }
 
 public struct BlockData {
-    public int texture; // index into tex array
+    public int texture; // index into tex array, if -1 then dynamically figured out
     public ushort light;
-    public byte hasMesh; // could later become mesh type, like block, cross for grass, or billboard or something
+    public byte renderType; // 0 no mesh, 1 regular texture, 2 tiled texture
     public byte colliderSolid;
     public byte renderSolid;
     //public Vector3 scale;
@@ -51,7 +51,7 @@ public struct BlockData {
         // later have string name here once jobs can support that
         texture = 0;
         light = 0;
-        hasMesh = 1;
+        renderType = 1;
         colliderSolid = 1;
         renderSolid = 1;
         //scale = Vector3.one; // block scale in each dimension
@@ -88,17 +88,19 @@ public static class BlockDatas {
         data = new BlockData[] {
 
         new BlockData(0) { // AIR
-            hasMesh = 0,
+            renderType = 0,
             renderSolid = 0,
             colliderSolid = 0
         },
 
         new BlockData(0) { // STONE
-            texture = 0
+            texture = -1,
+            renderType = 2, 
         },
 
         new BlockData(0) { // GRASS
-            texture = -1 // figured out dynamically
+            texture = -1, // figured out dynamically
+            renderType = 2,
         },
 
         new BlockData(0) { // BIRCH
@@ -144,6 +146,23 @@ public static class BlockDatas {
             texture = 7,
         },
 
+        new BlockData(0) {
+            texture = 4, // figured out dynamically
+            renderType = 2,
+        },
+        new BlockData(0) {
+            texture = 5, // figured out dynamically
+            renderType = 2,
+        },
+        new BlockData(0) {
+            texture = 6, // figured out dynamically
+            renderType = 2,
+        },
+        new BlockData(0) {
+            texture = 7, // figured out dynamically
+            renderType = 2,
+        }
+
         };
 
         return new NativeArray<BlockData>(data, Allocator.Persistent);
@@ -169,6 +188,10 @@ public static class Blocks {
     public static readonly Block TORCH_Y = new Block(10);
     public static readonly Block TORCH_O = new Block(11);
     public static readonly Block TORCH_W = new Block(12);
+    public static readonly Block RUBY = new Block(13);
+    public static readonly Block EMERALD = new Block(14);
+    public static readonly Block SAPPHIRE = new Block(15);
+    public static readonly Block COAL = new Block(16);
 }
 
 //public static class BlockTypes {

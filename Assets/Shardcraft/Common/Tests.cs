@@ -214,7 +214,7 @@ public static class Tests {
             };
             TestEqual(test.texture, 0, "bd1");
             TestEqual(test.light, (ushort)0, "bd2");
-            TestEqual(test.hasMesh, (byte)1, "bd3");
+            TestEqual(test.renderType, (byte)1, "bd3");
             TestEqual(test.colliderSolid, (byte)0, "bd4");
             TestEqual(test.renderSolid, (byte)1, "bd5");
         }

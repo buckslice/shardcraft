@@ -29,10 +29,12 @@ public static class WorldGenerator {
 
                     Block b = Blocks.AIR;
 
-                    if (n > 0.15f) {
+                    if (n > 0.25f) {
+                        b = Blocks.STONE;
+                    } else if (n > 0.15f) {
                         b = Blocks.STONE;
 
-                        if (Vector3.Dot(Vector3.up, new Vector3(ng.y, ng.z, ng.w).normalized) < .5f) {
+                        if (Vector3.Dot(Vector3.up, new Vector3(ng.y, ng.z, ng.w).normalized) < .7f) {
                             b = Blocks.GRASS;
                         }
 
@@ -43,6 +45,21 @@ public static class WorldGenerator {
                         //    chunk.SetBlock(x, y, z, new Block());
                         //}
                     }
+
+                    if (b == Blocks.STONE) {
+
+                        float coal = NoiseUM.Billow(wp + new Vector3(1000, 722, 255), 2, 0.04f, 1, 0.6f);
+
+                        if (coal > 0.0f) {
+                            b = Blocks.COAL;
+                        }
+
+                    }
+
+                    // for testing singular blocks
+                    //if (b != Blocks.COAL) {
+                    //    b = Blocks.AIR;
+                    //}
 
                     blocks[x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE] = b;
 

@@ -17,6 +17,7 @@ public static class Layers {
 public static class ShaderParams {
     public static int Color = Shader.PropertyToID("_Color");
     public static int MainTex = Shader.PropertyToID("_MainTex");
+    public static int TileTex = Shader.PropertyToID("_TileTex");
 }
 
 public static class ListExtensions {

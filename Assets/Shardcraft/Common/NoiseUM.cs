@@ -4,9 +4,9 @@ using Unity.Mathematics;
 // noise functions for unity mathematics librarys
 public static class NoiseUM {
 
-    public static float Fractal(Vector3 v, int octaves, float frequency, float persistence = 0.5f, float lacunarity = 2.0f) {
+    // range -1 - 1
+    public static float Fractal(Vector3 v, int octaves, float frequency, float amplitude = 1.0f, float persistence = 0.5f, float lacunarity = 2.0f) {
         float total = 0.0f;
-        float amplitude = 1.0f;
 
         for (int i = 0; i < octaves; ++i) {
             float n = noise.snoise((v * frequency));
@@ -24,10 +24,25 @@ public static class NoiseUM {
         return total;
     }
 
-    public static float4 FractalGrad(Vector3 v, int octaves, float frequency, float persistence = 0.5f, float lacunarity = 2.0f) {
+    public static float Billow(Vector3 v, int octaves, float frequency, float amplitude = 1.0f, float persistence = 0.5f, float lacunarity = 2.0f) {
+        float total = 0.0f;
+
+        for (int i = 0; i < octaves; ++i) {
+            float n = noise.snoise(v * frequency);
+            n = 2.0f * Mathf.Abs(n) - 1.0f;
+            total += n * amplitude;
+
+            amplitude *= persistence;
+            frequency *= lacunarity;
+        }
+        total -= 0.5f;
+
+        return total;
+    }
+
+    public static float4 FractalGrad(Vector3 v, int octaves, float frequency, float amplitude = 1.0f, float persistence = 0.5f, float lacunarity = 2.0f) {
         float total = 0.0f;
         float3 gradTotal = new float3();
-        float amplitude = 1.0f;
 
         for (int i = 0; i < octaves; ++i) {
             float n = noise.snoise((v * frequency), out float3 grad);

@@ -85,6 +85,15 @@ MonoBehaviour:
   - {fileID: 2800000, guid: 69cef4f07a16fda499e52a15af199529, type: 3}
   - {fileID: 2800000, guid: 5e4d4deb9f9029f4488dd2c6ae62d4a3, type: 3}
   - {fileID: 2800000, guid: 70a62a1549b4ad4419321764c4a373c0, type: 3}
+  tileTextures:
+  - {fileID: 2800000, guid: 84d52756c8729124a8633dd7d80498a6, type: 3}
+  - {fileID: 2800000, guid: aba4fdfdcc9b4e54f98eaa49e6707449, type: 3}
+  - {fileID: 2800000, guid: 028e6294746263640b95c92ef848430c, type: 3}
+  - {fileID: 2800000, guid: c010af92e6c725448b99c318f1916d79, type: 3}
+  - {fileID: 2800000, guid: 432d25551ac3deb4ba649d4f1914219c, type: 3}
+  - {fileID: 2800000, guid: 26a5fc68eed79434e9b122352a60f510, type: 3}
+  - {fileID: 2800000, guid: 01045d9a9fe3dfc48bd831bff0e2a7a6, type: 3}
+  - {fileID: 2800000, guid: f6b3beeb5ac2164449c9e044be1d01a1, type: 3}
   mat: {fileID: 2100000, guid: 83cbd086011c43e48ae352c10450dcb7, type: 2}
 --- !u!114 &7095087038010124614
 MonoBehaviour:

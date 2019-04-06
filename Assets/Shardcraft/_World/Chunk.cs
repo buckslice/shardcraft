@@ -162,7 +162,7 @@ public class Chunk {
         return loadedNeighbors == 26;
     }
 
-    public void UpdateMeshNative(NativeList<Vector3> vertices, NativeList<Vector3> uvs, NativeList<Color32> colors, NativeList<int> triangles) {
+    public void UpdateMeshNative(NativeList<Vector3> vertices, NativeList<Vector3> uvs, NativeList<Vector3> uv2s, NativeList<Color32> colors, NativeList<int> triangles) {
         if (dying) {
             return;
         }
@@ -175,6 +175,7 @@ public class Chunk {
         filter.mesh.Clear();
         filter.mesh.vertices = vertices.ToArray();
         filter.mesh.SetUVs(0, new List<Vector3>(uvs.ToArray()));
+        filter.mesh.SetUVs(1, new List<Vector3>(uv2s.ToArray()));
         filter.mesh.colors32 = colors.ToArray();
 
         filter.mesh.triangles = triangles.ToArray();
