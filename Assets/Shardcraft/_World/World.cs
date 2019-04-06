@@ -181,15 +181,6 @@ public class World : MonoBehaviour {
         }
     }
 
-    public bool IsAnyChunksLocked() {
-        foreach (Chunk c in chunks.Values) {
-            if (c.IsDataLocked()) {
-                return true;
-            }
-        }
-        return false;
-    }
-
 
     // adds to queue to destroy it when proper time
     public void DestroyChunk(Vector3i cp) {
@@ -205,7 +196,7 @@ public class World : MonoBehaviour {
         int qlen = destroyQueue.Count;
         while (--qlen >= 0) {
             Chunk chunk = destroyQueue.Dequeue();
-            if (chunk.IsDataLocked()) {
+            if (chunk.IsAnyDataInUse()) {
                 destroyQueue.Enqueue(chunk); // put it back and try next time
             } else { // destroy the chunk
                 // notify neighbors

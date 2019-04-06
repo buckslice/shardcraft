@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using Unity.Collections;
+using System.Runtime.CompilerServices;
 
 public class Chunk {
     public const int SIZE = 32;
@@ -34,8 +35,13 @@ public class Chunk {
     public bool update { get; set; }            // means need to update mesh for some reason
     public bool lightUpdate { get; set; }       // mesh needs to update only light
     public bool rendered { get; private set; }  // has a mesh (may be out of date)
-    public bool builtStructures { get; set; }
-    int dataLock = 0;   // if not zero means one or more jobs are reading / writing from the data
+    public bool builtStructures { get; set; }   // indicates your structures are built (tho others can still build structures on you)
+
+    int blockReaders = 0;   // how many jobs are reading from these blocks
+    int lightReaders = 0;   // how many jobs are reading from these lights
+    bool blockWriter = false;   // if any job is writing to these blocks (should only ever be one writer at a time)
+    bool lightWriter = false;   // if any job is writing to these lights
+
     public bool needToUpdateSave { get; set; } // only gets set when generated or modified a block
     public bool dying { get; set; } // set when chunk is in process of getting destroyed
     public bool needNewCollider { get; private set; }
@@ -73,7 +79,10 @@ public class Chunk {
         update = false;
         lightUpdate = false;
         rendered = false;
-        dataLock = 0;
+        blockReaders = 0;
+        lightReaders = 0;
+        blockWriter = false;
+        lightWriter = false;
         builtStructures = false;
         needToUpdateSave = false;
         dying = false;
@@ -100,32 +109,18 @@ public class Chunk {
         world.UpdateNeighborsLoadedNeighbors(cp, true);
     }
 
-    public void LockData() {
-        ++dataLock;
-    }
-
-    public void UnlockData() {
-        --dataLock;
-        Debug.Assert(dataLock >= 0);
-        TryApplyPendingEdits();
-    }
-
-    public bool IsDataLocked() {
-        return dataLock > 0;
-    }
-
     public void TryApplyPendingEdits() {
         if (dying) {
             return;
         }
         Debug.Assert(loaded);
-        if (pendingEdits.Count > 0 && dataLock == 0) {
+        if (pendingEdits.Count > 0 && blockReaders == 0 && !blockWriter) {
             int c = pendingEdits.Count;
             while (c-- > 0) { // just incase setblock fails, prob wont happen tho
                 BlockEdit e = pendingEdits.Dequeue();
                 SetBlock(e.x, e.y, e.z, e.block);
             }
-            if (!NeighborsLoaded() || !IsLocalGroupFree()) {
+            if (!NeighborsLoaded() || !IsLocalGroupFreeForMeshing()) {
                 update = true;
             } else {    // slam out job right away if you can
                 update = false;
@@ -141,21 +136,18 @@ public class Chunk {
     }
 
     // Updates the chunk based on its contents
-    // returns whether or not a full update happens
+    // returns whether or not a meshing happens
     public bool UpdateChunk() {
         if (!loaded || dying || !NeighborsLoaded()) {
             return false;
         }
 
-        if (!builtStructures) { // build structures like trees and such if you havent yet
-            StructureGenerator.BuildStructures(this);
-            builtStructures = true;
-        }
-
-        if (lightUpdate && !update && IsLocalGroupFree()) {
+        if (!builtStructures && IsLocalGroupFreeForStructuring()) { // build structures like trees and such if you havent yet
+            JobController.StartStructureJob(this);
+        } else if (lightUpdate && !update && IsLocalGroupFreeToUpdateLights()) {
             lightUpdate = false;
             JobController.StartLightUpdateJob(this);
-        } else if (update && IsLocalGroupFree()) {
+        } else if (update && IsLocalGroupFreeForMeshing()) {
             update = false;
             lightUpdate = false;
             JobController.StartMeshJob(this);
@@ -235,7 +227,7 @@ public class Chunk {
     public Block GetBlock(int x, int y, int z) {
         // return block if its in range of this chunk
         if (InRange(x, y, z)) {
-            if (!loaded) {
+            if (!loaded || blockWriter) {
                 return Blocks.AIR;
             }
             return blocks[x + z * SIZE + y * SIZE * SIZE];
@@ -246,10 +238,10 @@ public class Chunk {
     // standard way to safely set the block in this chunk
     public void SetBlock(int x, int y, int z, Block block) {
         if (InRange(x, y, z)) {
-            if (!loaded) {
+            if (!loaded || !builtStructures) {
                 return;
             }
-            if (dataLock > 0) {
+            if (blockWriter || blockReaders > 0) {
                 pendingEdits.Enqueue(new BlockEdit { x = x, y = y, z = z, block = block });
             } else {
                 blocks[x + z * SIZE + y * SIZE * SIZE] = block;
@@ -293,38 +285,334 @@ public class Chunk {
 
     }
 
+    [MethodImpl(MethodImplOptions.AggressiveInlining)]
     public static bool InRange(int x, int y, int z) {
         return x >= 0 && x < SIZE && y >= 0 && y < SIZE && z >= 0 && z < SIZE;
     }
 
-    bool IsLocalGroupFree() {
-        return dataLock == 0 &&
-        neighbors[Dirs.WEST].dataLock == 0 &&
-        neighbors[Dirs.DOWN].dataLock == 0 &&
-        neighbors[Dirs.SOUTH].dataLock == 0 &&
-        neighbors[Dirs.EAST].dataLock == 0 &&
-        neighbors[Dirs.UP].dataLock == 0 &&
-        neighbors[Dirs.NORTH].dataLock == 0 &&
-        neighbors[Dirs.UP].neighbors[Dirs.WEST].dataLock == 0 &&
-        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].dataLock == 0 &&
-        neighbors[Dirs.UP].neighbors[Dirs.EAST].dataLock == 0 &&
-        neighbors[Dirs.UP].neighbors[Dirs.NORTH].dataLock == 0 &&
-        neighbors[Dirs.DOWN].neighbors[Dirs.WEST].dataLock == 0 &&
-        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].dataLock == 0 &&
-        neighbors[Dirs.DOWN].neighbors[Dirs.EAST].dataLock == 0 &&
-        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].dataLock == 0 &&
-        neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].dataLock == 0 &&
-        neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].dataLock == 0 &&
-        neighbors[Dirs.NORTH].neighbors[Dirs.WEST].dataLock == 0 &&
-        neighbors[Dirs.NORTH].neighbors[Dirs.EAST].dataLock == 0 &&
-        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].dataLock == 0 &&
-        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].dataLock == 0 &&
-        neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].dataLock == 0 &&
-        neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].dataLock == 0 &&
-        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].dataLock == 0 &&
-        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].dataLock == 0 &&
-        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].dataLock == 0 &&
-        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].dataLock == 0;
+
+    // nobody can write or read to lights and nobody can write to blocks
+    public bool FreeToMesh() {
+        return lightReaders == 0 && !lightWriter && !blockWriter;
+    }
+
+    public void LockForMeshing() {
+        Debug.Assert(lightWriter == false);
+        lightWriter = true; // meshing process potentially writes to lights
+        lightReaders++;
+        blockReaders++;
+    }
+
+    public void UnlockForMeshing() {
+        lightWriter = false;
+        lightReaders--;
+        blockReaders--;
+
+        Debug.Assert(lightReaders >= 0);
+        Debug.Assert(blockReaders >= 0);
+
+        TryApplyPendingEdits();
+    }
+
+    public bool FreeToUpdateLights() {
+        return !lightWriter;    // just make sure nobody is writing to lights
+    }
+
+    public void LockForLightUpdate() {
+        lightReaders++;
+    }
+
+    public void UnlockForLightUpdate() {
+        lightReaders--;
+    }
+
+    public bool FreeForStructuring() {
+        return !blockWriter && blockReaders == 0; // need read write access for blocks
+    }
+
+    public void LockForStructuring() {
+        Debug.Assert(!blockWriter);
+        blockWriter = true;
+        blockReaders++;
+    }
+
+    public void UnlockForStructuring() {
+        blockWriter = false;
+        blockReaders--;
+    }
+
+    public bool IsAnyDataInUse() {
+        return blockWriter || lightWriter || blockReaders > 0 || lightReaders > 0;
+    }
+
+    public bool IsLocalGroupFreeForMeshing() {
+        return FreeToMesh() &&
+        neighbors[Dirs.WEST].FreeToMesh() &&
+        neighbors[Dirs.DOWN].FreeToMesh() &&
+        neighbors[Dirs.SOUTH].FreeToMesh() &&
+        neighbors[Dirs.EAST].FreeToMesh() &&
+        neighbors[Dirs.UP].FreeToMesh() &&
+        neighbors[Dirs.NORTH].FreeToMesh() &&
+        neighbors[Dirs.UP].neighbors[Dirs.WEST].FreeToMesh() &&
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].FreeToMesh() &&
+        neighbors[Dirs.UP].neighbors[Dirs.EAST].FreeToMesh() &&
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].FreeToMesh() &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.WEST].FreeToMesh() &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].FreeToMesh() &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.EAST].FreeToMesh() &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].FreeToMesh() &&
+        neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].FreeToMesh() &&
+        neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].FreeToMesh() &&
+        neighbors[Dirs.NORTH].neighbors[Dirs.WEST].FreeToMesh() &&
+        neighbors[Dirs.NORTH].neighbors[Dirs.EAST].FreeToMesh() &&
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].FreeToMesh() &&
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].FreeToMesh() &&
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].FreeToMesh() &&
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].FreeToMesh() &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].FreeToMesh() &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].FreeToMesh() &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].FreeToMesh() &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].FreeToMesh();
+    }
+
+    public void LockLocalGroupForMeshing() {
+        LockForMeshing();
+        neighbors[Dirs.WEST].LockForMeshing();
+        neighbors[Dirs.DOWN].LockForMeshing();
+        neighbors[Dirs.SOUTH].LockForMeshing();
+        neighbors[Dirs.EAST].LockForMeshing();
+        neighbors[Dirs.UP].LockForMeshing();
+        neighbors[Dirs.NORTH].LockForMeshing();
+        neighbors[Dirs.UP].neighbors[Dirs.WEST].LockForMeshing();
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].LockForMeshing();
+        neighbors[Dirs.UP].neighbors[Dirs.EAST].LockForMeshing();
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].LockForMeshing();
+        neighbors[Dirs.DOWN].neighbors[Dirs.WEST].LockForMeshing();
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].LockForMeshing();
+        neighbors[Dirs.DOWN].neighbors[Dirs.EAST].LockForMeshing();
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].LockForMeshing();
+        neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].LockForMeshing();
+        neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].LockForMeshing();
+        neighbors[Dirs.NORTH].neighbors[Dirs.WEST].LockForMeshing();
+        neighbors[Dirs.NORTH].neighbors[Dirs.EAST].LockForMeshing();
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].LockForMeshing();
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].LockForMeshing();
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].LockForMeshing();
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].LockForMeshing();
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].LockForMeshing();
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].LockForMeshing();
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].LockForMeshing();
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].LockForMeshing();
+    }
+
+    public void UnlockLocalGroupForMeshing() {
+        UnlockForMeshing();
+        neighbors[Dirs.WEST].UnlockForMeshing();
+        neighbors[Dirs.DOWN].UnlockForMeshing();
+        neighbors[Dirs.SOUTH].UnlockForMeshing();
+        neighbors[Dirs.EAST].UnlockForMeshing();
+        neighbors[Dirs.UP].UnlockForMeshing();
+        neighbors[Dirs.NORTH].UnlockForMeshing();
+        neighbors[Dirs.UP].neighbors[Dirs.WEST].UnlockForMeshing();
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].UnlockForMeshing();
+        neighbors[Dirs.UP].neighbors[Dirs.EAST].UnlockForMeshing();
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].UnlockForMeshing();
+        neighbors[Dirs.DOWN].neighbors[Dirs.WEST].UnlockForMeshing();
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].UnlockForMeshing();
+        neighbors[Dirs.DOWN].neighbors[Dirs.EAST].UnlockForMeshing();
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].UnlockForMeshing();
+        neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].UnlockForMeshing();
+        neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].UnlockForMeshing();
+        neighbors[Dirs.NORTH].neighbors[Dirs.WEST].UnlockForMeshing();
+        neighbors[Dirs.NORTH].neighbors[Dirs.EAST].UnlockForMeshing();
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].UnlockForMeshing();
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].UnlockForMeshing();
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].UnlockForMeshing();
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].UnlockForMeshing();
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].UnlockForMeshing();
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].UnlockForMeshing();
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].UnlockForMeshing();
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].UnlockForMeshing();
+    }
+
+    public bool IsLocalGroupFreeToUpdateLights() {
+        return FreeToUpdateLights() &&
+        neighbors[Dirs.WEST].FreeToUpdateLights() &&
+        neighbors[Dirs.DOWN].FreeToUpdateLights() &&
+        neighbors[Dirs.SOUTH].FreeToUpdateLights() &&
+        neighbors[Dirs.EAST].FreeToUpdateLights() &&
+        neighbors[Dirs.UP].FreeToUpdateLights() &&
+        neighbors[Dirs.NORTH].FreeToUpdateLights() &&
+        neighbors[Dirs.UP].neighbors[Dirs.WEST].FreeToUpdateLights() &&
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].FreeToUpdateLights() &&
+        neighbors[Dirs.UP].neighbors[Dirs.EAST].FreeToUpdateLights() &&
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].FreeToUpdateLights() &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.WEST].FreeToUpdateLights() &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].FreeToUpdateLights() &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.EAST].FreeToUpdateLights() &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].FreeToUpdateLights() &&
+        neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].FreeToUpdateLights() &&
+        neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].FreeToUpdateLights() &&
+        neighbors[Dirs.NORTH].neighbors[Dirs.WEST].FreeToUpdateLights() &&
+        neighbors[Dirs.NORTH].neighbors[Dirs.EAST].FreeToUpdateLights() &&
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].FreeToUpdateLights() &&
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].FreeToUpdateLights() &&
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].FreeToUpdateLights() &&
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].FreeToUpdateLights() &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].FreeToUpdateLights() &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].FreeToUpdateLights() &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].FreeToUpdateLights() &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].FreeToUpdateLights();
+    }
+
+    public void LockLocalGroupForLightUpdate() {
+        LockForLightUpdate();
+        neighbors[Dirs.WEST].LockForLightUpdate();
+        neighbors[Dirs.DOWN].LockForLightUpdate();
+        neighbors[Dirs.SOUTH].LockForLightUpdate();
+        neighbors[Dirs.EAST].LockForLightUpdate();
+        neighbors[Dirs.UP].LockForLightUpdate();
+        neighbors[Dirs.NORTH].LockForLightUpdate();
+        neighbors[Dirs.UP].neighbors[Dirs.WEST].LockForLightUpdate();
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].LockForLightUpdate();
+        neighbors[Dirs.UP].neighbors[Dirs.EAST].LockForLightUpdate();
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].LockForLightUpdate();
+        neighbors[Dirs.DOWN].neighbors[Dirs.WEST].LockForLightUpdate();
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].LockForLightUpdate();
+        neighbors[Dirs.DOWN].neighbors[Dirs.EAST].LockForLightUpdate();
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].LockForLightUpdate();
+        neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].LockForLightUpdate();
+        neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].LockForLightUpdate();
+        neighbors[Dirs.NORTH].neighbors[Dirs.WEST].LockForLightUpdate();
+        neighbors[Dirs.NORTH].neighbors[Dirs.EAST].LockForLightUpdate();
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].LockForLightUpdate();
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].LockForLightUpdate();
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].LockForLightUpdate();
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].LockForLightUpdate();
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].LockForLightUpdate();
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].LockForLightUpdate();
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].LockForLightUpdate();
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].LockForLightUpdate();
+    }
+
+    public void UnlockLocalGroupForLightUpdate() {
+        UnlockForLightUpdate();
+        neighbors[Dirs.WEST].UnlockForLightUpdate();
+        neighbors[Dirs.DOWN].UnlockForLightUpdate();
+        neighbors[Dirs.SOUTH].UnlockForLightUpdate();
+        neighbors[Dirs.EAST].UnlockForLightUpdate();
+        neighbors[Dirs.UP].UnlockForLightUpdate();
+        neighbors[Dirs.NORTH].UnlockForLightUpdate();
+        neighbors[Dirs.UP].neighbors[Dirs.WEST].UnlockForLightUpdate();
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].UnlockForLightUpdate();
+        neighbors[Dirs.UP].neighbors[Dirs.EAST].UnlockForLightUpdate();
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].UnlockForLightUpdate();
+        neighbors[Dirs.DOWN].neighbors[Dirs.WEST].UnlockForLightUpdate();
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].UnlockForLightUpdate();
+        neighbors[Dirs.DOWN].neighbors[Dirs.EAST].UnlockForLightUpdate();
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].UnlockForLightUpdate();
+        neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].UnlockForLightUpdate();
+        neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].UnlockForLightUpdate();
+        neighbors[Dirs.NORTH].neighbors[Dirs.WEST].UnlockForLightUpdate();
+        neighbors[Dirs.NORTH].neighbors[Dirs.EAST].UnlockForLightUpdate();
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].UnlockForLightUpdate();
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].UnlockForLightUpdate();
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].UnlockForLightUpdate();
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].UnlockForLightUpdate();
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].UnlockForLightUpdate();
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].UnlockForLightUpdate();
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].UnlockForLightUpdate();
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].UnlockForLightUpdate();
+    }
+
+    public bool IsLocalGroupFreeForStructuring() {
+        return FreeForStructuring() &&
+        neighbors[Dirs.WEST].FreeForStructuring() &&
+        neighbors[Dirs.DOWN].FreeForStructuring() &&
+        neighbors[Dirs.SOUTH].FreeForStructuring() &&
+        neighbors[Dirs.EAST].FreeForStructuring() &&
+        neighbors[Dirs.UP].FreeForStructuring() &&
+        neighbors[Dirs.NORTH].FreeForStructuring() &&
+        neighbors[Dirs.UP].neighbors[Dirs.WEST].FreeForStructuring() &&
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].FreeForStructuring() &&
+        neighbors[Dirs.UP].neighbors[Dirs.EAST].FreeForStructuring() &&
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].FreeForStructuring() &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.WEST].FreeForStructuring() &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].FreeForStructuring() &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.EAST].FreeForStructuring() &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].FreeForStructuring() &&
+        neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].FreeForStructuring() &&
+        neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].FreeForStructuring() &&
+        neighbors[Dirs.NORTH].neighbors[Dirs.WEST].FreeForStructuring() &&
+        neighbors[Dirs.NORTH].neighbors[Dirs.EAST].FreeForStructuring() &&
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].FreeForStructuring() &&
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].FreeForStructuring() &&
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].FreeForStructuring() &&
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].FreeForStructuring() &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].FreeForStructuring() &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].FreeForStructuring() &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].FreeForStructuring() &&
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].FreeForStructuring();
+    }
+
+    public void LockLocalGroupForStructuring() {
+        LockForStructuring();
+        neighbors[Dirs.WEST].LockForStructuring();
+        neighbors[Dirs.DOWN].LockForStructuring();
+        neighbors[Dirs.SOUTH].LockForStructuring();
+        neighbors[Dirs.EAST].LockForStructuring();
+        neighbors[Dirs.UP].LockForStructuring();
+        neighbors[Dirs.NORTH].LockForStructuring();
+        neighbors[Dirs.UP].neighbors[Dirs.WEST].LockForStructuring();
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].LockForStructuring();
+        neighbors[Dirs.UP].neighbors[Dirs.EAST].LockForStructuring();
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].LockForStructuring();
+        neighbors[Dirs.DOWN].neighbors[Dirs.WEST].LockForStructuring();
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].LockForStructuring();
+        neighbors[Dirs.DOWN].neighbors[Dirs.EAST].LockForStructuring();
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].LockForStructuring();
+        neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].LockForStructuring();
+        neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].LockForStructuring();
+        neighbors[Dirs.NORTH].neighbors[Dirs.WEST].LockForStructuring();
+        neighbors[Dirs.NORTH].neighbors[Dirs.EAST].LockForStructuring();
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].LockForStructuring();
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].LockForStructuring();
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].LockForStructuring();
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].LockForStructuring();
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].LockForStructuring();
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].LockForStructuring();
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].LockForStructuring();
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].LockForStructuring();
+    }
+
+    public void UnlockLocalGroupForStructuring() {
+        UnlockForStructuring();
+        neighbors[Dirs.WEST].UnlockForStructuring();
+        neighbors[Dirs.DOWN].UnlockForStructuring();
+        neighbors[Dirs.SOUTH].UnlockForStructuring();
+        neighbors[Dirs.EAST].UnlockForStructuring();
+        neighbors[Dirs.UP].UnlockForStructuring();
+        neighbors[Dirs.NORTH].UnlockForStructuring();
+        neighbors[Dirs.UP].neighbors[Dirs.WEST].UnlockForStructuring();
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].UnlockForStructuring();
+        neighbors[Dirs.UP].neighbors[Dirs.EAST].UnlockForStructuring();
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].UnlockForStructuring();
+        neighbors[Dirs.DOWN].neighbors[Dirs.WEST].UnlockForStructuring();
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].UnlockForStructuring();
+        neighbors[Dirs.DOWN].neighbors[Dirs.EAST].UnlockForStructuring();
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].UnlockForStructuring();
+        neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].UnlockForStructuring();
+        neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].UnlockForStructuring();
+        neighbors[Dirs.NORTH].neighbors[Dirs.WEST].UnlockForStructuring();
+        neighbors[Dirs.NORTH].neighbors[Dirs.EAST].UnlockForStructuring();
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].UnlockForStructuring();
+        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].UnlockForStructuring();
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].UnlockForStructuring();
+        neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].UnlockForStructuring();
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].UnlockForStructuring();
+        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].UnlockForStructuring();
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].UnlockForStructuring();
+        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].UnlockForStructuring();
     }
 
     public NativeArray3x3<Block> GetLocalBlocks() {
@@ -389,66 +677,5 @@ public class Chunk {
             dnw = neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].lights,
             dne = neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].lights,
         };
-    }
-
-
-    public void LockLocalGroup() {
-        LockData();
-        neighbors[Dirs.WEST].LockData();
-        neighbors[Dirs.DOWN].LockData();
-        neighbors[Dirs.SOUTH].LockData();
-        neighbors[Dirs.EAST].LockData();
-        neighbors[Dirs.UP].LockData();
-        neighbors[Dirs.NORTH].LockData();
-        neighbors[Dirs.UP].neighbors[Dirs.WEST].LockData();
-        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].LockData();
-        neighbors[Dirs.UP].neighbors[Dirs.EAST].LockData();
-        neighbors[Dirs.UP].neighbors[Dirs.NORTH].LockData();
-        neighbors[Dirs.DOWN].neighbors[Dirs.WEST].LockData();
-        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].LockData();
-        neighbors[Dirs.DOWN].neighbors[Dirs.EAST].LockData();
-        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].LockData();
-        neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].LockData();
-        neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].LockData();
-        neighbors[Dirs.NORTH].neighbors[Dirs.WEST].LockData();
-        neighbors[Dirs.NORTH].neighbors[Dirs.EAST].LockData();
-        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].LockData();
-        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].LockData();
-        neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].LockData();
-        neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].LockData();
-        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].LockData();
-        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].LockData();
-        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].LockData();
-        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].LockData();
-    }
-
-    public void UnlockLocalGroup() {
-        UnlockData();
-        neighbors[Dirs.WEST].UnlockData();
-        neighbors[Dirs.DOWN].UnlockData();
-        neighbors[Dirs.SOUTH].UnlockData();
-        neighbors[Dirs.EAST].UnlockData();
-        neighbors[Dirs.UP].UnlockData();
-        neighbors[Dirs.NORTH].UnlockData();
-        neighbors[Dirs.UP].neighbors[Dirs.WEST].UnlockData();
-        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].UnlockData();
-        neighbors[Dirs.UP].neighbors[Dirs.EAST].UnlockData();
-        neighbors[Dirs.UP].neighbors[Dirs.NORTH].UnlockData();
-        neighbors[Dirs.DOWN].neighbors[Dirs.WEST].UnlockData();
-        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].UnlockData();
-        neighbors[Dirs.DOWN].neighbors[Dirs.EAST].UnlockData();
-        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].UnlockData();
-        neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].UnlockData();
-        neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].UnlockData();
-        neighbors[Dirs.NORTH].neighbors[Dirs.WEST].UnlockData();
-        neighbors[Dirs.NORTH].neighbors[Dirs.EAST].UnlockData();
-        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].UnlockData();
-        neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].UnlockData();
-        neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].UnlockData();
-        neighbors[Dirs.UP].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].UnlockData();
-        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].UnlockData();
-        neighbors[Dirs.DOWN].neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].UnlockData();
-        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.WEST].UnlockData();
-        neighbors[Dirs.DOWN].neighbors[Dirs.NORTH].neighbors[Dirs.EAST].UnlockData();
     }
 }

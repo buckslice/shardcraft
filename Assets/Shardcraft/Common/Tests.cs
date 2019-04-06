@@ -219,6 +219,15 @@ public static class Tests {
             TestEqual(test.renderSolid, (byte)1, "bd5");
         }
 
+        {
+            TestStruct t;
+            t.member = 0;
+            TestEqual(t.member, 0, "struct1");
+            t.IncMember();
+            TestEqual(t.member, 1, "struct2");
+
+        }
+
 
         string msg = string.Format("{0}/{1} tests passed", passes, passes + failures);
         if (failures == 0) {
@@ -226,5 +235,14 @@ public static class Tests {
         } else {
             Debug.Log(msg);
         }
+    }
+}
+
+
+struct TestStruct {
+    public int member;
+
+    public void IncMember() {
+        member++;
     }
 }

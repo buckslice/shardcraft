@@ -134,15 +134,17 @@ public class LoadChunks : MonoBehaviour {
 
         text.text = string.Format(
             "Generat: {0}/{1}\n" +
-            "Meshing: {2}/{3}\n" +
-            "Light  : {4}/{5}\n" +
-            "Free/C : {6}/{7}\n" +
-            "Chunks:  {8}\n" +
-            "Loaded:  {9}\n" +
-            "Greedy:  {10}\n" +
-            "v3Pool:  {11}/{12}\n" +
-            "intPool: {13}/{14}\n",
+            "Structr: {2}/{3}\n" +
+            "Meshing: {4}/{5}\n" +
+            "Light  : {6}/{7}\n" +
+            "Free/C : {8}/{9}\n" +
+            "Chunks:  {10}\n" +
+            "Loaded:  {11}\n" +
+            "Greedy:  {12}\n" +
+            "v3Pool:  {13}/{14}\n" +
+            "intPool: {15}/{16}\n",
             JobController.genJobFinished, JobController.genJobScheduled,
+            JobController.structureJobFinished, JobController.structureJobScheduled,
             JobController.meshJobFinished, JobController.meshJobScheduled,
             JobController.lightJobFinished, JobController.lightJobScheduled,
             world.chunkPool.CountFree(), world.chunkPool.Count(),

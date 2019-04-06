@@ -28,21 +28,14 @@ public struct GenerationJob : IJob {
 
 public class GenJobInfo {
     public JobHandle handle;
-
     Chunk chunk;
-    NativeArray<Block> blocks;
-    NativeArray<Light> lights;
 
     public GenJobInfo(Chunk chunk) {
         this.chunk = chunk;
-        blocks = chunk.blocks;
-        lights = chunk.lights;
-
-        //lights.
 
         GenerationJob job = new GenerationJob {
-            blocks = blocks,
-            lights = lights,
+            blocks = chunk.blocks,
+            lights = chunk.lights,
             chunkWorldPos = chunk.GetWorldPos(),
         };
 
@@ -56,6 +49,45 @@ public class GenJobInfo {
         chunk.update = true;
         chunk.needToUpdateSave = true; // save should be updated since this was newly generated
     }
+}
+
+[BurstCompile]
+public struct StructureJob : IJob {
+    public NativeArray3x3<Block> blocks;
+    public Vector3i chunkBlockPos;
+    public int seed;
+
+    public void Execute() {
+        StructureGenerator.BuildStructures(chunkBlockPos, seed, ref blocks);
+    }
+}
+
+public class StructureJobInfo {
+    public JobHandle handle;
+
+    Chunk chunk;
+
+    public StructureJobInfo(Chunk chunk) {
+        this.chunk = chunk;
+        chunk.LockLocalGroupForStructuring();
+
+        StructureJob job = new StructureJob {
+            blocks = chunk.GetLocalBlocks(),
+            chunkBlockPos = chunk.bp,
+            seed = chunk.world.seed,
+        };
+
+        handle = job.Schedule();
+
+    }
+
+    public void Finish() {
+        chunk.UnlockLocalGroupForStructuring();
+        chunk.update = true;
+        chunk.builtStructures = true;
+        chunk.needToUpdateSave = true;
+    }
+
 }
 
 
@@ -181,7 +213,7 @@ public class MeshJobInfo {
     public MeshJobInfo(Chunk chunk) {
         this.chunk = chunk;
 
-        chunk.LockLocalGroup();
+        chunk.LockLocalGroupForMeshing();
 
         MeshJob job;
         job.blockData = JobController.instance.blockData;
@@ -242,7 +274,7 @@ public class MeshJobInfo {
 #endif
 
     public void Finish() {
-        chunk.UnlockLocalGroup();
+        chunk.UnlockLocalGroupForMeshing();
 
         chunk.UpdateMeshNative(vertices, uvs, colors, triangles);
 
@@ -322,7 +354,7 @@ public class LightJobInfo {
     public LightJobInfo(Chunk chunk) {
         this.chunk = chunk;
 
-        chunk.LockLocalGroup();
+        chunk.LockLocalGroupForLightUpdate();
 
         LightUpdateJob job;
 
@@ -337,7 +369,7 @@ public class LightJobInfo {
     }
 
     public void Finish() {
-        chunk.UnlockLocalGroup();
+        chunk.UnlockLocalGroupForLightUpdate();
 
         chunk.UpdateMeshLight(colors);
 
@@ -354,6 +386,8 @@ public class JobController : MonoBehaviour {
     static List<MeshJobInfo> meshJobInfos = new List<MeshJobInfo>();
 
     static List<LightJobInfo> lightJobInfos = new List<LightJobInfo>();
+
+    static List<StructureJobInfo> structureJobInfos = new List<StructureJobInfo>();
 
     public NativeArray<BlockData> blockData;
 
@@ -394,12 +428,20 @@ public class JobController : MonoBehaviour {
             lightJobInfos[i].Finish();
         }
 
+        for (int i = 0; i < structureJobInfos.Count; ++i) {
+            structureJobInfos[i].handle.Complete();
+            structureJobInfos[i].Finish();
+        }
+
     }
+
+    public static int genJobScheduled = 0;
+    public static int genJobFinished = 0;
+    public static int structureJobScheduled = 0;
+    public static int structureJobFinished = 0;
 
     public static int meshJobScheduled = 0;
     public static int meshJobFinished = 0;
-    public static int genJobScheduled = 0;
-    public static int genJobFinished = 0;
     public static int lightJobScheduled = 0;
     public static int lightJobFinished = 0;
 
@@ -424,6 +466,17 @@ public class JobController : MonoBehaviour {
                 genJobInfos[i].Finish();
                 genJobFinished++;
                 genJobInfos.SwapAndPop(i);
+                --i;
+            }
+        }
+
+        for (int i = 0; i < structureJobInfos.Count; ++i) {
+            if (structureJobInfos[i].handle.IsCompleted) {
+                structureJobInfos[i].handle.Complete();
+
+                structureJobInfos[i].Finish();
+                structureJobFinished++;
+                structureJobInfos.SwapAndPop(i);
                 --i;
             }
         }
@@ -469,6 +522,15 @@ public class JobController : MonoBehaviour {
         genJobScheduled++;
 
 
+    }
+
+    public static void StartStructureJob(Chunk chunk) {
+        Debug.Assert(!chunk.builtStructures);
+        StructureJobInfo info = new StructureJobInfo(chunk);
+
+        structureJobInfos.Add(info);
+
+        structureJobScheduled++;
     }
 
     public static void StartMeshJob(Chunk chunk) {

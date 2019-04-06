@@ -1,21 +1,21 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
-using UnityEngine;
+//using UnityEngine;
+using Unity.Mathematics;
 
 public static class StructureGenerator {
 
-
     // called only once all neighbors are generated
-    public static void BuildStructures(Chunk c) {
+    public static void BuildStructures(Vector3i chunkBlockPos, int seed, ref NativeArray3x3<Block> blocks) {
         // not sure here lol
-        Random.InitState(c.bp.GetHashCode() + c.world.seed);
+        Random urand = new Random((uint)(chunkBlockPos.GetHashCode() + seed));        
 
         for (int y = 0; y < Chunk.SIZE; ++y) {
             for (int z = 0; z < Chunk.SIZE; ++z) {
                 for (int x = 0; x < Chunk.SIZE; ++x) {
                     // random chance to try to spawn tree
-                    if (Random.value < 0.01f) {
-                        TrySpawnTree(c, x, y, z);
+                    if (urand.NextFloat() < 0.01f) {
+                        TrySpawnTree(ref blocks, urand, x, y, z);
                     }
 
                 }
@@ -24,14 +24,14 @@ public static class StructureGenerator {
 
     }
 
-    static void TrySpawnTree(Chunk c, int x, int y, int z) {
-        int width = Random.Range(1, 4);
+    static void TrySpawnTree(ref NativeArray3x3<Block> blocks, Random urand, int x, int y, int z) {
+        int width = urand.NextInt(1, 4);
 
         int height = 0;
         if (width == 1) {
-            height = Random.Range(3, 10);
+            height = urand.NextInt(3, 10);
             for (int i = 0; i <= height; ++i) {
-                Block b = c.GetBlock(x, y + i, z);
+                Block b = blocks.Get(x, y + i, z);
                 if (i == 0) {
                     if (b != Blocks.GRASS) return;
                 } else {
@@ -40,11 +40,11 @@ public static class StructureGenerator {
             }
 
         } else if (width == 2) {
-            height = Random.Range(8, 20);
+            height = urand.NextInt(8, 20);
             for (int i = 0; i <= height; ++i) {
                 for (int u = 0; u <= 1; ++u) {
                     for (int v = 0; v <= 1; ++v) {
-                        Block b = c.GetBlock(x + u, y + i, z + v);
+                        Block b = blocks.Get(x + u, y + i, z + v);
                         if (i == 0) {
                             if (b != Blocks.GRASS) return;
                         } else {
@@ -55,11 +55,11 @@ public static class StructureGenerator {
             }
 
         } else if (width == 3) {
-            height = Random.Range(16, 28);
+            height = urand.NextInt(16, 30);
             for (int i = 0; i <= height; ++i) {
                 for (int u = -1; u <= 1; ++u) {
                     for (int v = -1; v <= 1; ++v) {
-                        Block b = c.GetBlock(x + u, y + i, z + v);
+                        Block b = blocks.Get(x + u, y + i, z + v);
                         if (i == 0) {
                             if (b != Blocks.GRASS) return;
                         } else {
@@ -79,7 +79,7 @@ public static class StructureGenerator {
             if (s <= 0) {
                 s = 1;
             }
-            s += Random.Range(-1, 2);
+            s += urand.NextInt(-1, 2);
             int us = -s;
             int vs = -s;
             if (width == 3) {
@@ -93,9 +93,9 @@ public static class StructureGenerator {
                     if (width == 1 && u == 0 && v == 0 ||
                        width == 2 && (u >= 0 && u <= 1) && (v >= 0 && v <= 1) ||
                        width == 3 && (u >= -1 && u <= 1) && (v >= -1 && v <= 1)) {
-                        c.SetBlock(x + u, y + i, z + v, Blocks.BIRCH);
+                        blocks.Set(x + u, y + i, z + v, Blocks.BIRCH);
                     } else if (i >= width * 2 && i % 2 == 0 || i > height - 1) { // otherwise leaves
-                        c.SetBlock(x + u, y + i, z + v, Blocks.LEAF);
+                        blocks.Set(x + u, y + i, z + v, Blocks.LEAF);
                     }
                 }
             }
