@@ -99,10 +99,10 @@
             // makes non perfect attenuators (like orange) look weird
             //light = saturate(light*5.0); // kinda like bright mode in minecraft
 
-            o.Albedo = texCol.rgb;
-            //o.Albedo = float3(1, 1, 1);
+            //o.Albedo = texCol.rgb;
+            o.Albedo = float3(1, 1, 1);
 
-            //o.Albedo = texCol.rgb *lerp(1.0,2.0,light);
+            o.Albedo = texCol.rgb *lerp(1.0,2.0,light);
             //o.Albedo = col.rgb;
             o.Albedo *= IN.color.a; // multiply by ambient occlusion stored in alpha channel of color
             o.Alpha = texCol.a; // set from transparent textures

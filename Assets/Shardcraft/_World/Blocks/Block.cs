@@ -2,7 +2,7 @@
 using System.Collections;
 using System;
 using Unity.Collections;
-using System.Runtime.InteropServices;
+using System.Runtime.CompilerServices;
 using Unity.Mathematics;
 
 [Serializable]
@@ -44,6 +44,9 @@ public struct BlockData {
     public byte renderType; // 0 no mesh, 1 regular texture, 2 tiled texture
     public byte colliderSolid;
     public byte renderSolid;
+    // this is really like additional light reduction because no matter what light will reduce 1 each block it moves
+    // by default this is at really high (so basically solid)
+    public byte lightReduction;
     //public Vector3 scale;
     //public Vector3 offset;
 
@@ -54,6 +57,7 @@ public struct BlockData {
         renderType = 1;
         colliderSolid = 1;
         renderSolid = 1;
+        lightReduction = byte.MaxValue;
         //scale = Vector3.one; // block scale in each dimension
         //offset = Vector3.zero; // face offset in each dimension
     }
@@ -90,12 +94,13 @@ public static class BlockDatas {
         new BlockData(0) { // AIR
             renderType = 0,
             renderSolid = 0,
-            colliderSolid = 0
+            colliderSolid = 0,
+            lightReduction = 0,
         },
 
         new BlockData(0) { // STONE
             texture = -1,
-            renderType = 2, 
+            renderType = 2,
         },
 
         new BlockData(0) { // GRASS
@@ -103,13 +108,16 @@ public static class BlockDatas {
             renderType = 2,
         },
 
-        new BlockData(0) { // BIRCH
-            texture = -1
+        new BlockData(0) { // PINE
+            texture = -1,
+            renderType = 2,
         },
 
-        new BlockData(0) { // LEAF
+        new BlockData(0) { // PINELEAF
             renderSolid = 0,
-            texture = 6
+            renderType = 2,
+            texture = 6,
+            lightReduction = 4,
         },
 
         new BlockData(0) { // TORCH
@@ -178,8 +186,8 @@ public static class Blocks {
     public static readonly Block AIR = new Block(0);
     public static readonly Block STONE = new Block(1);
     public static readonly Block GRASS = new Block(2);
-    public static readonly Block BIRCH = new Block(3);
-    public static readonly Block LEAF = new Block(4);
+    public static readonly Block PINE = new Block(3);
+    public static readonly Block PINELEAF = new Block(4);
     public static readonly Block TORCH = new Block(5);
     public static readonly Block TORCH_R = new Block(6);
     public static readonly Block TORCH_G = new Block(7);

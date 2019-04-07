@@ -23,7 +23,8 @@ public class CamModify : MonoBehaviour {
         Blocks.TORCH_W,
         Blocks.GRASS,
         Blocks.STONE,
-        Blocks.BIRCH,
+        Blocks.PINE,
+        Blocks.PINELEAF,
     };
     int blockIndex = 0;
 

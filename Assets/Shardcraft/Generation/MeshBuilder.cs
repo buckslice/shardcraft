@@ -96,6 +96,14 @@ public static class MeshBuilder {
                 default:
                     return 1;
             }
+        }else if(b== Blocks.PINE) {
+            switch (dir) {
+                case Dir.up:
+                case Dir.down:
+                    return 5;
+                default:
+                    return 4;
+            }
         }
 
         return -1;
@@ -140,7 +148,7 @@ public static class MeshBuilder {
             }
 
             return 3;
-        } else if (b == Blocks.BIRCH) {
+        } else if (b == Blocks.PINE) {
             switch (dir) {
                 case Dir.up:
                 case Dir.down:

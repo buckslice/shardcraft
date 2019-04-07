@@ -99,10 +99,10 @@ public static class StructureGenerator {
                     if (width == 1 && u == 0 && v == 0 ||
                        width == 2 && (u >= 0 && u <= 1) && (v >= 0 && v <= 1) ||
                        width == 3 && (u >= -1 && u <= 1) && (v >= -1 && v <= 1)) {
-                        blocks.Set(x + u, y + i, z + v, Blocks.BIRCH);
+                        blocks.Set(x + u, y + i, z + v, Blocks.PINE);
                     } else if (i >= width * 2 && i % 2 == 0 || i > height - 1) { // otherwise leaves
                         if (blocks.Get(x + u, y + i, z + v) == Blocks.AIR) {
-                            blocks.Set(x + u, y + i, z + v, Blocks.LEAF);
+                            blocks.Set(x + u, y + i, z + v, Blocks.PINELEAF);
                         }
                     }
                 }

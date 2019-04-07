@@ -154,7 +154,7 @@ public struct MeshJob : IJob {
             watch.Restart();
 #endif
         }
-        LightCalculator.ProcessLightOps(ref lights, ref blocks, lightOps, lightBFS, lightRBFS);
+        LightCalculator.ProcessLightOps(ref lights, ref blocks, blockData, lightOps, lightBFS, lightRBFS);
         Debug.Assert(lightBFS.Count == 0 && lightRBFS.Count == 0);
         lightBFS.Enqueue(lights.flags); // kinda stupid way to do this, but so job handle can check which chunks had their lights set
 

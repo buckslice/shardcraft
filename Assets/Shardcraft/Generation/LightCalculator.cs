@@ -80,7 +80,7 @@ public static class LightCalculator {
     const int S = Chunk.SIZE;
     const int W = S + S + S; // because processing 3x3x3 block of 32x32x32 chunks
 
-    public static void ProcessLightOps(ref NativeArray3x3<Light> light, ref NativeArray3x3<Block> blocks, NativeQueue<LightOp> ops, NativeQueue<int> lbfs, NativeQueue<LightRemovalNode> lrbfs) {
+    public static void ProcessLightOps(ref NativeArray3x3<Light> light, ref NativeArray3x3<Block> blocks, NativeArray<BlockData> blockData, NativeQueue<LightOp> ops, NativeQueue<int> lbfs, NativeQueue<LightRemovalNode> lrbfs) {
 
         light.flags = 0;
 
@@ -247,45 +247,52 @@ public static class LightCalculator {
 
                     // check each neighbor if its air (should be any non solid except torches)
                     // if neighbor light level is 2 or more levels less than this node, set them to this light-1 and add to queue
-                    if (blocks.Get(x - 1, y, z) == Blocks.AIR) {
+                    // also add like 1 for each additional light reduction value
+                    BlockData westBD = blockData[blocks.Get(x - 1, y, z).type];
+                    if (westBD.lightReduction < mChan) {
                         ushort nLight = light.Get(x - 1, y, z).torch;
-                        if (GetChannel(nLight, cIndex) + 2 <= mChan) {
-                            light.Set(x - 1, y, z, new Light { torch = SetChannel(nLight, cIndex, mChan - 1) });
+                        if (GetChannel(nLight, cIndex) + 2 + westBD.lightReduction <= mChan) {
+                            light.Set(x - 1, y, z, new Light { torch = SetChannel(nLight, cIndex, mChan - 1 - westBD.lightReduction) });
                             lbfs.Enqueue(x - 1 + S + (z + S) * W + (y + S) * W * W);
                         }
                     }
-                    if (blocks.Get(x, y - 1, z) == Blocks.AIR) {
+                    BlockData downBD = blockData[blocks.Get(x, y - 1, z).type];
+                    if (downBD.lightReduction < mChan) {
                         ushort nLight = light.Get(x, y - 1, z).torch;
-                        if (GetChannel(nLight, cIndex) + 2 <= mChan) {
-                            light.Set(x, y - 1, z, new Light { torch = SetChannel(nLight, cIndex, mChan - 1) });
+                        if (GetChannel(nLight, cIndex) + 2 + downBD.lightReduction <= mChan) {
+                            light.Set(x, y - 1, z, new Light { torch = SetChannel(nLight, cIndex, mChan - 1 - downBD.lightReduction) });
                             lbfs.Enqueue(x + S + (z + S) * W + (y - 1 + S) * W * W);
                         }
                     }
-                    if (blocks.Get(x, y, z - 1) == Blocks.AIR) {
+                    BlockData southBD = blockData[blocks.Get(x, y, z - 1).type];
+                    if (southBD.lightReduction < mChan) {
                         ushort nLight = light.Get(x, y, z - 1).torch;
-                        if (GetChannel(nLight, cIndex) + 2 <= mChan) {
-                            light.Set(x, y, z - 1, new Light { torch = SetChannel(nLight, cIndex, mChan - 1) });
+                        if (GetChannel(nLight, cIndex) + 2 + southBD.lightReduction <= mChan) {
+                            light.Set(x, y, z - 1, new Light { torch = SetChannel(nLight, cIndex, mChan - 1 - southBD.lightReduction) });
                             lbfs.Enqueue(x + S + (z - 1 + S) * W + (y + S) * W * W);
                         }
                     }
-                    if (blocks.Get(x + 1, y, z) == Blocks.AIR) {
+                    BlockData eastBD = blockData[blocks.Get(x + 1, y, z).type];
+                    if (eastBD.lightReduction < mChan) {
                         ushort nLight = light.Get(x + 1, y, z).torch;
-                        if (GetChannel(nLight, cIndex) + 2 <= mChan) {
-                            light.Set(x + 1, y, z, new Light { torch = SetChannel(nLight, cIndex, mChan - 1) });
+                        if (GetChannel(nLight, cIndex) + 2 + eastBD.lightReduction <= mChan) {
+                            light.Set(x + 1, y, z, new Light { torch = SetChannel(nLight, cIndex, mChan - 1 - eastBD.lightReduction) });
                             lbfs.Enqueue(x + 1 + S + (z + S) * W + (y + S) * W * W);
                         }
                     }
-                    if (blocks.Get(x, y + 1, z) == Blocks.AIR) {
+                    BlockData upBD = blockData[blocks.Get(x, y + 1, z).type];
+                    if (upBD.lightReduction < mChan) {
                         ushort nLight = light.Get(x, y + 1, z).torch;
-                        if (GetChannel(nLight, cIndex) + 2 <= mChan) {
-                            light.Set(x, y + 1, z, new Light { torch = SetChannel(nLight, cIndex, mChan - 1) });
+                        if (GetChannel(nLight, cIndex) + 2 + upBD.lightReduction <= mChan) {
+                            light.Set(x, y + 1, z, new Light { torch = SetChannel(nLight, cIndex, mChan - 1 - upBD.lightReduction) });
                             lbfs.Enqueue(x + S + (z + S) * W + (y + 1 + S) * W * W);
                         }
                     }
-                    if (blocks.Get(x, y, z + 1) == Blocks.AIR) {
+                    BlockData northBD = blockData[blocks.Get(x, y, z + 1).type];
+                    if (northBD.lightReduction < mChan) {
                         ushort nLight = light.Get(x, y, z + 1).torch;
-                        if (GetChannel(nLight, cIndex) + 2 <= mChan) {
-                            light.Set(x, y, z + 1, new Light { torch = SetChannel(nLight, cIndex, mChan - 1) });
+                        if (GetChannel(nLight, cIndex) + 2 + northBD.lightReduction <= mChan) {
+                            light.Set(x, y, z + 1, new Light { torch = SetChannel(nLight, cIndex, mChan - 1 - northBD.lightReduction) });
                             lbfs.Enqueue(x + S + (z + 1 + S) * W + (y + S) * W * W);
                         }
                     }
