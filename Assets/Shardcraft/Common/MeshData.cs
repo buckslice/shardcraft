@@ -79,13 +79,14 @@ public struct NativeMeshData {
     }
 
     public void AddQuadTriangles() {
-        triangles.Add(vertices.Length - 4);  // 0
-        triangles.Add(vertices.Length - 3);  // 1
-        triangles.Add(vertices.Length - 2);  // 2
+        int len = vertices.Length;
+        triangles.Add(len - 4);  // 0
+        triangles.Add(len - 3);  // 1
+        triangles.Add(len - 2);  // 2
 
-        triangles.Add(vertices.Length - 4);  // 0
-        triangles.Add(vertices.Length - 2);  // 2
-        triangles.Add(vertices.Length - 1);  // 3
+        triangles.Add(len - 4);  // 0
+        triangles.Add(len - 2);  // 2
+        triangles.Add(len - 1);  // 3
     }
 
     public void AddFlippedQuadTriangles() {

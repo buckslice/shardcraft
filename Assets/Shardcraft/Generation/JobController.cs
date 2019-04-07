@@ -328,11 +328,9 @@ public class MeshJobInfo {
         }
 #endif
 
-
         Pools.loQPool.Return(lightOps);
         Pools.intQPool.Return(lightBFS);
         Pools.lrnQPool.Return(lightRBFS);
-
 
         // notify neighbors whom should update based on set light flags
         LightCalculator.CheckNeighborLightUpdate(chunk, lightFlags);

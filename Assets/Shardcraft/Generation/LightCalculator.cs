@@ -370,6 +370,12 @@ public static class LightCalculator {
             chunk.neighbors[Dirs.WEST].lightUpdate = true;
         if ((lightFlags & 0x2000000) != 0)
             chunk.neighbors[Dirs.EAST].lightUpdate = true;
+
+        // edge case where light in center updated but neighbor has no air so doesnt get light update but face is exposed to center light
+        // might as well just always set direct neighbors to need a light update cuz pretty good chance they will anyways and this fixes it
+        for (int i = 0; i < 6; ++i) {
+            chunk.neighbors[i].lightUpdate = true;
+        }
     }
 
 

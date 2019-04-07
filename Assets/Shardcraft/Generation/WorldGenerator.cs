@@ -24,7 +24,7 @@ public static class WorldGenerator {
                     n -= Vector3.Dot(wp, Vector3.up) * 0.03f;
 
                     //n += Fractal(wp, 5, 0.01f);
-                    float4 ng = NoiseUM.FractalGrad(wp, 5, 0.01f);
+                    float4 ng = Mth.FractalGrad(wp, 5, 0.01f);
                     n += ng.x;
 
                     Block b = Blocks.AIR;
@@ -34,6 +34,7 @@ public static class WorldGenerator {
                     } else if (n > 0.15f) {
                         b = Blocks.STONE;
 
+                        // todo switch to using math.dot
                         if (Vector3.Dot(Vector3.up, new Vector3(ng.y, ng.z, ng.w).normalized) < .7f) {
                             b = Blocks.GRASS;
                         }
@@ -48,7 +49,7 @@ public static class WorldGenerator {
 
                     if (b == Blocks.STONE) {
 
-                        float coal = NoiseUM.Billow(wp + new Vector3(1000, 722, 255), 2, 0.04f, 1, 0.6f);
+                        float coal = Mth.Billow(wp + new Vector3(1000, 722, 255), 2, 0.04f, 1, 0.6f);
 
                         if (coal > 0.0f) {
                             b = Blocks.COAL;

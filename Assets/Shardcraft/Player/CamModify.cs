@@ -9,8 +9,10 @@ public class CamModify : MonoBehaviour {
     World world;
 
     DrawBounds drawer;
+    Camera cam;
 
     bool drawChunkBorders = false;
+    bool nightTime = true;
 
     Block[] blocks = new Block[] {
         Blocks.TORCH,
@@ -30,7 +32,14 @@ public class CamModify : MonoBehaviour {
 
     MeshFilter blockMeshFilter;
 
+    Color startColor;
+    bool isDebugDay = true;
+
     void Start() {
+        cam = GetComponent<Camera>();
+        startColor = cam.backgroundColor;
+        ToggleDebugDay();
+
         world = FindObjectOfType<World>();
 
         drawer = GetComponent<DrawBounds>();
@@ -47,6 +56,17 @@ public class CamModify : MonoBehaviour {
     private void OnApplicationFocus(bool focus) {
         if (focus) {
             Cursor.lockState = CursorLockMode.Locked;
+        }
+    }
+
+    void ToggleDebugDay() {
+        isDebugDay = !isDebugDay;
+        if (isDebugDay) {
+            cam.backgroundColor = startColor;
+            RenderSettings.ambientLight = new Color(1, 1, 1);
+        } else {
+            cam.backgroundColor = Color.black;
+            RenderSettings.ambientLight = Color.black;
         }
     }
 
@@ -96,6 +116,9 @@ public class CamModify : MonoBehaviour {
 
         if (Input.GetKeyDown(KeyCode.F1)) {
             drawChunkBorders = !drawChunkBorders;
+        }
+        if (Input.GetKeyDown(KeyCode.F2)) {
+            ToggleDebugDay();
         }
         if (drawChunkBorders) {
             DrawChunkBorders();
