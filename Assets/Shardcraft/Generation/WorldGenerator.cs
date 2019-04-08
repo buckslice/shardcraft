@@ -57,6 +57,15 @@ public static class WorldGenerator {
 
                     }
 
+                    // add caves
+                    if (b != Blocks.AIR) {
+                        // octaves of 5 and 0.015 was pretty good too
+                        n = Mth.Ridged(wp + new Vector3(500, -5000, 1000), 4, 0.01f);
+                        if (n > 0.75f - math.abs(wp.y) * 0.001f) { // as you go deeper caves open up is the idea here
+                            b = Blocks.AIR;
+                        }
+                    }
+
                     // for testing singular blocks
                     //if (b != Blocks.COAL) {
                     //    b = Blocks.AIR;

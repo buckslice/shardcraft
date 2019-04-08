@@ -24,11 +24,102 @@ public static class StructureGenerator {
                         TrySpawnGoodTree(ref blocks, urand, x, y, z);
                     }
 
+                    // try to spawn gems
+                    if (blocks.Get(x, y, z) == Blocks.AIR) {
+                        float gemChance = Mth.Blend(0.02f, 0.0f, y + chunkBlockPos.y, -400, -100);
+
+                        if (urand.NextFloat() < gemChance) {
+                            TrySpawnGemstone(ref blocks, urand, x, y, z);
+                        }
+                    }
+
                 }
             }
         }
 
     }
+
+    static readonly int3[] ddirs = new int3[]{
+        new int3(-1,0,0),
+        new int3(0,-1,0),
+        new int3(0,0,-1),
+        new int3(1,0,0),
+        new int3(0,1,0),
+        new int3(0,0,1),
+    };
+
+    static void TrySpawnGemstone(ref NativeArray3x3<Block> blocks, Random urand, int x, int y, int z) {
+
+        //int dir = urand.NextInt(0, 6);
+        int3 pos = new int3(x, y, z);
+        int3 dir;
+        bool stalag = urand.NextFloat() < 0.5f; // ones on ground pointing up
+        if (stalag) { // changed to just be up and down for now see how that looks
+            dir = new int3(0, 1, 0);
+        } else {
+            dir = new int3(0, -1, 0);
+        }
+
+        if (blocks.Get(x - dir.x, y - dir.y, z - dir.z) == Blocks.AIR) {
+            return;
+        }
+
+        int len = urand.NextInt(2, 8 + (int)(math.abs(y) * 0.01f));
+        len /= stalag ? 1 : 2; // stalags should be twice as tall as stalacts (ceiling ones)
+        len = math.clamp(len, 2, 20); // make sure dont get too crazy long
+
+        int sides, xdir, zdir;
+        if (len > 2) { // if taller than this have some secondary columns with random lengths
+            sides = urand.NextInt(0, 4);
+            xdir = urand.NextInt(2, len - 1);   // size of secondary columns
+            zdir = urand.NextInt(2, len - 1);
+        } else {
+            xdir = zdir = sides = 0;
+        }
+        int gemType = urand.NextInt(0, 3);
+        Block gemBlock;
+        if (gemType == 0) {
+            gemBlock = Blocks.RUBY;
+        } else if (gemType == 1) {
+            gemBlock = Blocks.EMERALD;
+        } else {
+            gemBlock = Blocks.SAPPHIRE;
+        }
+
+        for (int i = 0; i < len; ++i) {
+            int3 p = pos + dir * i;
+            if (blocks.Get(p.x, p.y, p.z) != Blocks.AIR) {
+                return;
+            }
+            blocks.Set(p.x, p.y, p.z, gemBlock);
+
+            if (xdir-- > 0) {
+                if (sides / 2 == 0) { // west
+                    if (blocks.Get(p.x - 1, p.y, p.z) == Blocks.AIR) {
+                        blocks.Set(p.x - 1, p.y, p.z, gemBlock);
+                    }
+                } else { // east
+                    if (blocks.Get(p.x + 1, p.y, p.z) == Blocks.AIR) {
+                        blocks.Set(p.x + 1, p.y, p.z, gemBlock);
+                    }
+                }
+            }
+            if (zdir-- > 0) {
+                if (sides % 2 == 0) { // south
+                    if (blocks.Get(p.x, p.y, p.z - 1) == Blocks.AIR) {
+                        blocks.Set(p.x, p.y, p.z - 1, gemBlock);
+                    }
+                } else { // north
+                    if (blocks.Get(p.x, p.y, p.z + 1) == Blocks.AIR) {
+                        blocks.Set(p.x, p.y, p.z + 1, gemBlock);
+                    }
+                }
+            }
+
+        }
+
+    }
+
 
     // this is a pine tree routine
     static void TrySpawnGoodTree(ref NativeArray3x3<Block> blocks, Random urand, int x, int y, int z) {

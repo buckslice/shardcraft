@@ -158,7 +158,7 @@ public class Chunk {
     }
 
     public bool NeighborsLoaded() {
-        Debug.Assert(loadedNeighbors >= 0 && loadedNeighbors <= 26);
+        Debug.Assert(loadedNeighbors >= 0 && loadedNeighbors <= 26, loadedNeighbors);
         return loadedNeighbors == 26;
     }
 

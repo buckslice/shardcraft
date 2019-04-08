@@ -40,7 +40,7 @@ public static class MeshBuilder {
                 data.AddFaceUVs(bd.texture);
             }
         } else if (bd.renderType == 2) {
-            if (bd.texture < 0) {
+            if (bd.texture < 0) { // dynamically chosen
                 int texture = GetTileTextureIndex(dir, x, y, z, ref blocks);
                 data.AddTileUvs(texture, dir, x, y, z, ref blocks, blockData);
             } else {

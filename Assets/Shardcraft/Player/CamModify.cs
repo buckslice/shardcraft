@@ -14,28 +14,21 @@ public class CamModify : MonoBehaviour {
     bool drawChunkBorders = false;
     bool nightTime = true;
 
-    Block[] blocks = new Block[] {
-        Blocks.TORCH,
-        Blocks.TORCH_R,
-        Blocks.TORCH_G,
-        Blocks.TORCH_B,
-        Blocks.TORCH_M,
-        Blocks.TORCH_Y,
-        Blocks.TORCH_O,
-        Blocks.TORCH_W,
-        Blocks.GRASS,
-        Blocks.STONE,
-        Blocks.PINE,
-        Blocks.PINELEAF,
-    };
+    Block[] blocks;
     int blockIndex = 0;
 
     MeshFilter blockMeshFilter;
 
     Color startColor;
-    bool isDebugDay = true;
+    bool isDebugDay = false;
 
     void Start() {
+        // weird indexing to skip air
+        blocks = new Block[Blocks.count - 1];
+        for (int i = 1; i < Blocks.count; ++i) {
+            blocks[i - 1] = new Block((byte)i);
+        }
+
         cam = GetComponent<Camera>();
         startColor = cam.backgroundColor;
         ToggleDebugDay();
@@ -119,6 +112,9 @@ public class CamModify : MonoBehaviour {
         }
         if (Input.GetKeyDown(KeyCode.F2)) {
             ToggleDebugDay();
+        }
+        if (Input.GetKeyDown(KeyCode.F3)) {
+            LoadChunks.drawDebug = !LoadChunks.drawDebug;
         }
         if (drawChunkBorders) {
             DrawChunkBorders();

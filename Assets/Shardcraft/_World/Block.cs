@@ -47,8 +47,11 @@ public struct BlockData {
     // this is really like additional light reduction because no matter what light will reduce 1 each block it moves
     // by default this is at really high (so basically solid)
     public byte lightReduction;
+
+    // something like this later to add subshapes
+    // might as well at this point add actual field in Block for storing rotation and stuff
     //public Vector3 scale;
-    //public Vector3 offset;
+    //public Vector3 offset; // offset from min pos, so with scale and offset can define any aabb if u think about it
 
     public BlockData(int i) {
         // later have string name here once jobs can support that
@@ -154,21 +157,24 @@ public static class BlockDatas {
             texture = 7,
         },
 
-        new BlockData(0) {
-            texture = 4, // figured out dynamically
+        new BlockData(0) { // COAL
+            texture = 7, 
             renderType = 2,
         },
-        new BlockData(0) {
-            texture = 5, // figured out dynamically
+        new BlockData(0) { // RUBY
+            texture = 8,
             renderType = 2,
+            light = LightCalculator.GetColor(20, 0, 0),
         },
-        new BlockData(0) {
-            texture = 6, // figured out dynamically
+        new BlockData(0) { // EMERALD
+            texture = 9,
             renderType = 2,
+            light = LightCalculator.GetColor(0, 20, 0),
         },
-        new BlockData(0) {
-            texture = 7, // figured out dynamically
+        new BlockData(0) { // SAPPHIRE
+            texture = 10, 
             renderType = 2,
+            light = LightCalculator.GetColor(0, 0, 20),
         }
 
         };
@@ -182,7 +188,7 @@ public static class BlockDatas {
 
 // make sure this matches types array below
 public static class Blocks {
-
+    public const int count = 17;
     public static readonly Block AIR = new Block(0);
     public static readonly Block STONE = new Block(1);
     public static readonly Block GRASS = new Block(2);
@@ -196,10 +202,11 @@ public static class Blocks {
     public static readonly Block TORCH_Y = new Block(10);
     public static readonly Block TORCH_O = new Block(11);
     public static readonly Block TORCH_W = new Block(12);
-    public static readonly Block RUBY = new Block(13);
-    public static readonly Block EMERALD = new Block(14);
-    public static readonly Block SAPPHIRE = new Block(15);
-    public static readonly Block COAL = new Block(16);
+    public static readonly Block COAL = new Block(13);
+    public static readonly Block RUBY = new Block(14);
+    public static readonly Block EMERALD = new Block(15);
+    public static readonly Block SAPPHIRE = new Block(16);
+
 }
 
 //public static class BlockTypes {

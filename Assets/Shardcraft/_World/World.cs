@@ -100,7 +100,7 @@ public class World : MonoBehaviour {
         }
     }
     // sets a new chunks loaded neighbor count
-    public void SetLoadedNeighbors(Chunk chunk) {
+    void SetLoadedNeighbors(Chunk chunk) {
         for (int y = -1; y <= 1; ++y) {
             for (int z = -1; z <= 1; ++z) {
                 for (int x = -1; x <= 1; ++x) {
@@ -196,7 +196,8 @@ public class World : MonoBehaviour {
         int qlen = destroyQueue.Count;
         while (--qlen >= 0) {
             Chunk chunk = destroyQueue.Dequeue();
-            if (chunk.IsAnyDataInUse()) {
+            // chunk has to be loaded and none of the data can be in use
+            if (!chunk.loaded || chunk.IsAnyDataInUse()) {
                 destroyQueue.Enqueue(chunk); // put it back and try next time
             } else { // destroy the chunk
                 // notify neighbors

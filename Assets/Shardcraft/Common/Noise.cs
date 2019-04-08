@@ -489,31 +489,6 @@ public static class Noise {
         return total;
     }
 
-    // n0/n1 lower/upper noise
-    // bn blend noise
-    // min/max of blend range
-    // if bn < min, output is n0
-    // if bn > max, output is n1
-    // if in between then output is blending of the two
-    public static float Blend(float n0, float n1, float bn, float min, float max) {
-        if (bn <= min) {
-            return n0;
-        }
-        if (bn < max) {
-            float t = MapCubicSCurve((bn - min) / (max - min));
-            return (1f - t) * n0 + t * n1;  // lerp(n0,n1,t);
-        }
-        return n1;
-    }
-
-    // experiment with other blend function shapes
-    public static float MapCubicSCurve(float value) {
-        return value * value * (3f - 2f * value);
-    }
-    public static float MapQuadratic(float value) {
-        return value * value;
-    }
-
     private const int kc = 100000;
     public static Vector3 NextRandomOffset(System.Random rng) {
         return new Vector3(rng.Next(-kc, kc), rng.Next(-kc, kc), rng.Next(-kc, kc));

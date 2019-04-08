@@ -7,7 +7,7 @@ using UnityEngine.UI;
 
 public class LoadChunks : MonoBehaviour {
 
-    int loadRadius = 6; // render radius will be 1 minus this
+    int loadRadius = 8; // render radius will be 1 minus this
     World world;
 
     Vector3i[] neighborChunks; // list of chunk offsets to generate in order of closeness
@@ -116,6 +116,7 @@ public class LoadChunks : MonoBehaviour {
     }
 
     static int chunksLoaded = 0;
+    public static bool drawDebug = true;
 
     Queue<Chunk> chunkGenQueue = new Queue<Chunk>();
 
@@ -132,26 +133,37 @@ public class LoadChunks : MonoBehaviour {
 
         JobHandle.ScheduleBatchedJobs();
 
-        text.text = string.Format(
-            "Generat: {0}/{1}\n" +
-            "Structr: {2}/{3}\n" +
-            "Meshing: {4}/{5}\n" +
-            "Light  : {6}/{7}\n" +
-            "Free/C : {8}/{9}\n" +
-            "Chunks:  {10}\n" +
-            "Loaded:  {11}\n" +
-            "Greedy:  {12}\n" +
-            "v3Pool:  {13}/{14}\n" +
-            "intPool: {15}/{16}\n",
-            JobController.genJobFinished, JobController.genJobScheduled,
-            JobController.structureJobFinished, JobController.structureJobScheduled,
-            JobController.meshJobFinished, JobController.meshJobScheduled,
-            JobController.lightJobFinished, JobController.lightJobScheduled,
-            world.chunkPool.CountFree(), world.chunkPool.Count(),
-            world.chunks.Count, chunksLoaded, Chunk.beGreedy,
-            Pools.v3Pool.CountFree(), Pools.v3Pool.Count(),
-            Pools.intPool.CountFree(), Pools.intPool.Count()
-        );
+        Vector3i pbp = WorldUtils.GetBlockPos(transform.position);
+        Vector3i pcp = WorldUtils.GetChunkPosFromBlockPos(pbp.x, pbp.y, pbp.z);
+
+        if (drawDebug) {
+            text.gameObject.SetActive(true);
+            text.text = string.Format(
+                "block x:{0} y:{1} z:{2}\n" +
+                "chunk x:{3} y:{4} z:{5}\n" +
+                "Generat: {6}/{7}\n" +
+                "Structr: {8}/{9}\n" +
+                "Meshing: {10}/{11}\n" +
+                "Light  : {12}/{13}\n" +
+                "Free/C : {14}/{15}\n" +
+                "Chunks:  {16}\n" +
+                "Loaded:  {17}\n" +
+                "Greedy:  {18}\n" +
+                "v3Pool:  {19}/{20}\n" +
+                "intPool: {21}/{22}\n",
+                pbp.x, pbp.y, pbp.z, pcp.x, pcp.y, pcp.z,
+                JobController.genJobFinished, JobController.genJobScheduled,
+                JobController.structureJobFinished, JobController.structureJobScheduled,
+                JobController.meshJobFinished, JobController.meshJobScheduled,
+                JobController.lightJobFinished, JobController.lightJobScheduled,
+                world.chunkPool.CountFree(), world.chunkPool.Count(),
+                world.chunks.Count, chunksLoaded, Chunk.beGreedy,
+                Pools.v3Pool.CountFree(), Pools.v3Pool.Count(),
+                Pools.intPool.CountFree(), Pools.intPool.Count()
+            );
+        } else {
+            text.gameObject.SetActive(false);
+        }
     }
 
     void UpdateChunks() {
