@@ -179,6 +179,12 @@ public struct Vector3i : IEquatable<Vector3i> {
     }
 
     //public override int GetHashCode() {
+    //    var yHash = y.GetHashCode();
+    //    var zHash = z.GetHashCode();
+    //    return x.GetHashCode() ^ (yHash << 4) ^ (yHash >> 28) ^ (zHash >> 4) ^ (zHash << 28);
+    //}
+
+    //public override int GetHashCode() {
     //    return this.x.GetHashCode() ^ this.y.GetHashCode() << 2 ^ this.z.GetHashCode() >> 2;
     //}
 }

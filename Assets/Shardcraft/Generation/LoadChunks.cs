@@ -7,14 +7,18 @@ using UnityEngine.UI;
 
 public class LoadChunks : MonoBehaviour {
 
-    int loadRadius = 8; // render radius will be 1 minus this
     World world;
 
     Vector3i[] neighborChunks; // list of chunk offsets to generate in order of closeness
 
+    public const int loadRadius = 8; // render radius will be 1 minus this
     public const int maxUpdatesPerFrame = 8; // number of update per frame (sends mesh jobs among other things)
     public const int genJobLimit = 16; // limit on number of active generation jobs
     public const int meshLoadsPerFrame = 16; // number of meshes and colliders uploaded per frame
+    public const int maxActiveLightJobs = 0;
+
+    // default settings for above
+    //8 8 16 16 10
 
     public Text text;
 
@@ -117,6 +121,7 @@ public class LoadChunks : MonoBehaviour {
 
     static int chunksLoaded = 0;
     public static bool drawDebug = true;
+    public static bool updateChunks = true;
 
     Queue<Chunk> chunkGenQueue = new Queue<Chunk>();
 
@@ -128,7 +133,9 @@ public class LoadChunks : MonoBehaviour {
         Serialization.FreeSavedChunks(world.chunkPool);
 
         UnityEngine.Profiling.Profiler.BeginSample("Update Chunks");
-        UpdateChunks();
+        if (updateChunks) {
+            UpdateChunks();
+        }
         UnityEngine.Profiling.Profiler.EndSample();
 
         JobHandle.ScheduleBatchedJobs();
@@ -158,8 +165,8 @@ public class LoadChunks : MonoBehaviour {
                 JobController.lightJobFinished, JobController.lightJobScheduled,
                 world.chunkPool.CountFree(), world.chunkPool.Count(),
                 world.chunks.Count, chunksLoaded, Chunk.beGreedy,
-                Pools.v3Pool.CountFree(), Pools.v3Pool.Count(),
-                Pools.intPool.CountFree(), Pools.intPool.Count()
+                Pools.v3N.CountFree(), Pools.v3N.Count(),
+                Pools.intN.CountFree(), Pools.intN.Count()
             );
         } else {
             text.gameObject.SetActive(false);
@@ -196,12 +203,12 @@ public class LoadChunks : MonoBehaviour {
         lastPlayerChunk = playerChunk;
 
         // queue up chunks that failed to load (no save entry)
-        while (JobController.GetRunningJobs() < genJobLimit && chunkGenQueue.Count > 0) {
+        while (JobController.GetGenJobCount() < genJobLimit && chunkGenQueue.Count > 0) {
             JobController.StartGenerationJob(chunkGenQueue.Dequeue());
         }
 
         while (neighborIndex < neighborChunks.Length) {
-            if (JobController.GetRunningJobs() >= genJobLimit) {
+            if (JobController.GetGenJobCount() >= genJobLimit) {
                 return;
             }
 
@@ -221,16 +228,18 @@ public class LoadChunks : MonoBehaviour {
     // todo: change to just delete if chunk offset is not in the neighbors set
     // or at least turn off renderer then delete chunk later actually
     void DeleteFarChunks() {
-        float maxDist = (loadRadius * 3.0f) * Chunk.SIZE / Chunk.BPU;
 
-        foreach (var chunk in world.chunks) {
-            if (chunk.Value.dying) {
+        Vector3i playerChunk = WorldUtils.GetChunkPosFromWorldPos(transform.position);
+
+        foreach (var chunk in world.chunks.Values) {
+            if (chunk.dying) {
                 continue;
             }
-            float sqrDist = Vector3.SqrMagnitude(chunk.Value.GetWorldPos() + Vector3.one * Chunk.SIZE - transform.position);
 
-            if (sqrDist > maxDist * maxDist) {
-                world.DestroyChunk(chunk.Key);
+            if (Mathf.Abs(playerChunk.x - chunk.cp.x) > (loadRadius + 1) ||
+               Mathf.Abs(playerChunk.y - chunk.cp.y) > (loadRadius + 1) ||
+               Mathf.Abs(playerChunk.z - chunk.cp.z) > (loadRadius + 1)) {
+                world.DestroyChunk(chunk);
             }
         }
 

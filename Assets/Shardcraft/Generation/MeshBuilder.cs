@@ -616,11 +616,11 @@ public static class MeshBuilder {
 
         BlockData bd = blockData[block.type];
 
-        var vertices = Pools.v3Pool.Get();
-        var uvs = Pools.v3Pool.Get();
-        var uv2s = Pools.v3Pool.Get();
-        var colors = Pools.c32Pool.Get();
-        var triangles = Pools.intPool.Get();
+        var vertices = Pools.v3N.Get();
+        var uvs = Pools.v3N.Get();
+        var uv2s = Pools.v3N.Get();
+        var colors = Pools.c32N.Get();
+        var triangles = Pools.intN.Get();
 
         NativeMeshData data = new NativeMeshData(vertices, uvs, uv2s, colors, triangles, faceList);
 
@@ -657,11 +657,11 @@ public static class MeshBuilder {
         filter.mesh.triangles = triangles.ToArray();
         filter.mesh.RecalculateNormals();
 
-        Pools.v3Pool.Return(vertices);
-        Pools.v3Pool.Return(uvs);
-        Pools.v3Pool.Return(uv2s);
-        Pools.c32Pool.Return(colors);
-        Pools.intPool.Return(triangles);
+        Pools.v3N.Return(vertices);
+        Pools.v3N.Return(uvs);
+        Pools.v3N.Return(uv2s);
+        Pools.c32N.Return(colors);
+        Pools.intN.Return(triangles);
 
     }
 

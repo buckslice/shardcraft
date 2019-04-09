@@ -36,7 +36,7 @@ public class World : MonoBehaviour {
             chunk.lights.Dispose();
             chunk.faces.Dispose();
         }
-        chunkPool = new Pool<Chunk>(InstantiateChunk, ChunkDispose);
+        chunkPool = new Pool<Chunk>(InstantiateChunk, null, ChunkDispose);
 
         Serialization.StartThread();
 
@@ -131,6 +131,8 @@ public class World : MonoBehaviour {
         chunks.TryGetValue(new Vector3i(x, y, z), out Chunk chunk);
         return chunk;
     }
+    // pretty sure this is still creating garbage somehow... changing the hashcode generator on Vector3i
+    // changes the garbage allocation readout in unity profiler. it implements IEquatable tho!??
     public Chunk GetChunk(Vector3i chunkPos) {
         chunks.TryGetValue(chunkPos, out Chunk chunk);
         return chunk;
@@ -183,8 +185,7 @@ public class World : MonoBehaviour {
 
 
     // adds to queue to destroy it when proper time
-    public void DestroyChunk(Vector3i cp) {
-        Chunk chunk = GetChunk(cp);
+    public void DestroyChunk(Chunk chunk) {
         if (chunk != null && !chunk.dying) {
             destroyQueue.Enqueue(chunk);
             chunk.dying = true;

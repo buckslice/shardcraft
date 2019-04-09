@@ -28,24 +28,35 @@ public static class Pools {
         list.Clear();
     }
 
-    public static Pool<NativeList<Vector3>> v3Pool = new Pool<NativeList<Vector3>>(NLBuilder<Vector3>, NLDisposer, NLClearer);
+    static List<T> LBuilder<T>() {
+        return new List<T>();
+    }
+    static void LClearer<T>(List<T> list) {
+        list.Clear();
+    }
+
+    public static Pool<NativeList<Vector3>> v3N = new Pool<NativeList<Vector3>>(NLBuilder<Vector3>, NLClearer, NLDisposer);
     //public static Pool<NativeList<Vector2>> v2Pool = new Pool<NativeList<Vector2>>(NLBuilder<Vector2>, NLDisposer);
-    public static Pool<NativeList<Color32>> c32Pool = new Pool<NativeList<Color32>>(NLBuilder<Color32>, NLDisposer, NLClearer);
+    public static Pool<NativeList<Color32>> c32N = new Pool<NativeList<Color32>>(NLBuilder<Color32>, NLClearer, NLDisposer);
 
-    public static Pool<NativeList<int>> intPool = new Pool<NativeList<int>>(NLBuilder<int>, NLDisposer, NLClearer);
+    public static Pool<NativeList<int>> intN = new Pool<NativeList<int>>(NLBuilder<int>, NLClearer, NLDisposer);
 
-    public static Pool<NativeQueue<LightOp>> loQPool = new Pool<NativeQueue<LightOp>>(NQBuilder<LightOp>, NQDisposer, NQClearer);
-    public static Pool<NativeQueue<int>> intQPool = new Pool<NativeQueue<int>>(NQBuilder<int>, NQDisposer, NQClearer);
-    public static Pool<NativeQueue<LightRemovalNode>> lrnQPool = new Pool<NativeQueue<LightRemovalNode>>(NQBuilder<LightRemovalNode>, NQDisposer, NQClearer);
-    
+    public static Pool<NativeQueue<LightOp>> loQN = new Pool<NativeQueue<LightOp>>(NQBuilder<LightOp>, NQClearer, NQDisposer);
+    public static Pool<NativeQueue<LightRemovalNode>> lrnQN = new Pool<NativeQueue<LightRemovalNode>>(NQBuilder<LightRemovalNode>, NQClearer, NQDisposer);
+    public static Pool<NativeQueue<int>> intQN = new Pool<NativeQueue<int>>(NQBuilder<int>, NQClearer, NQDisposer);
+
+    public static Pool<List<Vector3>> v3 = new Pool<List<Vector3>>(LBuilder<Vector3>, LClearer, null);
+    public static Pool<List<int>> i = new Pool<List<int>>(LBuilder<int>, LClearer, null);
+    public static Pool<List<Color32>> c32 = new Pool<List<Color32>>(LBuilder<Color32>, LClearer, null);
+
     public static void Dispose() {
-        v3Pool.Dispose();
-        c32Pool.Dispose();
-        intPool.Dispose();
+        v3N.Dispose();
+        c32N.Dispose();
+        intN.Dispose();
 
-        loQPool.Dispose();
-        intQPool.Dispose();
-        lrnQPool.Dispose();
+        loQN.Dispose();
+        intQN.Dispose();
+        lrnQN.Dispose();
 
     }
 
@@ -61,10 +72,10 @@ public class Pool<T> {
     readonly Action<T> disposeAction;
     readonly Action<T> getAction;
 
-    public Pool(Func<T> buildFunc, Action<T> disposeAction, Action<T> getAction=null) {
+    public Pool(Func<T> buildFunc, Action<T> getAction, Action<T> disposeAction) {
         this.buildFunc = buildFunc;
-        this.disposeAction = disposeAction;
         this.getAction = getAction;
+        this.disposeAction = disposeAction;
     }
 
     public void Return(T t) {

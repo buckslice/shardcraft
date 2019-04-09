@@ -334,8 +334,8 @@ public static class LightCalculator {
             chunk.neighbors[Dirs.DOWN].neighbors[Dirs.WEST].lightUpdate = true;
         if ((lightFlags & 0x80) != 0)
             chunk.neighbors[Dirs.DOWN].neighbors[Dirs.EAST].lightUpdate = true;
-        if ((lightFlags & 0x100) != 0)
-            chunk.neighbors[Dirs.DOWN].lightUpdate = true;
+        //if ((lightFlags & 0x100) != 0)
+        //    chunk.neighbors[Dirs.DOWN].lightUpdate = true;
         if ((lightFlags & 0x200) != 0)
             chunk.neighbors[Dirs.UP].neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].lightUpdate = true;
         if ((lightFlags & 0x400) != 0)
@@ -352,24 +352,24 @@ public static class LightCalculator {
             chunk.neighbors[Dirs.UP].neighbors[Dirs.WEST].lightUpdate = true;
         if ((lightFlags & 0x10000) != 0)
             chunk.neighbors[Dirs.UP].neighbors[Dirs.EAST].lightUpdate = true;
-        if ((lightFlags & 0x20000) != 0)
-            chunk.neighbors[Dirs.UP].lightUpdate = true;
+        //if ((lightFlags & 0x20000) != 0)
+        //    chunk.neighbors[Dirs.UP].lightUpdate = true;
         if ((lightFlags & 0x40000) != 0)
             chunk.neighbors[Dirs.SOUTH].neighbors[Dirs.WEST].lightUpdate = true;
         if ((lightFlags & 0x80000) != 0)
             chunk.neighbors[Dirs.SOUTH].neighbors[Dirs.EAST].lightUpdate = true;
-        if ((lightFlags & 0x100000) != 0)
-            chunk.neighbors[Dirs.SOUTH].lightUpdate = true;
+        //if ((lightFlags & 0x100000) != 0)
+        //    chunk.neighbors[Dirs.SOUTH].lightUpdate = true;
         if ((lightFlags & 0x200000) != 0)
             chunk.neighbors[Dirs.NORTH].neighbors[Dirs.WEST].lightUpdate = true;
         if ((lightFlags & 0x400000) != 0)
             chunk.neighbors[Dirs.NORTH].neighbors[Dirs.EAST].lightUpdate = true;
-        if ((lightFlags & 0x800000) != 0)
-            chunk.neighbors[Dirs.NORTH].lightUpdate = true;
-        if ((lightFlags & 0x1000000) != 0)
-            chunk.neighbors[Dirs.WEST].lightUpdate = true;
-        if ((lightFlags & 0x2000000) != 0)
-            chunk.neighbors[Dirs.EAST].lightUpdate = true;
+        //if ((lightFlags & 0x800000) != 0)
+        //    chunk.neighbors[Dirs.NORTH].lightUpdate = true;
+        //if ((lightFlags & 0x1000000) != 0)
+        //    chunk.neighbors[Dirs.WEST].lightUpdate = true;
+        //if ((lightFlags & 0x2000000) != 0)
+        //    chunk.neighbors[Dirs.EAST].lightUpdate = true;
 
         // edge case where light in center updated but neighbor has no air so doesnt get light update but face is exposed to center light
         // might as well just always set direct neighbors to need a light update cuz pretty good chance they will anyways and this fixes it

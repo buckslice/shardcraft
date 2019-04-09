@@ -144,7 +144,7 @@ public class Chunk {
 
         if (!builtStructures && IsLocalGroupFreeForStructuring()) { // build structures like trees and such if you havent yet
             JobController.StartStructureJob(this);
-        } else if (lightUpdate && !update && IsLocalGroupFreeToUpdateLights()) {
+        } else if (lightUpdate && !update && JobController.CanStartLightJob() && IsLocalGroupFreeToUpdateLights()) {
             lightUpdate = false;
             JobController.StartLightUpdateJob(this);
         } else if (update && IsLocalGroupFreeForMeshing()) {
@@ -173,12 +173,43 @@ public class Chunk {
         }
 
         filter.mesh.Clear();
-        filter.mesh.vertices = vertices.ToArray();
-        filter.mesh.SetUVs(0, new List<Vector3>(uvs.ToArray()));
-        filter.mesh.SetUVs(1, new List<Vector3>(uv2s.ToArray()));
-        filter.mesh.colors32 = colors.ToArray();
 
-        filter.mesh.triangles = triangles.ToArray();
+        //filter.mesh.vertices = vertices.ToArray();
+        //filter.mesh.SetUVs(0, new List<Vector3>(uvs.ToArray()));
+        //filter.mesh.SetUVs(1, new List<Vector3>(uv2s.ToArray()));
+        //filter.mesh.colors32 = colors.ToArray();
+        //filter.mesh.triangles = triangles.ToArray();
+
+        var v3L = Pools.v3.Get();
+        var uvsL = Pools.v3.Get();
+        var uv2sL = Pools.v3.Get();
+        var c32L = Pools.c32.Get();
+        var iL = Pools.i.Get();
+
+        //v3L.CopyFrom(vertices);
+        //uvsL.CopyFrom(uvs);
+        //uv2sL.CopyFrom(uv2s);
+        //c32L.CopyFrom(colors);
+        //iL.CopyFrom(triangles);
+
+        UnsafeCopy.CopyVectors(vertices, v3L);
+        UnsafeCopy.CopyVectors(uvs, uvsL);
+        UnsafeCopy.CopyVectors(uv2s, uv2sL);
+        UnsafeCopy.CopyColors(colors, c32L);
+        UnsafeCopy.CopyIntegers(triangles, iL);
+
+        filter.mesh.SetVertices(v3L);
+        filter.mesh.SetUVs(0, uvsL);
+        filter.mesh.SetUVs(1, uv2sL);
+        filter.mesh.SetColors(c32L);
+        filter.mesh.SetTriangles(iL, 0);
+
+        Pools.v3.Return(v3L);
+        Pools.v3.Return(uvsL);
+        Pools.v3.Return(uv2sL);
+        Pools.c32.Return(c32L);
+        Pools.i.Return(iL);
+
         filter.mesh.RecalculateNormals();
 
         rendered = true;
@@ -188,18 +219,23 @@ public class Chunk {
 
     public void UpdateMeshLight(NativeList<Color32> colors) {
 
-        Color32[] meshCols = filter.mesh.colors32;
-        Debug.Assert(meshCols.Length / 4 == colors.Length);
+        var c32L = Pools.c32.Get();
+        filter.mesh.GetColors(c32L);
+
+        Debug.Assert(c32L.Count / 4 == colors.Length);
 
         for (int i = 0; i < colors.Length; ++i) {
             Color32 c = colors[i];
-            meshCols[i * 4] = new Color32(c.r, c.g, c.b, meshCols[i * 4].a);
-            meshCols[i * 4 + 1] = new Color32(c.r, c.g, c.b, meshCols[i * 4 + 1].a);
-            meshCols[i * 4 + 2] = new Color32(c.r, c.g, c.b, meshCols[i * 4 + 2].a);
-            meshCols[i * 4 + 3] = new Color32(c.r, c.g, c.b, meshCols[i * 4 + 3].a);
+            c32L[i * 4] = new Color32(c.r, c.g, c.b, c32L[i * 4].a);
+            c32L[i * 4 + 1] = new Color32(c.r, c.g, c.b, c32L[i * 4 + 1].a);
+            c32L[i * 4 + 2] = new Color32(c.r, c.g, c.b, c32L[i * 4 + 2].a);
+            c32L[i * 4 + 3] = new Color32(c.r, c.g, c.b, c32L[i * 4 + 3].a);
         }
 
-        filter.mesh.colors32 = meshCols;
+        filter.mesh.SetColors(c32L);
+
+        Pools.c32.Return(c32L);
+
     }
 
     public void UpdateColliderNative(NativeList<Vector3> vertices, NativeList<int> triangles) {

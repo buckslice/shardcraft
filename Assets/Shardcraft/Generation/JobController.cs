@@ -11,7 +11,6 @@ using Unity.Jobs;
 using UnityEngine;
 using System.Threading.Tasks;
 
-
 [BurstCompile]
 public struct GenerationJob : IJob {
 
@@ -73,7 +72,7 @@ public class StructureJobInfo {
         this.chunk = chunk;
         chunk.LockLocalGroupForStructuring();
 
-        flagHolder = Pools.intQPool.Get();
+        flagHolder = Pools.intQN.Get();
 
         StructureJob job = new StructureJob {
             blocks = chunk.GetLocalBlocks(),
@@ -91,7 +90,7 @@ public class StructureJobInfo {
 
         chunk.BlocksWereUpdated();
         StructureGenerator.CheckNeighborNeedUpdate(chunk, flagHolder.Dequeue());
-        Pools.intQPool.Return(flagHolder);
+        Pools.intQN.Return(flagHolder);
 
         chunk.builtStructures = true;
     }
@@ -232,11 +231,11 @@ public class MeshJobInfo {
         job.blocks = chunk.GetLocalBlocks();
         job.lights = chunk.GetLocalLights();
 
-        vertices = Pools.v3Pool.Get();
-        uvs = Pools.v3Pool.Get();
-        uv2s = Pools.v3Pool.Get();
-        colors = Pools.c32Pool.Get();
-        triangles = Pools.intPool.Get();
+        vertices = Pools.v3N.Get();
+        uvs = Pools.v3N.Get();
+        uv2s = Pools.v3N.Get();
+        colors = Pools.c32N.Get();
+        triangles = Pools.intN.Get();
 
         job.vertices = vertices;
         job.uvs = uvs;
@@ -259,9 +258,9 @@ public class MeshJobInfo {
         chunk.faces.Clear();
         job.faces = chunk.faces;
 
-        lightOps = Pools.loQPool.Get();
-        lightBFS = Pools.intQPool.Get();
-        lightRBFS = Pools.lrnQPool.Get();
+        lightOps = Pools.loQN.Get();
+        lightBFS = Pools.intQN.Get();
+        lightRBFS = Pools.lrnQN.Get();
 
         while (chunk.lightOps.Count > 0) {
             lightOps.Enqueue(chunk.lightOps.Dequeue());
@@ -292,11 +291,11 @@ public class MeshJobInfo {
 
         chunk.UpdateMeshNative(vertices, uvs, uv2s, colors, triangles);
 
-        Pools.v3Pool.Return(vertices);
-        Pools.v3Pool.Return(uvs);
-        Pools.v3Pool.Return(uv2s);
-        Pools.c32Pool.Return(colors);
-        Pools.intPool.Return(triangles);
+        Pools.v3N.Return(vertices);
+        Pools.v3N.Return(uvs);
+        Pools.v3N.Return(uv2s);
+        Pools.c32N.Return(colors);
+        Pools.intN.Return(triangles);
 
 #if GEN_COLLIDERS
         if (chunk.needNewCollider) {
@@ -328,9 +327,9 @@ public class MeshJobInfo {
         }
 #endif
 
-        Pools.loQPool.Return(lightOps);
-        Pools.intQPool.Return(lightBFS);
-        Pools.lrnQPool.Return(lightRBFS);
+        Pools.loQN.Return(lightOps);
+        Pools.intQN.Return(lightBFS);
+        Pools.lrnQN.Return(lightRBFS);
 
         // notify neighbors whom should update based on set light flags
         LightCalculator.CheckNeighborLightUpdate(chunk, lightFlags);
@@ -374,7 +373,7 @@ public class LightJobInfo {
         job.lights = chunk.GetLocalLights();
         job.faces = chunk.faces;
 
-        colors = Pools.c32Pool.Get();
+        colors = Pools.c32N.Get();
         job.colors = colors;
 
         handle = job.Schedule();
@@ -386,7 +385,7 @@ public class LightJobInfo {
 
         chunk.UpdateMeshLight(colors);
 
-        Pools.c32Pool.Return(colors);
+        Pools.c32N.Return(colors);
     }
 
 }
@@ -457,7 +456,7 @@ public class JobController : MonoBehaviour {
     public static int meshJobFinished = 0;
     public static int lightJobScheduled = 0;
     public static int lightJobFinished = 0;
-
+    
     // Update is called once per frame
     void Update() {
 
@@ -566,9 +565,11 @@ public class JobController : MonoBehaviour {
         lightJobScheduled++;
     }
 
-    public static int GetRunningJobs() {
+    public static int GetGenJobCount() {
         return genJobInfos.Count;
-
+    }
+    public static bool CanStartLightJob() {
+        return lightJobInfos.Count < LoadChunks.maxActiveLightJobs;
     }
 
 

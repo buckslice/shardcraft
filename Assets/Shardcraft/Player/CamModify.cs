@@ -116,6 +116,9 @@ public class CamModify : MonoBehaviour {
         if (Input.GetKeyDown(KeyCode.F3)) {
             LoadChunks.drawDebug = !LoadChunks.drawDebug;
         }
+        if (Input.GetKeyDown(KeyCode.F4)) {
+            LoadChunks.updateChunks = !LoadChunks.updateChunks;
+        }
         if (drawChunkBorders) {
             DrawChunkBorders();
         }
