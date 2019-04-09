@@ -3,7 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Unity.Collections;
-
+using UnityEngine.Assertions;
 
 // optimization notes:
 // tried compressing LightRemovalNode into one int but didnt really improve performance so left out cuz made everything uglier
@@ -72,7 +72,7 @@ public static class LightCalculator {
     }
 
     public static ushort GetColor(int r, int g, int b) {
-        Debug.Assert(r >= 0 && r <= MAX_LIGHT && g >= 0 && g <= MAX_LIGHT && b >= 0 && g <= MAX_LIGHT);
+        Assert.IsTrue(r >= 0 && r <= MAX_LIGHT && g >= 0 && g <= MAX_LIGHT && b >= 0 && g <= MAX_LIGHT);
         return (ushort)((r << 10) | (g << 5) | b);
     }
 

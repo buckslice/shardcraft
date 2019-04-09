@@ -3,6 +3,7 @@ using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using Unity.Collections;
+using UnityEngine.Assertions;
 
 public static class Pools {
 
@@ -94,7 +95,7 @@ public class Pool<T> {
     }
 
     public void Dispose() {
-        Debug.Assert(free == 0); // make sure everything is returned before calling this
+        Assert.IsTrue(free == 0); // make sure everything is returned before calling this
         for (int i = 0; i < pool.Count; ++i) {
             disposeAction(pool[i]);
         }

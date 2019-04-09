@@ -62,7 +62,7 @@ public class LoadChunks : MonoBehaviour {
         }
 
         Debug.Log(neighborChunks.Length + " chunks nearby");
-        //Debug.Assert(SumNeighborChunks() == Vector3i.zero);
+        //Assert.IsTrue(SumNeighborChunks() == Vector3i.zero);
 
         //for (int i = 0; i < neighborChunks.Length; ++i) {
         //    Debug.Log(neighborChunks[i]);

@@ -10,6 +10,7 @@ using Unity.Collections;
 using Unity.Jobs;
 using UnityEngine;
 using System.Threading.Tasks;
+using UnityEngine.Assertions;
 
 [BurstCompile]
 public struct GenerationJob : IJob {
@@ -40,7 +41,7 @@ public class GenJobInfo {
 
         handle = job.Schedule();
 
-        //Debug.Assert(!genInfo.handle.IsCompleted);
+        //Assert.IsTrue(!genInfo.handle.IsCompleted);
     }
 
     public void Finish() {
@@ -154,7 +155,7 @@ public struct MeshJob : IJob {
 #endif
         }
         LightCalculator.ProcessLightOps(ref lights, ref blocks, blockData, lightOps, lightBFS, lightRBFS);
-        Debug.Assert(lightBFS.Count == 0 && lightRBFS.Count == 0);
+        Assert.IsTrue(lightBFS.Count == 0 && lightRBFS.Count == 0);
         lightBFS.Enqueue(lights.flags); // kinda stupid way to do this, but so job handle can check which chunks had their lights set
 
 #if _DEBUG
@@ -414,7 +415,7 @@ public class JobController : MonoBehaviour {
         if (instance == null) {
             instance = this;
         } else {
-            Debug.Assert(false);
+            Assert.IsTrue(false);
         }
 
         world = FindObjectOfType<World>();
@@ -526,7 +527,7 @@ public class JobController : MonoBehaviour {
     }
 
     public static void StartGenerationJob(Chunk chunk) {
-        Debug.Assert(!shutDown);
+        Assert.IsTrue(!shutDown);
         GenJobInfo info = new GenJobInfo(chunk);
 
         genJobInfos.Add(info);
@@ -537,7 +538,7 @@ public class JobController : MonoBehaviour {
     }
 
     public static void StartStructureJob(Chunk chunk) {
-        Debug.Assert(!chunk.builtStructures);
+        Assert.IsTrue(!chunk.builtStructures);
         StructureJobInfo info = new StructureJobInfo(chunk);
 
         structureJobInfos.Add(info);
@@ -546,7 +547,7 @@ public class JobController : MonoBehaviour {
     }
 
     public static void StartMeshJob(Chunk chunk) {
-        Debug.Assert(!shutDown);
+        Assert.IsTrue(!shutDown);
         MeshJobInfo info = new MeshJobInfo(chunk);
 
         meshJobInfos.Add(info);
@@ -556,7 +557,7 @@ public class JobController : MonoBehaviour {
     }
 
     public static void StartLightUpdateJob(Chunk chunk) {
-        Debug.Assert(!chunk.update);
+        Assert.IsTrue(!chunk.update);
 
         LightJobInfo info = new LightJobInfo(chunk);
 

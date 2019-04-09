@@ -15,6 +15,7 @@ using System.Runtime.Serialization;
 using System.Collections.Concurrent;
 using Unity.Collections;
 using Unity.Collections.LowLevel.Unsafe;
+using UnityEngine.Assertions;
 
 public static class Serialization {
 
@@ -194,12 +195,12 @@ public static class Serialization {
                 // verify that lists are all empty before quiting
                 lock (chunksToSave) {
                     foreach (var entry in chunksToSave) {
-                        Debug.Assert(entry.Value.Count == 0);
+                        Assert.IsTrue(entry.Value.Count == 0);
                     }
                 }
                 lock (chunksToLoad) {
                     foreach (var entry in chunksToLoad) {
-                        Debug.Assert(entry.Value.Count == 0);
+                        Assert.IsTrue(entry.Value.Count == 0);
                     }
                 }
 
@@ -233,7 +234,7 @@ public static class Serialization {
         try {
             stream = File.Open(regionFile, FileMode.Open); // will open or create if not there
             int c = stream.Read(table, 0, TABLE_SIZE);
-            Debug.Assert(c == TABLE_SIZE);
+            Assert.IsTrue(c == TABLE_SIZE);
             while (chunks.Count > 0) {
                 Chunk chunk = chunks.Dequeue();
 
@@ -305,7 +306,7 @@ public static class Serialization {
 
             if (alreadyExisted) { // load lookup table if file was there already
                 int c = stream.Read(table, 0, TABLE_SIZE);
-                Debug.Assert(c == TABLE_SIZE);
+                Assert.IsTrue(c == TABLE_SIZE);
             } else {
                 Array.Clear(table, 0, TABLE_SIZE);   // make sure its 0s
                 stream.Write(table, 0, TABLE_SIZE);  // write table at beginning of new file (will get updated at end as well)
@@ -318,7 +319,7 @@ public static class Serialization {
                 int bytes = EncodeChunk(byteBuffer, chunk);
 
                 int requiredSectors = (bytes + 4) / SECTOR_SIZE + 1; // +4 for length uint
-                Debug.Assert(requiredSectors < 256); // max for 1 byte sector count
+                Assert.IsTrue(requiredSectors < 256); // max for 1 byte sector count
 
                 // get position in lookup table
                 int sectorOffset; // starting point of this chunk in terms of number of sectors from front
@@ -332,7 +333,7 @@ public static class Serialization {
 
                     SetTableEntry(chunk.cp, sectorOffset, sectorCount); // append new table entry
                 } else if (requiredSectors != sectorCount) {
-                    Debug.Assert(requiredSectors > 0 && sectorCount > 0);
+                    Assert.IsTrue(requiredSectors > 0 && sectorCount > 0);
 
                     SetTableEntry(chunk.cp, sectorOffset, (byte)requiredSectors); // update table entry
 
@@ -347,7 +348,7 @@ public static class Serialization {
 
                 // add padding to end of byteBuffer
                 int pad = SECTOR_SIZE * requiredSectors - bytes - 4;
-                Debug.Assert(pad >= 0 && pad <= SECTOR_SIZE);
+                Assert.IsTrue(pad >= 0 && pad <= SECTOR_SIZE);
                 Array.Clear(byteBuffer, bytes, pad);
 
                 // seek to correct spot in file
@@ -357,7 +358,7 @@ public static class Serialization {
                 // write data length followed by padded chunk data
                 stream.Write(fourBytes, 0, 4);
                 stream.Write(byteBuffer, 0, bytes + pad);
-                Debug.Assert(stream.Position - streamPos == SECTOR_SIZE * requiredSectors);
+                Assert.IsTrue(stream.Position - streamPos == SECTOR_SIZE * requiredSectors);
 
                 lock (chunksSaved) {
                     chunksSaved.Enqueue(chunk);
@@ -367,7 +368,7 @@ public static class Serialization {
             stream.Seek(0, SeekOrigin.Begin);
             stream.Write(table, 0, TABLE_SIZE); // write updated table back and close stream
 
-            Debug.Assert((stream.Length - TABLE_SIZE) % SECTOR_SIZE == 0);
+            Assert.IsTrue((stream.Length - TABLE_SIZE) % SECTOR_SIZE == 0);
 
         } catch (Exception e) {
             Debug.Log(e.Message);
@@ -389,7 +390,7 @@ public static class Serialization {
 #if _DEBUG
         Debug.Log("shifting region " + (sectorShift > 0 ? "forward" : "backward"));
 #endif
-        Debug.Assert(sectorShift != 0);
+        Assert.IsTrue(sectorShift != 0);
 
         // go thru table and shift offsets occuring after position 
         for (int i = 0; i < TABLE_SIZE; i += 4) {
@@ -413,7 +414,7 @@ public static class Serialization {
             for (long i = len - SECTOR_SIZE; i >= position; i -= SECTOR_SIZE) {
                 stream.Seek(i, SeekOrigin.Begin);
                 int read = stream.Read(sectorBuffer, 0, SECTOR_SIZE);
-                Debug.Assert(read == SECTOR_SIZE);
+                Assert.IsTrue(read == SECTOR_SIZE);
                 stream.Seek(i + sectorShift * SECTOR_SIZE, SeekOrigin.Begin);
                 stream.Write(sectorBuffer, 0, SECTOR_SIZE);
             }
@@ -421,7 +422,7 @@ public static class Serialization {
             for (long i = position; i < len; i += SECTOR_SIZE) {
                 stream.Seek(i, SeekOrigin.Begin);
                 int read = stream.Read(sectorBuffer, 0, SECTOR_SIZE);
-                Debug.Assert(read == SECTOR_SIZE);
+                Assert.IsTrue(read == SECTOR_SIZE);
                 stream.Seek(i + sectorShift * SECTOR_SIZE, SeekOrigin.Begin);
                 stream.Write(sectorBuffer, 0, SECTOR_SIZE);
             }

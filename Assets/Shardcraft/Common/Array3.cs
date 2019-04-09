@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections;
+using UnityEngine.Assertions;
 
 // 3D cube array class which is actually just a 1D array using index calculations
 public class Array3<T> where T : struct {
@@ -16,7 +17,7 @@ public class Array3<T> where T : struct {
     public Array3(T[] data, int size) {
         this.data = data;
         this.size = size;
-        Debug.Assert(size * size * size == data.Length);
+        Assert.IsTrue(size * size * size == data.Length);
     }
 
     public T this[int x, int y, int z] {

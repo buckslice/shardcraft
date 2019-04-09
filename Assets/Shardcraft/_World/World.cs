@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using System.IO;
+using UnityEngine.Assertions;
 
 public class World : MonoBehaviour {
 
@@ -25,7 +26,7 @@ public class World : MonoBehaviour {
 
     // Use this for initialization
     void Start() {
-        Debug.Assert(Chunk.CHUNK_HEIGHT >= Chunk.CHUNK_WIDTH);
+        Assert.IsTrue(Chunk.CHUNK_HEIGHT >= Chunk.CHUNK_WIDTH);
 
         Chunk InstantiateChunk() {
             GameObject newChunkObject = Instantiate(chunkPrefab, Vector3.zero, Quaternion.identity, transform) as GameObject;
@@ -50,7 +51,7 @@ public class World : MonoBehaviour {
     }
 
     public void CreateChunk(int x, int y, int z) {
-        Debug.Assert(GetChunk(x, y, z) == null);
+        Assert.IsTrue(GetChunk(x, y, z) == null);
 
         Vector3i chunkPos = new Vector3i(x, y, z);
         Vector3i blockPos = chunkPos * Chunk.SIZE;

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using Unity.Collections;
 using System.Runtime.CompilerServices;
+using UnityEngine.Assertions;
 
 public class Chunk {
     public const int SIZE = 32;
@@ -94,7 +95,7 @@ public class Chunk {
         faces.Capacity = 32;
 
         gameObject.transform.position = bp.ToVector3() / BPU;
-        gameObject.name = "Chunk " + cp;
+        gameObject.name = string.Format("Chunk {0}.{1}.{2}", cp.x, cp.y, cp.z);
         gameObject.SetActive(true);
 
         for (int i = 0; i < 6; ++i) {
@@ -113,7 +114,7 @@ public class Chunk {
         if (dying) {
             return;
         }
-        Debug.Assert(loaded);
+        Assert.IsTrue(loaded);
         if (pendingEdits.Count > 0 && blockReaders == 0 && !blockWriter) {
             int c = pendingEdits.Count;
             while (c-- > 0) { // just incase setblock fails, prob wont happen tho
@@ -158,7 +159,7 @@ public class Chunk {
     }
 
     public bool NeighborsLoaded() {
-        Debug.Assert(loadedNeighbors >= 0 && loadedNeighbors <= 26, loadedNeighbors);
+        Assert.IsTrue(loadedNeighbors >= 0 && loadedNeighbors <= 26);        
         return loadedNeighbors == 26;
     }
 
@@ -222,7 +223,7 @@ public class Chunk {
         var c32L = Pools.c32.Get();
         filter.mesh.GetColors(c32L);
 
-        Debug.Assert(c32L.Count / 4 == colors.Length);
+        Assert.IsTrue(c32L.Count / 4 == colors.Length);
 
         for (int i = 0; i < colors.Length; ++i) {
             Color32 c = colors[i];
@@ -303,7 +304,7 @@ public class Chunk {
     // if block is on a chunk edge then update neighbor chunks
     // given x,y,z of block in local chunk space, check if you need to update your neighbors
     void CheckNeedToUpdateNeighbors(int x, int y, int z) {
-        Debug.Assert(InRange(x, y, z));
+        Assert.IsTrue(InRange(x, y, z));
 
         if (x == 0 && neighbors[0] != null) {
             neighbors[0].update = true;
@@ -341,7 +342,7 @@ public class Chunk {
     }
 
     public void LockForMeshing() {
-        Debug.Assert(lightWriter == false);
+        Assert.IsTrue(lightWriter == false);
         lightWriter = true; // meshing process potentially writes to lights
         lightReaders++;
         blockReaders++;
@@ -352,8 +353,8 @@ public class Chunk {
         lightReaders--;
         blockReaders--;
 
-        Debug.Assert(lightReaders >= 0);
-        Debug.Assert(blockReaders >= 0);
+        Assert.IsTrue(lightReaders >= 0);
+        Assert.IsTrue(blockReaders >= 0);
 
         TryApplyPendingEdits();
     }
@@ -375,7 +376,7 @@ public class Chunk {
     }
 
     public void LockForStructuring() {
-        Debug.Assert(!blockWriter);
+        Assert.IsTrue(!blockWriter);
         blockWriter = true;
         blockReaders++;
     }
