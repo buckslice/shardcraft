@@ -111,6 +111,7 @@ public struct MeshJob : IJob {
     public NativeArray3x3<Light> lights;
 
     public NativeList<Vector3> vertices;
+    public NativeList<Vector3> normals;
     public NativeList<Vector3> uvs;
     public NativeList<Vector3> uv2s;
     public NativeList<Color32> colors;
@@ -165,7 +166,7 @@ public struct MeshJob : IJob {
         UnityEngine.Profiling.Profiler.BeginSample("Meshing");
 #endif
 
-        NativeMeshData meshData = new NativeMeshData(vertices, uvs, uv2s, colors, triangles, faces); // add faces to this
+        NativeMeshData meshData = new NativeMeshData(vertices, normals, uvs, uv2s, colors, triangles, faces); // add faces to this
         MeshBuilder.BuildNaive(ref meshData, ref blocks, ref lights, blockData);
 
 #if _DEBUG
@@ -204,6 +205,7 @@ public class MeshJobInfo {
     Chunk chunk;
 
     NativeList<Vector3> vertices;
+    NativeList<Vector3> normals;
     NativeList<Vector3> uvs;
     NativeList<Vector3> uv2s;
     NativeList<Color32> colors;
@@ -233,12 +235,14 @@ public class MeshJobInfo {
         job.lights = chunk.GetLocalLights();
 
         vertices = Pools.v3N.Get();
+        normals = Pools.v3N.Get();
         uvs = Pools.v3N.Get();
         uv2s = Pools.v3N.Get();
         colors = Pools.c32N.Get();
         triangles = Pools.intN.Get();
 
         job.vertices = vertices;
+        job.normals = normals;
         job.uvs = uvs;
         job.uv2s = uv2s;
         job.colors = colors;
@@ -290,13 +294,7 @@ public class MeshJobInfo {
     public void Finish() {
         chunk.UnlockLocalGroupForMeshing();
 
-        chunk.UpdateMeshNative(vertices, uvs, uv2s, colors, triangles);
-
-        Pools.v3N.Return(vertices);
-        Pools.v3N.Return(uvs);
-        Pools.v3N.Return(uv2s);
-        Pools.c32N.Return(colors);
-        Pools.intN.Return(triangles);
+        chunk.UpdateMesh(vertices, normals, uvs, uv2s, colors, triangles);
 
 #if GEN_COLLIDERS
         if (chunk.needNewCollider) {

@@ -15,10 +15,7 @@ public class LoadChunks : MonoBehaviour {
     public const int maxUpdatesPerFrame = 8; // number of update per frame (sends mesh jobs among other things)
     public const int genJobLimit = 16; // limit on number of active generation jobs
     public const int meshLoadsPerFrame = 16; // number of meshes and colliders uploaded per frame
-    public const int maxActiveLightJobs = 0;
-
-    // default settings for above
-    //8 8 16 16 10
+    public const int maxActiveLightJobs = 10;
 
     public Text text;
 

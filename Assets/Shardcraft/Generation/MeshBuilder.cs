@@ -22,7 +22,7 @@ public static class MeshBuilder {
                     BlockData bd = blockData[blocks.c[x + z * S + y * S * S].type];
 
                     if (bd.renderType > 0) {
-                        AddDataNative(x, y, z, ref meshData, ref blocks, ref lights, blockData);
+                        AddBlockFaces(x, y, z, ref meshData, ref blocks, ref lights, blockData);
                     }
 
                 }
@@ -33,14 +33,14 @@ public static class MeshBuilder {
     static void AddUVs(ref NativeMeshData data, ref NativeArray3x3<Block> blocks, NativeArray<BlockData> blockData, Dir dir, int x, int y, int z) {
 
         BlockData bd = blockData[blocks.Get(x, y, z).type];
-        if (bd.renderType == 1) {
+        if (bd.renderType == 1) { // normal texture
             if (bd.texture < 0) { // dynamic, depends on nearby blocks
                 data.AddFaceUVs(GetTextureIndex(dir, x, y, z, ref blocks));
             } else {
                 data.AddFaceUVs(bd.texture);
             }
-        } else if (bd.renderType == 2) {
-            if (bd.texture < 0) { // dynamically chosen
+        } else if (bd.renderType == 2) { // using tiling textures
+            if (bd.texture < 0) { // dynamic, depends on nearby blocks
                 int texture = GetTileTextureIndex(dir, x, y, z, ref blocks);
                 data.AddTileUvs(texture, dir, x, y, z, ref blocks, blockData);
             } else {
@@ -161,38 +161,44 @@ public static class MeshBuilder {
         return -1; // shouldnt ever reach this point
     }
 
-    static void AddDataNative(int x, int y, int z, ref NativeMeshData meshData, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeArray<BlockData> blockData) {
+    static void AddBlockFaces(int x, int y, int z, ref NativeMeshData meshData, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeArray<BlockData> blockData) {
 
         bool isLight = LightCalculator.GetIsLight(lights.Get(x, y, z).torch);
 
         if (!BlockData.RenderSolid(blockData, blocks.Get(x - 1, y, z), Dir.east)) {
-            FaceDataWestNative(x, y, z, ref meshData, ref blocks, ref lights, blockData, isLight);
+            AddWestFace(x, y, z, ref meshData, ref blocks, ref lights, blockData, isLight);
             AddUVs(ref meshData, ref blocks, blockData, Dir.west, x, y, z);
+            meshData.AddFaceNormals(Dirs.norm3f[Dirs.WEST]);
             meshData.faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.west });
         }
         if (!BlockData.RenderSolid(blockData, blocks.Get(x, y - 1, z), Dir.up)) {
-            FaceDataDownNative(x, y, z, ref meshData, ref blocks, ref lights, blockData, isLight);
+            AddDownFace(x, y, z, ref meshData, ref blocks, ref lights, blockData, isLight);
             AddUVs(ref meshData, ref blocks, blockData, Dir.down, x, y, z);
+            meshData.AddFaceNormals(Dirs.norm3f[Dirs.DOWN]);
             meshData.faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.down });
         }
         if (!BlockData.RenderSolid(blockData, blocks.Get(x, y, z - 1), Dir.north)) {
-            FaceDataSouthNative(x, y, z, ref meshData, ref blocks, ref lights, blockData, isLight);
+            AddSouthFace(x, y, z, ref meshData, ref blocks, ref lights, blockData, isLight);
             AddUVs(ref meshData, ref blocks, blockData, Dir.south, x, y, z);
+            meshData.AddFaceNormals(Dirs.norm3f[Dirs.SOUTH]);
             meshData.faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.south });
         }
         if (!BlockData.RenderSolid(blockData, blocks.Get(x + 1, y, z), Dir.west)) {
-            FaceDataEastNative(x, y, z, ref meshData, ref blocks, ref lights, blockData, isLight);
+            AddEastFace(x, y, z, ref meshData, ref blocks, ref lights, blockData, isLight);
             AddUVs(ref meshData, ref blocks, blockData, Dir.east, x, y, z);
+            meshData.AddFaceNormals(Dirs.norm3f[Dirs.EAST]);
             meshData.faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.east });
         }
         if (!BlockData.RenderSolid(blockData, blocks.Get(x, y + 1, z), Dir.down)) {
-            FaceDataUpNative(x, y, z, ref meshData, ref blocks, ref lights, blockData, isLight);
+            AddUpFace(x, y, z, ref meshData, ref blocks, ref lights, blockData, isLight);
             AddUVs(ref meshData, ref blocks, blockData, Dir.up, x, y, z);
+            meshData.AddFaceNormals(Dirs.norm3f[Dirs.UP]);
             meshData.faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.up });
         }
         if (!BlockData.RenderSolid(blockData, blocks.Get(x, y, z + 1), Dir.south)) {
-            FaceDataNorthNative(x, y, z, ref meshData, ref blocks, ref lights, blockData, isLight);
+            AddNorthFace(x, y, z, ref meshData, ref blocks, ref lights, blockData, isLight);
             AddUVs(ref meshData, ref blocks, blockData, Dir.north, x, y, z);
+            meshData.AddFaceNormals(Dirs.norm3f[Dirs.NORTH]);
             meshData.faces.Add(new Face { pos = (ushort)(x + z * Chunk.SIZE + y * Chunk.SIZE * Chunk.SIZE), dir = Dir.north });
         }
     }
@@ -209,11 +215,11 @@ public static class MeshBuilder {
         return BlockData.RenderSolid(blockData, blocks.Get(x, y, z), Dir.none) ? 1 : 0; // dir.none for now since all blocks are either transparent or not
     }
 
-    static void FaceDataWestNative(int x, int y, int z, ref NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeArray<BlockData> blockData, bool isLight) {
+    static void AddWestFace(int x, int y, int z, ref NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeArray<BlockData> blockData, bool isLight) {
         Color c = LightCalculator.GetColorFromLight(lights.Get(x - 1, y, z));
 
         float a0, a1, a2, a3;
-        if (isLight) {
+        if (isLight) { // dont add ao on the faces of lights, looks weird
             a0 = a1 = a2 = a3 = 1.0f;
         } else {
             int up = GetOpacity(ref blocks, blockData, x - 1, y + 1, z);
@@ -245,7 +251,7 @@ public static class MeshBuilder {
 
     }
 
-    static void FaceDataDownNative(int x, int y, int z, ref NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeArray<BlockData> blockData, bool isLight) {
+    static void AddDownFace(int x, int y, int z, ref NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeArray<BlockData> blockData, bool isLight) {
         Color c = LightCalculator.GetColorFromLight(lights.Get(x, y - 1, z));
 
         float a0, a1, a2, a3;
@@ -281,7 +287,7 @@ public static class MeshBuilder {
 
     }
 
-    static void FaceDataSouthNative(int x, int y, int z, ref NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeArray<BlockData> blockData, bool isLight) {
+    static void AddSouthFace(int x, int y, int z, ref NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeArray<BlockData> blockData, bool isLight) {
         Color c = LightCalculator.GetColorFromLight(lights.Get(x, y, z - 1));
 
         float a0, a1, a2, a3;
@@ -317,7 +323,7 @@ public static class MeshBuilder {
 
     }
 
-    static void FaceDataEastNative(int x, int y, int z, ref NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeArray<BlockData> blockData, bool isLight) {
+    static void AddEastFace(int x, int y, int z, ref NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeArray<BlockData> blockData, bool isLight) {
         Color c = LightCalculator.GetColorFromLight(lights.Get(x + 1, y, z));
 
         float a0, a1, a2, a3;
@@ -353,7 +359,7 @@ public static class MeshBuilder {
 
     }
 
-    static void FaceDataUpNative(int x, int y, int z, ref NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeArray<BlockData> blockData, bool isLight) {
+    static void AddUpFace(int x, int y, int z, ref NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeArray<BlockData> blockData, bool isLight) {
         Color c = LightCalculator.GetColorFromLight(lights.Get(x, y + 1, z));
         float a0, a1, a2, a3;
         if (isLight) {
@@ -388,7 +394,7 @@ public static class MeshBuilder {
 
     }
 
-    static void FaceDataNorthNative(int x, int y, int z, ref NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeArray<BlockData> blockData, bool isLight) {
+    static void AddNorthFace(int x, int y, int z, ref NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeArray<BlockData> blockData, bool isLight) {
         Color c = LightCalculator.GetColorFromLight(lights.Get(x, y, z + 1));
         float a0, a1, a2, a3;
         if (isLight) {
@@ -589,6 +595,61 @@ public static class MeshBuilder {
         }
     }
 
+    // updates and returns nativeLists back to pools
+    public static void UpdateMeshFilter(MeshFilter filter, NativeList<Vector3> vertices, NativeList<Vector3> normals, NativeList<Vector3> uvs, NativeList<Vector3> uv2s, NativeList<Color32> colors, NativeList<int> triangles) {
+        filter.mesh.Clear();
+
+        if (triangles.Length < ushort.MaxValue) {
+            filter.mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt16;
+        } else {
+            filter.mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
+        }
+
+        // old bad allocaty way
+        //filter.mesh.vertices = vertices.ToArray();
+        //filter.mesh.SetUVs(0, new List<Vector3>(uvs.ToArray()));
+        //filter.mesh.SetUVs(1, new List<Vector3>(uv2s.ToArray()));
+        //filter.mesh.colors32 = colors.ToArray();
+        //filter.mesh.triangles = triangles.ToArray();
+
+        var vertL = Pools.v3.Get();
+        var normL = Pools.v3.Get();
+        var uvL = Pools.v3.Get();
+        var uv2L = Pools.v3.Get();
+        var colorL = Pools.c32.Get();
+        var intL = Pools.i.Get();
+
+        UnsafeCopy.CopyVectors(vertices, vertL);
+        UnsafeCopy.CopyVectors(normals, normL);
+        UnsafeCopy.CopyVectors(uvs, uvL);
+        UnsafeCopy.CopyVectors(uv2s, uv2L);
+        UnsafeCopy.CopyColors(colors, colorL);
+        UnsafeCopy.CopyIntegers(triangles, intL);
+
+        filter.mesh.SetVertices(vertL);
+        filter.mesh.SetNormals(normL);
+        filter.mesh.SetUVs(0, uvL);
+        filter.mesh.SetUVs(1, uv2L);
+        filter.mesh.SetColors(colorL);
+        filter.mesh.SetTriangles(intL, 0);
+
+        Pools.v3.Return(vertL);
+        Pools.v3.Return(normL);
+        Pools.v3.Return(uvL);
+        Pools.v3.Return(uv2L);
+        Pools.c32.Return(colorL);
+        Pools.i.Return(intL);
+
+        // and then return the native lists too
+        Pools.v3N.Return(vertices);
+        Pools.v3N.Return(normals);
+        Pools.v3N.Return(uvs);
+        Pools.v3N.Return(uv2s);
+        Pools.c32N.Return(colors);
+        Pools.intN.Return(triangles);
+
+    }
+
 
     // some crap just so i can reuse current block face functions
     // those will prob get rewritten later so i can redo this then too
@@ -617,12 +678,13 @@ public static class MeshBuilder {
         BlockData bd = blockData[block.type];
 
         var vertices = Pools.v3N.Get();
+        var normals = Pools.v3N.Get();
         var uvs = Pools.v3N.Get();
         var uv2s = Pools.v3N.Get();
         var colors = Pools.c32N.Get();
         var triangles = Pools.intN.Get();
 
-        NativeMeshData data = new NativeMeshData(vertices, uvs, uv2s, colors, triangles, faceList);
+        NativeMeshData data = new NativeMeshData(vertices, normals, uvs, uv2s, colors, triangles, faceList);
 
         const int x = 1;
         const int y = 1;
@@ -642,26 +704,14 @@ public static class MeshBuilder {
         lightArray.c[x + (z + 1) * S + y * S * S] = new Light { torch = light };
         lightArray.c[x + z * S + (y + 1) * S * S] = new Light { torch = light };
 
-        AddDataNative(x, y, z, ref data, ref blockArray, ref lightArray, blockData);
+        AddBlockFaces(x, y, z, ref data, ref blockArray, ref lightArray, blockData);
 
+        // to correct x,y,z offset
         for (int i = 0; i < vertices.Length; ++i) {
             vertices[i] = (vertices[i] - (Vector3.one * 0.75f)) * 2.0f;
         }
 
-        filter.mesh.Clear();
-        filter.mesh.vertices = vertices.ToArray();
-        filter.mesh.SetUVs(0, new List<Vector3>(uvs.ToArray()));
-        filter.mesh.SetUVs(1, new List<Vector3>(uv2s.ToArray()));
-        filter.mesh.colors32 = colors.ToArray();
-
-        filter.mesh.triangles = triangles.ToArray();
-        filter.mesh.RecalculateNormals();
-
-        Pools.v3N.Return(vertices);
-        Pools.v3N.Return(uvs);
-        Pools.v3N.Return(uv2s);
-        Pools.c32N.Return(colors);
-        Pools.intN.Return(triangles);
+        UpdateMeshFilter(filter, vertices, normals, uvs, uv2s, colors, triangles);
 
     }
 

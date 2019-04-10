@@ -58,14 +58,16 @@ public class MeshData {
 
 public struct NativeMeshData {
     public NativeList<Vector3> vertices;
+    public NativeList<Vector3> normals;
     public NativeList<Vector3> uvs;
     public NativeList<Vector3> uv2s;
     public NativeList<Color32> colors;
     public NativeList<int> triangles;
     public NativeList<Face> faces;
 
-    public NativeMeshData(NativeList<Vector3> vertices, NativeList<Vector3> uvs, NativeList<Vector3> uv2s, NativeList<Color32> colors, NativeList<int> triangles, NativeList<Face> faces) {
+    public NativeMeshData(NativeList<Vector3> vertices, NativeList<Vector3> normals, NativeList<Vector3> uvs, NativeList<Vector3> uv2s, NativeList<Color32> colors, NativeList<int> triangles, NativeList<Face> faces) {
         this.vertices = vertices;
+        this.normals = normals;
         this.uvs = uvs;
         this.uv2s = uv2s;
         this.colors = colors;
@@ -76,6 +78,12 @@ public struct NativeMeshData {
     public void AddVertex(Vector3 vertex, Color32 color) {
         vertices.Add(vertex);
         colors.Add(color);
+    }
+    public void AddFaceNormals(Vector3 normal) {
+        normals.Add(normal);
+        normals.Add(normal);
+        normals.Add(normal);
+        normals.Add(normal);
     }
 
     public void AddQuadTriangles() {
@@ -127,36 +135,45 @@ public struct NativeMeshData {
 
         // tried also adding +x to X directions and +y to Ys and etc but made more tiling artifacts
         // maybe adding x*2 or something. but current setup is not bad looking... can think about tiling options
-        if (dir == Dir.west) {
-            uvs.Add(new Vector3((z) / ft, (y) / ft, slice));
-            uvs.Add(new Vector3((z) / ft, (y + 1) / ft, slice));
-            uvs.Add(new Vector3((z - 1) / ft, (y + 1) / ft, slice));
-            uvs.Add(new Vector3((z - 1) / ft, (y) / ft, slice));
-        } else if (dir == Dir.east) {
-            uvs.Add(new Vector3((z) / ft, (y) / ft, slice));
-            uvs.Add(new Vector3((z) / ft, (y + 1) / ft, slice));
-            uvs.Add(new Vector3((z + 1) / ft, (y + 1) / ft, slice));
-            uvs.Add(new Vector3((z + 1) / ft, (y) / ft, slice));
-        } else if (dir == Dir.up) {
-            uvs.Add(new Vector3((z) / ft, (x) / ft, slice));
-            uvs.Add(new Vector3((z) / ft, (x + 1) / ft, slice));
-            uvs.Add(new Vector3((z - 1) / ft, (x + 1) / ft, slice));
-            uvs.Add(new Vector3((z - 1) / ft, (x) / ft, slice));
-        } else if (dir == Dir.down) {
-            uvs.Add(new Vector3((z) / ft, (x) / ft, slice));
-            uvs.Add(new Vector3((z) / ft, (x + 1) / ft, slice));
-            uvs.Add(new Vector3((z + 1) / ft, (x + 1) / ft, slice));
-            uvs.Add(new Vector3((z + 1) / ft, (x) / ft, slice));
-        } else if (dir == Dir.north) {
-            uvs.Add(new Vector3((x) / ft, (y) / ft, slice));
-            uvs.Add(new Vector3((x) / ft, (y + 1) / ft, slice));
-            uvs.Add(new Vector3((x - 1) / ft, (y + 1) / ft, slice));
-            uvs.Add(new Vector3((x - 1) / ft, (y) / ft, slice));
-        } else if (dir == Dir.south) {
-            uvs.Add(new Vector3((x) / ft, (y) / ft, slice));
-            uvs.Add(new Vector3((x) / ft, (y + 1) / ft, slice));
-            uvs.Add(new Vector3((x + 1) / ft, (y + 1) / ft, slice));
-            uvs.Add(new Vector3((x + 1) / ft, (y) / ft, slice));
+        switch (dir) {
+            case Dir.west:
+                uvs.Add(new Vector3((z) / ft, (y) / ft, slice));
+                uvs.Add(new Vector3((z) / ft, (y + 1) / ft, slice));
+                uvs.Add(new Vector3((z - 1) / ft, (y + 1) / ft, slice));
+                uvs.Add(new Vector3((z - 1) / ft, (y) / ft, slice));
+                break;
+            case Dir.east:
+                uvs.Add(new Vector3((z) / ft, (y) / ft, slice));
+                uvs.Add(new Vector3((z) / ft, (y + 1) / ft, slice));
+                uvs.Add(new Vector3((z + 1) / ft, (y + 1) / ft, slice));
+                uvs.Add(new Vector3((z + 1) / ft, (y) / ft, slice));
+                break;
+            case Dir.up:
+                uvs.Add(new Vector3((z) / ft, (x) / ft, slice));
+                uvs.Add(new Vector3((z) / ft, (x + 1) / ft, slice));
+                uvs.Add(new Vector3((z - 1) / ft, (x + 1) / ft, slice));
+                uvs.Add(new Vector3((z - 1) / ft, (x) / ft, slice));
+                break;
+            case Dir.down:
+                uvs.Add(new Vector3((z) / ft, (x) / ft, slice));
+                uvs.Add(new Vector3((z) / ft, (x + 1) / ft, slice));
+                uvs.Add(new Vector3((z + 1) / ft, (x + 1) / ft, slice));
+                uvs.Add(new Vector3((z + 1) / ft, (x) / ft, slice));
+                break;
+            case Dir.north:
+                uvs.Add(new Vector3((x) / ft, (y) / ft, slice));
+                uvs.Add(new Vector3((x) / ft, (y + 1) / ft, slice));
+                uvs.Add(new Vector3((x - 1) / ft, (y + 1) / ft, slice));
+                uvs.Add(new Vector3((x - 1) / ft, (y) / ft, slice));
+                break;
+            case Dir.south:
+                uvs.Add(new Vector3((x) / ft, (y) / ft, slice));
+                uvs.Add(new Vector3((x) / ft, (y + 1) / ft, slice));
+                uvs.Add(new Vector3((x + 1) / ft, (y + 1) / ft, slice));
+                uvs.Add(new Vector3((x + 1) / ft, (y) / ft, slice));
+                break;
+            default:
+                break;
         }
 
         uv2s.Add(new Vector3(1.5f, 0, 0));

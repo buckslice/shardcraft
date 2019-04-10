@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Assertions;
 
 public class TextureArrayManager : MonoBehaviour {
 
@@ -28,7 +29,7 @@ public class TextureArrayManager : MonoBehaviour {
 
         for (int i = 0; i < tex2Ds.Length; i++) {
             if (tex2Ds[i].format != t.format) {
-                Debug.Assert(false); // auto importer doesnt work so manually need to set everyone to same format!!
+                Assert.IsTrue(false); // auto importer doesnt work so manually need to set everyone to same format!!
             }
 
             for (int m = 0; m < t.mipmapCount; m++) {

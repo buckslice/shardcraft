@@ -5,6 +5,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.Assertions;
 
 public struct AABB {
     public readonly float minX;
@@ -150,7 +151,7 @@ public class BlonkPhysics : MonoBehaviour {
             tMax.z = atBoundary ? 0 : -(origin.z - Mathf.Floor(origin.z * Chunk.BPU) / Chunk.BPU) / dir.z;
         }
 
-        Debug.Assert(tDelta.x != 0 || tDelta.y != 0 || tDelta.z != 0);
+        Assert.IsTrue(tDelta.x != 0 || tDelta.y != 0 || tDelta.z != 0);
 
         while (radius.x * radius.x + radius.y * radius.y + radius.z * radius.z < SELECT_RADIUS * SELECT_RADIUS) {
             if (tMax.x < tMax.y) {

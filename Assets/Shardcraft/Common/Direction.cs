@@ -28,7 +28,7 @@ public static class Dirs {
         return (Dir)Opp((int)dir);
     }
 
-    static Vector3i[] norms = new Vector3i[] {
+    public static readonly Vector3i[] norm3i = new Vector3i[] {
         new Vector3i(-1,0,0),
         new Vector3i(0,-1,0),
         new Vector3i(0,0,-1),
@@ -38,8 +38,18 @@ public static class Dirs {
         new Vector3i(0,0,0),
     };
 
+    public static readonly Vector3[] norm3f = new Vector3[] {
+        new Vector3(-1,0,0),
+        new Vector3(0,-1,0),
+        new Vector3(0,0,-1),
+        new Vector3(1,0,0),
+        new Vector3(0,1,0),
+        new Vector3(0,0,1),
+        new Vector3(0,0,0),
+    };
+
     public static Vector3i GetNormal(Dir dir) {
-        return norms[(int)dir];
+        return norm3i[(int)dir];
     }
 
     public static int Opp(int dir) {

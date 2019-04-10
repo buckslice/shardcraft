@@ -159,59 +159,16 @@ public class Chunk {
     }
 
     public bool NeighborsLoaded() {
-        Assert.IsTrue(loadedNeighbors >= 0 && loadedNeighbors <= 26);        
+        Assert.IsTrue(loadedNeighbors >= 0 && loadedNeighbors <= 26);
         return loadedNeighbors == 26;
     }
 
-    public void UpdateMeshNative(NativeList<Vector3> vertices, NativeList<Vector3> uvs, NativeList<Vector3> uv2s, NativeList<Color32> colors, NativeList<int> triangles) {
+    public void UpdateMesh(NativeList<Vector3> vertices, NativeList<Vector3> normals, NativeList<Vector3> uvs, NativeList<Vector3> uv2s, NativeList<Color32> colors, NativeList<int> triangles) {
         if (dying) {
             return;
         }
-        if (triangles.Length < ushort.MaxValue) {
-            filter.mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt16;
-        } else {
-            filter.mesh.indexFormat = UnityEngine.Rendering.IndexFormat.UInt32;
-        }
 
-        filter.mesh.Clear();
-
-        //filter.mesh.vertices = vertices.ToArray();
-        //filter.mesh.SetUVs(0, new List<Vector3>(uvs.ToArray()));
-        //filter.mesh.SetUVs(1, new List<Vector3>(uv2s.ToArray()));
-        //filter.mesh.colors32 = colors.ToArray();
-        //filter.mesh.triangles = triangles.ToArray();
-
-        var v3L = Pools.v3.Get();
-        var uvsL = Pools.v3.Get();
-        var uv2sL = Pools.v3.Get();
-        var c32L = Pools.c32.Get();
-        var iL = Pools.i.Get();
-
-        //v3L.CopyFrom(vertices);
-        //uvsL.CopyFrom(uvs);
-        //uv2sL.CopyFrom(uv2s);
-        //c32L.CopyFrom(colors);
-        //iL.CopyFrom(triangles);
-
-        UnsafeCopy.CopyVectors(vertices, v3L);
-        UnsafeCopy.CopyVectors(uvs, uvsL);
-        UnsafeCopy.CopyVectors(uv2s, uv2sL);
-        UnsafeCopy.CopyColors(colors, c32L);
-        UnsafeCopy.CopyIntegers(triangles, iL);
-
-        filter.mesh.SetVertices(v3L);
-        filter.mesh.SetUVs(0, uvsL);
-        filter.mesh.SetUVs(1, uv2sL);
-        filter.mesh.SetColors(c32L);
-        filter.mesh.SetTriangles(iL, 0);
-
-        Pools.v3.Return(v3L);
-        Pools.v3.Return(uvsL);
-        Pools.v3.Return(uv2sL);
-        Pools.c32.Return(c32L);
-        Pools.i.Return(iL);
-
-        filter.mesh.RecalculateNormals();
+        MeshBuilder.UpdateMeshFilter(filter, vertices, normals, uvs, uv2s, colors, triangles);
 
         rendered = true;
 

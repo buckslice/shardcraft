@@ -39,15 +39,6 @@ public static class StructureGenerator {
 
     }
 
-    static readonly int3[] ddirs = new int3[]{
-        new int3(-1,0,0),
-        new int3(0,-1,0),
-        new int3(0,0,-1),
-        new int3(1,0,0),
-        new int3(0,1,0),
-        new int3(0,0,1),
-    };
-
     static void TrySpawnGemstone(ref NativeArray3x3<Block> blocks, Random urand, int x, int y, int z) {
 
         //int dir = urand.NextInt(0, 6);
