@@ -209,70 +209,6 @@ public static class Blocks {
 
 }
 
-//public static class BlockTypes {
-//    // make sure these match Blocks above
-//    private static BlockType[] types = new BlockType[] {
-//        new AirBlock(),
-//        new StoneBlock(),
-//        new GrassBlock(),
-//        new BirchBlock(),
-//        new LeafBlock(),
-//        new BlockTorch(31,31,31),
-//        new BlockTorch(31,0,0),
-//        new BlockTorch(0,31,0),
-//        new BlockTorch(0,0,31),
-//        new BlockTorch(31,0,31),
-//        new BlockTorch(31,31,0),
-//        new BlockTorch(31,15,0),
-//        new BlockTorch(10,10,10),
-//    };
-
-//    public static BlockType GetBlockType(int type) {
-//        return types[type];
-//    }
-
-//}
-
-//public abstract class BlockType {
-
-//    public virtual bool IsSolid(Dir dir) { // checking if this side is opaque basically
-//        switch (dir) {
-//            case Dir.north:
-//                return true;
-//            case Dir.east:
-//                return true;
-//            case Dir.south:
-//                return true;
-//            case Dir.west:
-//                return true;
-//            case Dir.up:
-//                return true;
-//            case Dir.down:
-//                return true;
-//            default:
-//                return true;
-//        }
-//    }
-
-//    // not sure how to handle above IsSolid cases, seems more for blocks with visually transparent faces but should still have a collider there
-//    public virtual bool ColliderSolid() {
-//        return true;
-//    }
-
-//    //public virtual Tile TexturePosition(Dir dir, int x, int y, int z, NativeMeshData data) {
-//    //    return new Tile() { x = 0, y = 0 };
-//    //}
-
-//    public virtual ushort GetLight() {
-//        return 0;
-//    }
-
-
-//    public virtual int GetTextureIndex(Dir dir, int x, int y, int z, ref NativeArray3x3<Block> blocks) {
-//        return 0;
-//    }
-
-
 //    // todo: translate to native array job option
 //    //public virtual void FaceUVsGreedy(Dir dir, MeshData data, int w, int h) {
 //    //    Tile tp = TexturePosition(dir, data);
@@ -290,24 +226,4 @@ public static class Blocks {
 //    //    data.uv2.Add(new Vector2(h, w));
 //    //}
 
-//}
-
-
-//public struct Tile {
-//    public const float SIZE = 0.125f; // set equal to 1 / number of tiles on sprite sheet 
-//    public int x;
-//    public int y;
-
-//    public Tile(int x, int y) {
-//        this.x = x;
-//        this.y = y;
-//    }
-//}
-
-//public class StoneBlock : BlockType {
-
-//    // test smiley texture
-//    //public override Tile TexturePosition(Dir dir) {
-//    //    return new Tile(1, 1);
-//    //}
 //}

@@ -7,51 +7,111 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Assertions;
 
-public struct AABB {
-    public readonly float minX;
-    public readonly float minY;
-    public readonly float minZ;
-    public readonly float maxX;
-    public readonly float maxY;
-    public readonly float maxZ;
-
-    public AABB(float x1, float y1, float z1, float x2, float y2, float z2) {
-        minX = x1;
-        minY = y1;
-        minZ = z1;
-        maxX = x2;
-        maxY = y2;
-        maxZ = z2;
-    }
-
-    public bool IsInside(float x, float y, float z) {
-        return x > minX && x < maxX &&
-               y > minY && y < maxY &&
-               z > minY && z < maxZ;
-    }
-
-    public bool IsInside(ref Vector3 pos) {
-        return pos.x > minX && pos.x < maxX &&
-               pos.y > minY && pos.y < maxY &&
-               pos.z > minZ && pos.z < maxZ;
-    }
-}
-
 public struct RaycastVoxelHit {
     public Vector3i bpos; // world space block position
     public Dir dir;
 }
 
 public class BlonkPhysics : MonoBehaviour {
-    // Start is called before the first frame update
+
+    public Vector3 gravity = Vector3.down * 10.0f;
+
     World world;
+    static List<PhysicsMover> movers = new List<PhysicsMover>();
+    List<AABB> boxes = new List<AABB>();
+
     void Start() {
         world = GetComponent<World>();
     }
 
+    // add object to physics simulation
+    public static void Add(PhysicsMover mover) {
+        movers.Add(mover);
+    }
+
+
     void FixedUpdate() {
 
+        for (int moverIndex = 0; moverIndex < movers.Count; ++moverIndex) {
+            PhysicsMover mover = movers[moverIndex];
+            mover.pos = mover.transform.position;
+            if (mover.obeysGravity) {
+                mover.vel += gravity * Time.deltaTime;
+            }
+
+            boxes.Clear();
+            // loop thru and build list of aabbs with all possible blocks mover could collide with this frame
+            // take into account velocity
+            AABB swept = AABB.GetSwept(mover.GetWorldAABB(), mover.vel);
+            // cast min and max to block positions and add all nearby block AABBs to boxes list
+
+            // do a sweeptest against each one and find closest time of collision if any
+            // collide against that and zero out velocity on that axis (or bounce)
+            // keep going until remainingDelta is very small
+            float remainingDelta = Time.deltaTime;
+            int loopCount = 0;
+            while (remainingDelta > 0.0001f) {
+                if (++loopCount > 100) {
+                    Debug.LogWarning("physics loop count exceeded!");
+                    break;
+                }
+
+                float nearestTime = remainingDelta;
+                int nearestIndex = -1;
+                int nearestAxis = -1;
+                for (int i = 0; i < boxes.Count; ++i) {
+                    AABB box = boxes[i];
+
+                    int axis = AABB.SweepTest(box, mover.GetWorldAABB(), mover.vel, out float t);
+
+                    if (axis == -1 || t >= nearestTime) {
+                        continue;
+                    }
+
+                    nearestTime = t;
+                    nearestIndex = i;
+                    nearestAxis = axis;
+                }
+
+                if (nearestAxis == -1) { // no collision
+                    mover.transform.position += mover.vel * remainingDelta;
+                    remainingDelta = 0;
+                } else { // collision!
+
+                    // move to the point of collision and reduce time remaining
+                    if (nearestTime < 0) { // handle negative nearest caused by d allowance
+                        if (nearestAxis == 0) {
+                            mover.pos.x += mover.vel.x * nearestTime;
+                        } else if (nearestAxis == 1) {
+                            mover.pos.y += mover.vel.y * nearestTime;
+                        } else if (nearestAxis == 2) {
+                            mover.pos.z += mover.vel.z * nearestTime;
+                        }
+                    } else {
+                        mover.pos += mover.vel * nearestTime;
+                        remainingDelta -= nearestTime;
+                    }
+
+                    // zero out velocity on collided axis
+                    if (nearestAxis == 0) {
+                        mover.vel.x = 0;
+                    } else if (nearestAxis == 1) {
+                        mover.vel.y = 0;
+                    } else if (nearestAxis == 2) {
+                        mover.vel.z = 0;
+                    }
+
+                }
+
+            }
+
+            mover.transform.position = mover.pos; // update transform
+
+        }
+
     }
+
+
 
 #if _DEBUG
     static List<Vector3i> posAlong = new List<Vector3i>();
@@ -61,7 +121,6 @@ public class BlonkPhysics : MonoBehaviour {
 
     const int SELECT_RADIUS = 100;
 
-    //private static float ceil()
 
     // based on this source https://github.com/camthesaxman/cubecraft/blob/master/source/field.c#L78    
     // and fixes from this  https://gamedev.stackexchange.com/questions/47362/cast-ray-to-select-block-in-voxel-game

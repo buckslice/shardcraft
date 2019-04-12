@@ -122,10 +122,11 @@ public struct NativeMeshData {
         uvs.Add(new Vector3(0, 1, slice));
         uvs.Add(new Vector3(1, 1, slice));
         uvs.Add(new Vector3(1, 0, slice));
-        uv2s.Add(new Vector3(0, 0, 0));
-        uv2s.Add(new Vector3(0, 0, 0));
-        uv2s.Add(new Vector3(0, 0, 0));
-        uv2s.Add(new Vector3(0, 0, 0));
+        Vector3 z = Vector3.zero;
+        uv2s.Add(z);
+        uv2s.Add(z);
+        uv2s.Add(z);
+        uv2s.Add(z);
     }
 
     const int t = 8; // tiles per texture (going for 32x32 and each texture is 256) so 8x8 can fit in there
@@ -176,10 +177,11 @@ public struct NativeMeshData {
                 break;
         }
 
-        uv2s.Add(new Vector3(1.5f, 0, 0));
-        uv2s.Add(new Vector3(1.5f, 0, 0));
-        uv2s.Add(new Vector3(1.5f, 0, 0));
-        uv2s.Add(new Vector3(1.5f, 0, 0));
+        Vector3 u = new Vector3(1.5f, 0, 0);
+        uv2s.Add(u);
+        uv2s.Add(u);
+        uv2s.Add(u);
+        uv2s.Add(u);
     }
 
 }

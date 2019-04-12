@@ -8,27 +8,39 @@ public static class WorldUtils {
         //return new Vector3i(Mathf.RoundToInt(pos.x), Mathf.RoundToInt(pos.y), Mathf.RoundToInt(pos.z));
         //return new Vector3i((int)pos.x, (int)pos.y, (int)pos.z); // THIS TRUNCATES but we need FLOOORING REEEEEEEEEEEE
         worldPos *= Chunk.BPU;
-        return new Vector3i(Mathf.FloorToInt(worldPos.x), Mathf.FloorToInt(worldPos.y), Mathf.FloorToInt(worldPos.z));
+        Vector3i v;
+        v.x = Mathf.FloorToInt(worldPos.x);
+        v.y = Mathf.FloorToInt(worldPos.y);
+        v.z = Mathf.FloorToInt(worldPos.z);
+        return v;
     }
 
     // gets chunk coordinate using world block coordinates
     public static Vector3i GetChunkPosFromBlockPos(int x, int y, int z) {
-        return new Vector3i(x >> 5, y >> 5, z >> 5); // 32 is 2^5
+        Vector3i v;
+        v.x = x >> 5;
+        v.y = y >> 5;
+        v.z = z >> 5;
+        return v;
     }
 
     // regions are 16x16x16 chunks
     public static Vector3i GetRegionCoord(Vector3i cp) { // from chunk position
-        return new Vector3i(cp.x >> 4, cp.y >> 4, cp.z >> 4);
+        Vector3i v;
+        v.x = cp.x >> 4;
+        v.y = cp.y >> 4;
+        v.z = cp.z >> 4;
+        return v;
     }
 
     // returns the chunk coord based on world position
     public static Vector3i GetChunkPosFromWorldPos(Vector3 worldPos) {
         worldPos *= Chunk.BPU;
-        return new Vector3i(
-            Mathf.FloorToInt(worldPos.x / Chunk.SIZE),
-            Mathf.FloorToInt(worldPos.y / Chunk.SIZE),
-            Mathf.FloorToInt(worldPos.z / Chunk.SIZE)
-        );
+        Vector3i v;
+        v.x = Mathf.FloorToInt(worldPos.x / Chunk.SIZE);
+        v.y = Mathf.FloorToInt(worldPos.y / Chunk.SIZE);
+        v.z = Mathf.FloorToInt(worldPos.z / Chunk.SIZE);
+        return v;
     }
 
     // raycast hit will usually be right on edge between two blocks so move point in or out a little

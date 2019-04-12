@@ -75,17 +75,14 @@ public struct Vector3i : IEquatable<Vector3i> {
     public static Vector3i zero {
         get { return new Vector3i(0, 0, 0); }
     }
-    public static Vector3i forward {
-        get { return new Vector3i(0, 0, 1); }
-    }
     public static Vector3i right {
         get { return new Vector3i(1, 0, 0); }
     }
     public static Vector3i up {
         get { return new Vector3i(0, 1, 0); }
     }
-    public static Vector3i back {
-        get { return new Vector3i(0, 0, -1); }
+    public static Vector3i forward {
+        get { return new Vector3i(0, 0, 1); }
     }
     public static Vector3i left {
         get { return new Vector3i(-1, 0, 0); }
@@ -93,43 +90,64 @@ public struct Vector3i : IEquatable<Vector3i> {
     public static Vector3i down {
         get { return new Vector3i(0, -1, 0); }
     }
+    public static Vector3i back {
+        get { return new Vector3i(0, 0, -1); }
+    }
 
 
-    public static explicit operator Vector3i(Vector3 v) {
-        return new Vector3i((int)v.x, (int)v.y, (int)v.z);
+    public static explicit operator Vector3i(Vector3 vf) {
+        Vector3i v;
+        v.x = (int)vf.x;
+        v.y = (int)vf.y;
+        v.z = (int)vf.z;
+        return v;
     }
     //public static implicit operator Vector3(Vector3i source) {
     //    return new Vector3(source.x, source.y, source.z);
     //}
 
     public static Vector3i operator +(Vector3i v0, Vector3i v1) {
-        return new Vector3i(v0.x + v1.x, v0.y + v1.y, v0.z + v1.z);
+        v0.x += v1.x;
+        v0.y += v1.y;
+        v0.z += v1.z;
+        return v0;
     }
 
     public static Vector3i operator -(Vector3i v0, Vector3i v1) {
-        return new Vector3i(v0.x - v1.x, v0.y - v1.y, v0.z - v1.z);
+        v0.x -= v1.x;
+        v0.y -= v1.y;
+        v0.z -= v1.z;
+        return v0;
     }
     public static Vector3i operator /(Vector3i v0, Vector3i v1) {
-        return new Vector3i(v0.x / v1.x, v0.y / v1.y, v0.z / v1.z);
-    }
-
-    public static Vector3i operator %(Vector3i v0, int i) {
-        return new Vector3i(v0.x % i, v0.y % i, v0.z % i);
+        v0.x /= v1.x;
+        v0.y /= v1.y;
+        v0.z /= v1.z;
+        return v0;
     }
 
     public static Vector3i operator *(Vector3i v0, Vector3i v1) {
-        return new Vector3i(v0.x * v1.x, v0.y * v1.y, v0.z * v1.z);
+        v0.x *= v1.x;
+        v0.y *= v1.y;
+        v0.z *= v1.z;
+        return v0;
     }
 
     public static Vector3i operator *(Vector3i v, int s) {
-        return new Vector3i(v.x * s, v.y * s, v.z * s);
+        v.x *= s;
+        v.y *= s;
+        v.z *= s;
+        return v;
     }
     public static Vector3i operator *(int s, Vector3i v) {
         return v * s;
     }
 
     public static Vector3i operator /(Vector3i v, int s) {
-        return new Vector3i(v.x / s, v.y / s, v.z / s);
+        v.x /= s;
+        v.y /= s;
+        v.z /= s;
+        return v;
     }
 
     public static bool operator <(Vector3i a, Vector3i b) {
