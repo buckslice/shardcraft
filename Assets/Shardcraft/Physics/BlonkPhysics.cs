@@ -14,7 +14,7 @@ public struct RaycastVoxelHit {
 
 public class BlonkPhysics : MonoBehaviour {
 
-    public Vector3 gravity = Vector3.down * 10.0f;
+    public Vector3 gravity = Vector3.down * 15.0f;
 
     World world;
     static List<PhysicsMover> movers = new List<PhysicsMover>();
@@ -25,7 +25,7 @@ public class BlonkPhysics : MonoBehaviour {
     }
 
     // add object to physics simulation
-    public static void Add(PhysicsMover mover) {
+    public static void AddMover(PhysicsMover mover) {
         movers.Add(mover);
     }
 
@@ -39,11 +39,32 @@ public class BlonkPhysics : MonoBehaviour {
                 mover.vel += gravity * Time.deltaTime;
             }
 
-            boxes.Clear();
             // loop thru and build list of aabbs with all possible blocks mover could collide with this frame
             // take into account velocity
-            AABB swept = AABB.GetSwept(mover.GetWorldAABB(), mover.vel);
+            AABB swept = AABB.GetSwept(mover.GetWorldAABB(), mover.vel * Time.deltaTime);
             // cast min and max to block positions and add all nearby block AABBs to boxes list
+            const float fff = 0.01f;
+            Vector3i minBP = WorldUtils.GetBlockPos(new Vector3(swept.minX - fff, swept.minY - fff, swept.minZ - fff));
+            Vector3i maxBP = WorldUtils.GetBlockPos(new Vector3(swept.maxX + fff, swept.maxY + fff, swept.maxZ + fff));
+            Assert.IsTrue(maxBP.x >= minBP.x && maxBP.y >= minBP.y && maxBP.z >= minBP.z);
+            boxes.Clear();
+            for (int y = minBP.y; y <= maxBP.y; ++y) {
+                for (int z = minBP.z; z <= maxBP.z; ++z) {
+                    for (int x = minBP.x; x <= maxBP.x; ++x) {
+                        if (world.GetBlock(x, y, z).ColliderSolid()) {
+                            AABB b;
+                            b.minX = x * Chunk.BLOCK_SIZE;
+                            b.minY = y * Chunk.BLOCK_SIZE;
+                            b.minZ = z * Chunk.BLOCK_SIZE;
+                            b.maxX = (x + 1) * Chunk.BLOCK_SIZE;
+                            b.maxY = (y + 1) * Chunk.BLOCK_SIZE;
+                            b.maxZ = (z + 1) * Chunk.BLOCK_SIZE;
+                            boxes.Add(b);
+                        }
+                    }
+                }
+            }
+            Debug.Log(boxes.Count);
 
             // do a sweeptest against each one and find closest time of collision if any
             // collide against that and zero out velocity on that axis (or bounce)
@@ -62,19 +83,19 @@ public class BlonkPhysics : MonoBehaviour {
                 for (int i = 0; i < boxes.Count; ++i) {
                     AABB box = boxes[i];
 
-                    int axis = AABB.SweepTest(box, mover.GetWorldAABB(), mover.vel, out float t);
+                    int axis = AABB.SweepTest(box, mover.GetWorldAABB(), mover.vel * remainingDelta, out float t);
 
                     if (axis == -1 || t >= nearestTime) {
                         continue;
                     }
-
+                    Assert.IsTrue(t <= remainingDelta && t >= 0.0f);
                     nearestTime = t;
                     nearestIndex = i;
                     nearestAxis = axis;
                 }
 
                 if (nearestAxis == -1) { // no collision
-                    mover.transform.position += mover.vel * remainingDelta;
+                    mover.pos += mover.vel * remainingDelta;
                     remainingDelta = 0;
                 } else { // collision!
 
@@ -135,7 +156,7 @@ public class BlonkPhysics : MonoBehaviour {
 
         Vector3i pos = WorldUtils.GetBlockPos(origin);
         // check if inside a block already
-        if (BlockDatas.ColliderSolid(world.GetBlock(pos.x, pos.y, pos.z))) {
+        if (world.GetBlock(pos.x, pos.y, pos.z).ColliderSolid()) {
             hit.bpos = pos;
             hit.dir = Dir.none;
             return true;
@@ -247,7 +268,7 @@ public class BlonkPhysics : MonoBehaviour {
             posAlong.Add(pos);
 #endif
             // if hit a solid block then return successfully!
-            if (BlockDatas.ColliderSolid(world.GetBlock(pos.x, pos.y, pos.z))) {
+            if (world.GetBlock(pos.x, pos.y, pos.z).ColliderSolid()) {
                 hit.bpos = pos;
                 return true;
             }

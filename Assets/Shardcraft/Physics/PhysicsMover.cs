@@ -6,9 +6,9 @@ using UnityEngine;
 public class PhysicsMover {
 
     public Transform transform;
-    public Vector3 pos;
     public AABB shape; // shape around transform, centered on xz with y at bottom
-    public Vector3 vel;
+    public Vector3 pos = Vector3.zero;
+    public Vector3 vel = Vector3.zero;
     public bool obeysGravity = true;
 
     public AABB GetWorldAABB() {

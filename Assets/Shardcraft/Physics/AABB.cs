@@ -31,6 +31,10 @@ public struct AABB {
         return swept;
     }
 
+    public override string ToString() {
+        return string.Format("({0}, {1}, {2}, {3}, {4}, {5})", minX, minY, minZ, maxX, maxY, maxZ);
+    }
+
     //https://www.gamedev.net/articles/programming/general-and-gameplay-programming/swept-aabb-collision-detection-and-response-r3084/
     // also based off dtb source
     public static float SweepTest(AABB b1, AABB b2, Vector3 vel, out Vector3 norm) {

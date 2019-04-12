@@ -36,6 +36,17 @@ public struct Block : IEquatable<Block> {
         return type;
     }
 
+    // only use these in managed circumstances NOT JOBS OMG
+    public bool ColliderSolid() {
+        return BlockDatas.data[type].colliderSolid == 1;
+    }
+    public bool RenderSolid(Block b, Dir dir) { // not using dir for now but keeping it there for later possibly
+        return BlockDatas.data[type].renderSolid == 1;
+    }
+    public BlockData BlockData() {
+        return BlockDatas.data[type];
+    }
+
 }
 
 public struct BlockData {
@@ -75,16 +86,6 @@ public struct BlockData {
 }
 
 public static class BlockDatas {
-
-    public static BlockData GetBlockData(Block b) {
-        return data[b.type];
-    }
-    public static bool RenderSolid(Block b, Dir dir) { // not using dir for now but keeping it there for later possibly
-        return data[b.type].renderSolid == 1;
-    }
-    public static bool ColliderSolid(Block b) {
-        return data[b.type].colliderSolid == 1;
-    }
 
     public static BlockData[] data;
 
@@ -158,7 +159,7 @@ public static class BlockDatas {
         },
 
         new BlockData(0) { // COAL
-            texture = 7, 
+            texture = 7,
             renderType = 2,
         },
         new BlockData(0) { // RUBY
@@ -172,7 +173,7 @@ public static class BlockDatas {
             light = LightCalculator.GetColor(0, 20, 0),
         },
         new BlockData(0) { // SAPPHIRE
-            texture = 10, 
+            texture = 10,
             renderType = 2,
             light = LightCalculator.GetColor(0, 0, 20),
         }
@@ -188,7 +189,6 @@ public static class BlockDatas {
 
 // make sure this matches types array below
 public static class Blocks {
-    public const int count = 17;
     public static readonly Block AIR = new Block(0);
     public static readonly Block STONE = new Block(1);
     public static readonly Block GRASS = new Block(2);
@@ -207,6 +207,7 @@ public static class Blocks {
     public static readonly Block EMERALD = new Block(15);
     public static readonly Block SAPPHIRE = new Block(16);
 
+    public const int count = 17;
 }
 
 //    // todo: translate to native array job option

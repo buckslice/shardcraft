@@ -2,13 +2,36 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class FlyCam : MonoBehaviour
-{
+public class FlyCam : MonoBehaviour {
     public float sensitivity = 1.0f;
     public float moveSpeed = 8.0f;
 
     public float pitch;
     public float yaw;
+
+    bool flyMode = false;
+
+    PhysicsMover mover;
+
+    void Start() {
+        mover = new PhysicsMover();
+        mover.transform = transform;
+
+        float s = 0.35f;
+        // .7 wide 1.4 tall
+        // so 2 blocks wide, 3 tall
+        AABB shape;
+        shape.minX = -s;
+        shape.minZ = -s;
+        shape.maxX = s;
+        shape.maxZ = s;
+        shape.minY = -1.0f;
+        shape.maxY = 0.4f;
+        mover.shape = shape;
+
+        BlonkPhysics.AddMover(mover);
+    }
+
 
     void Update() {
 
@@ -35,15 +58,23 @@ public class FlyCam : MonoBehaviour
 
         move = move.normalized * speed;
 
-        float upDir = 0.0f;
-        if (Input.GetKey(KeyCode.Space)) {
-            upDir += 1.0f;
-        }
-        if (Input.GetKey(KeyCode.LeftShift)) {
-            upDir -= 1.0f;
-        }
-        move += upDir * Vector3.up * speed;
+        if (flyMode) {
+            float upDir = 0.0f;
+            if (Input.GetKey(KeyCode.Space)) {
+                upDir += 1.0f;
+            }
+            if (Input.GetKey(KeyCode.LeftShift)) {
+                upDir -= 1.0f;
+            }
+            move += upDir * Vector3.up * speed;
 
-        transform.position += move * Time.deltaTime;
+            transform.position += move * Time.deltaTime;
+        } else {
+            mover.vel.x = move.x;
+            mover.vel.z = move.z;
+            if (Input.GetKey(KeyCode.Space)) {
+                mover.vel.y = 4.0f;
+            }
+        }
     }
 }
