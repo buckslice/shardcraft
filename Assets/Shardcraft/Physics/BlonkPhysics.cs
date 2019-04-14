@@ -43,9 +43,9 @@ public class BlonkPhysics : MonoBehaviour {
             // take into account velocity
             AABB swept = AABB.GetSwept(mover.GetWorldAABB(), mover.vel * Time.deltaTime);
             // cast min and max to block positions and add all nearby block AABBs to boxes list
-            const float fff = 0.01f;
-            Vector3i minBP = WorldUtils.GetBlockPos(new Vector3(swept.minX - fff, swept.minY - fff, swept.minZ - fff));
-            Vector3i maxBP = WorldUtils.GetBlockPos(new Vector3(swept.maxX + fff, swept.maxY + fff, swept.maxZ + fff));
+            const float bs = 0.01f;
+            Vector3i minBP = WorldUtils.GetBlockPos(new Vector3(swept.minX - bs, swept.minY - bs, swept.minZ - bs));
+            Vector3i maxBP = WorldUtils.GetBlockPos(new Vector3(swept.maxX + bs, swept.maxY + bs, swept.maxZ + bs));
             Assert.IsTrue(maxBP.x >= minBP.x && maxBP.y >= minBP.y && maxBP.z >= minBP.z);
             boxes.Clear();
             for (int y = minBP.y; y <= maxBP.y; ++y) {
@@ -64,7 +64,7 @@ public class BlonkPhysics : MonoBehaviour {
                     }
                 }
             }
-            Debug.Log(boxes.Count);
+            //Debug.Log(boxes.Count);
 
             // do a sweeptest against each one and find closest time of collision if any
             // collide against that and zero out velocity on that axis (or bounce)
@@ -83,7 +83,7 @@ public class BlonkPhysics : MonoBehaviour {
                 for (int i = 0; i < boxes.Count; ++i) {
                     AABB box = boxes[i];
 
-                    int axis = AABB.SweepTest(box, mover.GetWorldAABB(), mover.vel * remainingDelta, out float t);
+                    int axis = AABB.SweepTest2(box, mover.GetWorldAABB(), mover.vel * remainingDelta, out float t);
 
                     if (axis == -1 || t >= nearestTime) {
                         continue;
@@ -145,6 +145,8 @@ public class BlonkPhysics : MonoBehaviour {
 
     // based on this source https://github.com/camthesaxman/cubecraft/blob/master/source/field.c#L78    
     // and fixes from this  https://gamedev.stackexchange.com/questions/47362/cast-ray-to-select-block-in-voxel-game
+
+    // todo: instead of all parkour fixes just do one mod and if its on block boundary just add 0.00001f to it lol
     public static bool RaycastVoxel(World world, Vector3 origin, Vector3 dir, out RaycastVoxelHit hit) {
 
         if (dir == Vector3.zero) {
@@ -152,6 +154,19 @@ public class BlonkPhysics : MonoBehaviour {
             hit.bpos = Vector3i.zero;
             hit.dir = Dir.none;
             return false;
+        }
+
+        // make sure origin never exactly lines up to block boundary
+        // this is kinda filth but seems to work more reliably
+        const float ff = 0.00001f;
+        if (origin.x % Chunk.BLOCK_SIZE == 0) {
+            origin.x += ff;
+        }
+        if (origin.y % Chunk.BLOCK_SIZE == 0) {
+            origin.y += ff;
+        }
+        if (origin.z % Chunk.BLOCK_SIZE == 0) {
+            origin.z += ff;
         }
 
         Vector3i pos = WorldUtils.GetBlockPos(origin);
@@ -181,54 +196,46 @@ public class BlonkPhysics : MonoBehaviour {
         // ray distance it takes to move to next block boundary in each direction (this changes)
         Vector3 tMax = Vector3.positiveInfinity;
 
-        // theres a couple edge cases with this but it works pretty good
-        // at exact integer positions and exact PI/2 rotations theres basically a 2x2 of blocks in front of you
-        // it will choose one steadily (not flipping between two) but it will depend on the rotation and be arbitrary
-        // the commented lines are alternative options that im committing for science
-
-        // edge case where xyz elemnt of origin is at 0
-        float ceil(float s) { if (s == 0f) return 1f; else return Mathf.Ceil(s); }
-
         if (dir.x > 0.0f) {
             step.x = 1;
             tDelta.x = Chunk.BLOCK_SIZE / dir.x;
-            //tMax.x = (Mathf.Ceil(origin.x * Chunk.BPU) / Chunk.BPU - origin.x) / dir.x;
-            tMax.x = (ceil(origin.x * Chunk.BPU) / Chunk.BPU - origin.x) / dir.x;
+            tMax.x = (Mathf.Ceil(origin.x * Chunk.BPU) / Chunk.BPU - origin.x) / dir.x;
+            //tMax.x = (ceil(origin.x * Chunk.BPU) / Chunk.BPU - origin.x) / dir.x;
         } else if (dir.x < 0.0f) {
             step.x = -1;
             tDelta.x = -Chunk.BLOCK_SIZE / dir.x;
-            //tMax.x = -(origin.x - Mathf.Floor(origin.x * Chunk.BPU) / Chunk.BPU) / dir.x;
+            tMax.x = -(origin.x - Mathf.Floor(origin.x * Chunk.BPU) / Chunk.BPU) / dir.x;
             //bool atBoundary = Mathf.Round(origin.x * Chunk.BPU) == origin.x * Chunk.BPU;
-            bool atBoundary = Mth.Mod(origin.x, Chunk.BPU) == 0.0f;
-            tMax.x = atBoundary ? 0 : -(origin.x - Mathf.Floor(origin.x * Chunk.BPU) / Chunk.BPU) / dir.x;
+            //bool atBoundary = Mth.Mod(origin.x, Chunk.BPU) == 0.0f;
+            //tMax.x = atBoundary ? 0 : -(origin.x - Mathf.Floor(origin.x * Chunk.BPU) / Chunk.BPU) / dir.x;
         }
 
         if (dir.y > 0.0f) {
             step.y = 1;
             tDelta.y = Chunk.BLOCK_SIZE / dir.y;
-            //tMax.y = (Mathf.Ceil(origin.y * Chunk.BPU) / Chunk.BPU - origin.y) / dir.y;
-            tMax.y = (ceil(origin.y * Chunk.BPU) / Chunk.BPU - origin.y) / dir.y;
+            tMax.y = (Mathf.Ceil(origin.y * Chunk.BPU) / Chunk.BPU - origin.y) / dir.y;
+            //tMax.y = (ceil(origin.y * Chunk.BPU) / Chunk.BPU - origin.y) / dir.y;
         } else if (dir.y < 0.0f) {
             step.y = -1;
             tDelta.y = -Chunk.BLOCK_SIZE / dir.y;
-            //tMax.y = -(origin.y - Mathf.Floor(origin.y * Chunk.BPU) / Chunk.BPU) / dir.y;
+            tMax.y = -(origin.y - Mathf.Floor(origin.y * Chunk.BPU) / Chunk.BPU) / dir.y;
             //bool atBoundary = Mathf.Round(origin.y * Chunk.BPU) == origin.y * Chunk.BPU;
-            bool atBoundary = Mth.Mod(origin.y, Chunk.BPU) == 0.0f;
-            tMax.y = atBoundary ? 0 : -(origin.y - Mathf.Floor(origin.y * Chunk.BPU) / Chunk.BPU) / dir.y;
+            //bool atBoundary = Mth.Mod(origin.y, Chunk.BPU) == 0.0f;
+            //tMax.y = atBoundary ? 0 : -(origin.y - Mathf.Floor(origin.y * Chunk.BPU) / Chunk.BPU) / dir.y;
         }
 
         if (dir.z > 0.0f) {
             step.z = 1;
             tDelta.z = Chunk.BLOCK_SIZE / dir.z;
-            //tMax.z = (Mathf.Ceil(origin.z * Chunk.BPU) / Chunk.BPU - origin.z) / dir.z;
-            tMax.z = (ceil(origin.z * Chunk.BPU) / Chunk.BPU - origin.z) / dir.z;
+            tMax.z = (Mathf.Ceil(origin.z * Chunk.BPU) / Chunk.BPU - origin.z) / dir.z;
+            //tMax.z = (ceil(origin.z * Chunk.BPU) / Chunk.BPU - origin.z) / dir.z;
         } else if (dir.z < 0.0f) {
             step.z = -1;
             tDelta.z = -Chunk.BLOCK_SIZE / dir.z;
-            //tMax.z = -(origin.z - Mathf.Floor(origin.z * Chunk.BPU) / Chunk.BPU) / dir.z;
+            tMax.z = -(origin.z - Mathf.Floor(origin.z * Chunk.BPU) / Chunk.BPU) / dir.z;
             //bool atBoundary = Mathf.Round(origin.z * Chunk.BPU) == origin.z * Chunk.BPU;
-            bool atBoundary = Mth.Mod(origin.z, Chunk.BPU) == 0.0f;
-            tMax.z = atBoundary ? 0 : -(origin.z - Mathf.Floor(origin.z * Chunk.BPU) / Chunk.BPU) / dir.z;
+            //bool atBoundary = Mth.Mod(origin.z, Chunk.BPU) == 0.0f;
+            //tMax.z = atBoundary ? 0 : -(origin.z - Mathf.Floor(origin.z * Chunk.BPU) / Chunk.BPU) / dir.z;
         }
 
         Assert.IsTrue(tDelta.x != 0 || tDelta.y != 0 || tDelta.z != 0);

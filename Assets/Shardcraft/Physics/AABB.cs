@@ -37,7 +37,94 @@ public struct AABB {
 
     //https://www.gamedev.net/articles/programming/general-and-gameplay-programming/swept-aabb-collision-detection-and-response-r3084/
     // also based off dtb source
-    public static float SweepTest(AABB b1, AABB b2, Vector3 vel, out Vector3 norm) {
+    //public static float SweepTest(AABB b1, AABB b2, Vector3 vel, out Vector3 norm) {
+    //    float invEntrX;
+    //    float invEntrY;
+    //    float invEntrZ;
+    //    float invExitX;
+    //    float invExitY;
+    //    float invExitZ;
+
+    //    if (vel.x > 0.0f) {
+    //        invEntrX = b2.minX - b1.maxX;
+    //        invExitX = b2.maxX - b1.minX;
+    //    } else {
+    //        invEntrX = b2.maxX - b1.minX;
+    //        invExitX = b2.minX - b1.maxX;
+    //    }
+    //    if (vel.y > 0.0f) {
+    //        invEntrY = b2.minY - b1.maxY;
+    //        invExitY = b2.maxY - b1.minY;
+    //    } else {
+    //        invEntrY = b2.maxY - b1.minY;
+    //        invExitY = b2.minY - b1.maxY;
+    //    }
+    //    if (vel.z > 0.0f) {
+    //        invEntrZ = b2.minZ - b1.maxZ;
+    //        invExitZ = b2.maxZ - b1.minZ;
+    //    } else {
+    //        invEntrZ = b2.maxZ - b1.minZ;
+    //        invExitZ = b2.minZ - b1.maxZ;
+    //    }
+
+    //    float entrX;
+    //    float entrY;
+    //    float entrZ;
+    //    float exitX;
+    //    float exitY;
+    //    float exitZ;
+
+    //    if (vel.x == 0.0f) {
+    //        entrX = float.NegativeInfinity;
+    //        exitX = float.PositiveInfinity;
+    //    } else {
+    //        entrX = invEntrX / vel.x;
+    //        exitX = invExitX / vel.x;
+    //    }
+    //    if (vel.y == 0.0f) {
+    //        entrY = float.NegativeInfinity;
+    //        exitY = float.PositiveInfinity;
+    //    } else {
+    //        entrY = invEntrY / vel.y;
+    //        exitY = invExitY / vel.y;
+    //    }
+    //    if (vel.z == 0.0f) {
+    //        entrZ = float.NegativeInfinity;
+    //        exitZ = float.PositiveInfinity;
+    //    } else {
+    //        entrZ = invEntrZ / vel.z;
+    //        exitZ = invExitZ / vel.z;
+    //    }
+
+    //    float entrTime = Mathf.Max(entrX, Mathf.Max(entrY, entrZ));
+    //    float exitTime = Mathf.Min(exitX, Mathf.Min(exitY, exitZ));
+
+    //    // check if no collision
+    //    if (entrTime > exitTime ||
+    //        entrX < 0.0f && entrY < 0.0f && entrZ < 0.0f ||
+    //        entrX > 1.0f || entrY > 1.0f || entrZ > 1.0f) {
+    //        norm = Vector3.zero;
+    //        return 1.0f;
+    //    }
+
+    //    if (entrX > entrY) {
+    //        if (entrX > entrZ) {
+    //            norm = new Vector3(invEntrX < 0.0f ? 1.0f : -1.0f, 0.0f, 0.0f);
+    //        } else {
+    //            norm = new Vector3(0.0f, 0.0f, invEntrZ < 0.0f ? 1.0f : -1.0f);
+    //        }
+    //    } else {
+    //        if (entrY > entrZ) {
+    //            norm = new Vector3(0.0f, invEntrY < 0.0f ? 1.0f : -1.0f, 0.0f);
+    //        } else {
+    //            norm = new Vector3(0.0f, 0.0f, invEntrZ < 0.0f ? 1.0f : -1.0f);
+    //        }
+    //    }
+
+    //    return entrTime;
+    //}
+
+    public static int SweepTest2(AABB b1, AABB b2, Vector3 vel, out float dtime) {
         float invEntrX;
         float invEntrY;
         float invEntrZ;
@@ -99,29 +186,29 @@ public struct AABB {
         float entrTime = Mathf.Max(entrX, Mathf.Max(entrY, entrZ));
         float exitTime = Mathf.Min(exitX, Mathf.Min(exitY, exitZ));
 
+        dtime = entrTime;
         // check if no collision
         if (entrTime > exitTime ||
             entrX < 0.0f && entrY < 0.0f && entrZ < 0.0f ||
             entrX > 1.0f || entrY > 1.0f || entrZ > 1.0f) {
-            norm = Vector3.zero;
-            return 1.0f;
+            return -1;
         }
+
 
         if (entrX > entrY) {
             if (entrX > entrZ) {
-                norm = new Vector3(invEntrX < 0.0f ? 1.0f : -1.0f, 0.0f, 0.0f);
+                return 0;
             } else {
-                norm = new Vector3(0.0f, 0.0f, invEntrZ < 0.0f ? 1.0f : -1.0f);
+                return 2;
             }
         } else {
             if (entrY > entrZ) {
-                norm = new Vector3(0.0f, invEntrY < 0.0f ? 1.0f : -1.0f, 0.0f);
+                return 1;
             } else {
-                norm = new Vector3(0.0f, 0.0f, invEntrZ < 0.0f ? 1.0f : -1.0f);
+                return 2;
             }
         }
 
-        return entrTime;
     }
 
 

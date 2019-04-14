@@ -9,27 +9,29 @@ public class FlyCam : MonoBehaviour {
     public float pitch;
     public float yaw;
 
-    bool flyMode = false;
+    const bool flyMode = true;
 
     PhysicsMover mover;
 
     void Start() {
-        mover = new PhysicsMover();
-        mover.transform = transform;
+        if (!flyMode) {
+            mover = new PhysicsMover();
+            mover.transform = transform;
 
-        float s = 0.35f;
-        // .7 wide 1.4 tall
-        // so 2 blocks wide, 3 tall
-        AABB shape;
-        shape.minX = -s;
-        shape.minZ = -s;
-        shape.maxX = s;
-        shape.maxZ = s;
-        shape.minY = -1.0f;
-        shape.maxY = 0.4f;
-        mover.shape = shape;
+            float s = 0.35f;
+            // .7 wide 1.4 tall
+            // so 2 blocks wide, 3 tall
+            AABB shape;
+            shape.minX = -s;
+            shape.minZ = -s;
+            shape.maxX = s;
+            shape.maxZ = s;
+            shape.minY = -1.0f;
+            shape.maxY = 0.4f;
+            mover.shape = shape;
 
-        BlonkPhysics.AddMover(mover);
+            BlonkPhysics.AddMover(mover);
+        }
     }
 
 
