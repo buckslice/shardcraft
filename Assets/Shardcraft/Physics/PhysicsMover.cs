@@ -15,10 +15,10 @@ public class PhysicsMover {
         AABB b;
 
         b.minX = shape.minX + pos.x;
-        b.maxX = shape.maxX + pos.x;
         b.minY = shape.minY + pos.y;
-        b.maxY = shape.maxY + pos.y;
         b.minZ = shape.minZ + pos.z;
+        b.maxX = shape.maxX + pos.x;
+        b.maxY = shape.maxY + pos.y;
         b.maxZ = shape.maxZ + pos.z;
 
         return b;

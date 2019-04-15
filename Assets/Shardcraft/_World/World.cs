@@ -221,9 +221,9 @@ public class World : MonoBehaviour {
             }
         }
 
-        if (destroyed > 0) {
-            Debug.Log("destroyed: " + destroyed);
-        }
+        //if (destroyed > 0) {
+        //    Debug.Log("destroyed: " + destroyed);
+        //}
     }
 
 }

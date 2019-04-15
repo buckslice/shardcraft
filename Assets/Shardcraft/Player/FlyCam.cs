@@ -9,7 +9,7 @@ public class FlyCam : MonoBehaviour {
     public float pitch;
     public float yaw;
 
-    const bool flyMode = true;
+    const bool flyMode = false;
 
     PhysicsMover mover;
 

@@ -124,7 +124,8 @@ public struct AABB {
     //    return entrTime;
     //}
 
-    public static int SweepTest2(AABB b1, AABB b2, Vector3 vel, out float dtime) {
+    public static int SweepTest2(AABB dynamicBox, AABB staticBox, Vector3 vel, out float dtime) {
+        // find distance between objects on near and far sides
         float invEntrX;
         float invEntrY;
         float invEntrZ;
@@ -133,25 +134,25 @@ public struct AABB {
         float invExitZ;
 
         if (vel.x > 0.0f) {
-            invEntrX = b2.minX - b1.maxX;
-            invExitX = b2.maxX - b1.minX;
+            invEntrX = staticBox.minX - dynamicBox.maxX;
+            invExitX = staticBox.maxX - dynamicBox.minX;
         } else {
-            invEntrX = b2.maxX - b1.minX;
-            invExitX = b2.minX - b1.maxX;
+            invEntrX = staticBox.maxX - dynamicBox.minX;
+            invExitX = staticBox.minX - dynamicBox.maxX;
         }
         if (vel.y > 0.0f) {
-            invEntrY = b2.minY - b1.maxY;
-            invExitY = b2.maxY - b1.minY;
+            invEntrY = staticBox.minY - dynamicBox.maxY;
+            invExitY = staticBox.maxY - dynamicBox.minY;
         } else {
-            invEntrY = b2.maxY - b1.minY;
-            invExitY = b2.minY - b1.maxY;
+            invEntrY = staticBox.maxY - dynamicBox.minY;
+            invExitY = staticBox.minY - dynamicBox.maxY;
         }
         if (vel.z > 0.0f) {
-            invEntrZ = b2.minZ - b1.maxZ;
-            invExitZ = b2.maxZ - b1.minZ;
+            invEntrZ = staticBox.minZ - dynamicBox.maxZ;
+            invExitZ = staticBox.maxZ - dynamicBox.minZ;
         } else {
-            invEntrZ = b2.maxZ - b1.minZ;
-            invExitZ = b2.minZ - b1.maxZ;
+            invEntrZ = staticBox.maxZ - dynamicBox.minZ;
+            invExitZ = staticBox.minZ - dynamicBox.maxZ;
         }
 
         float entrX;
@@ -194,7 +195,6 @@ public struct AABB {
             return -1;
         }
 
-
         if (entrX > entrY) {
             if (entrX > entrZ) {
                 return 0;
@@ -216,7 +216,7 @@ public struct AABB {
     //https://github.com/minetest/minetest/blob/master/src/collision.cpp
     // returns -1 if no collision, 0 if against x axis, 1 on y, 2 on z
     // also returns time of collision based on amount of velocity
-    public static int SweepTest(AABB staticBox, AABB movingBox, Vector3 vel, out float time) {
+    public static int SweepTest(AABB dynamicBox, AABB staticBox, Vector3 vel, out float time) {
         const float d = 0.01f; // some sort of rounding bs constant
         const float COL_ZERO = 0; // also
 
@@ -225,12 +225,12 @@ public struct AABB {
         float sizeZ = staticBox.maxZ - staticBox.minZ;
 
         AABB rel;   // relative aabb
-        rel.minX = movingBox.minX - staticBox.minX;
-        rel.minY = movingBox.minY - staticBox.minY;
-        rel.minZ = movingBox.minZ - staticBox.minZ;
-        rel.maxX = movingBox.maxX - staticBox.minX;
-        rel.maxY = movingBox.maxY - staticBox.minY;
-        rel.maxZ = movingBox.maxZ - staticBox.minZ;
+        rel.minX = dynamicBox.minX - staticBox.minX;
+        rel.minY = dynamicBox.minY - staticBox.minY;
+        rel.minZ = dynamicBox.minZ - staticBox.minZ;
+        rel.maxX = dynamicBox.maxX - staticBox.minX;
+        rel.maxY = dynamicBox.maxY - staticBox.minY;
+        rel.maxZ = dynamicBox.maxZ - staticBox.minZ;
 
         time = 1.0f;
 

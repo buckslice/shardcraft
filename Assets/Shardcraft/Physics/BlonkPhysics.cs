@@ -64,11 +64,15 @@ public class BlonkPhysics : MonoBehaviour {
                     }
                 }
             }
+
+            // draw boxes you are colliding with... see if they are in right positions?
+
             //Debug.Log(boxes.Count);
 
             // do a sweeptest against each one and find closest time of collision if any
             // collide against that and zero out velocity on that axis (or bounce)
             // keep going until remainingDelta is very small
+
             float remainingDelta = Time.deltaTime;
             int loopCount = 0;
             while (remainingDelta > 0.0001f) {
@@ -83,7 +87,7 @@ public class BlonkPhysics : MonoBehaviour {
                 for (int i = 0; i < boxes.Count; ++i) {
                     AABB box = boxes[i];
 
-                    int axis = AABB.SweepTest2(box, mover.GetWorldAABB(), mover.vel * remainingDelta, out float t);
+                    int axis = AABB.SweepTest2(mover.GetWorldAABB(), box, mover.vel * remainingDelta, out float t);
 
                     if (axis == -1 || t >= nearestTime) {
                         continue;
@@ -98,7 +102,6 @@ public class BlonkPhysics : MonoBehaviour {
                     mover.pos += mover.vel * remainingDelta;
                     remainingDelta = 0;
                 } else { // collision!
-
                     // move to the point of collision and reduce time remaining
                     if (nearestTime < 0) { // handle negative nearest caused by d allowance
                         if (nearestAxis == 0) {
@@ -116,10 +119,13 @@ public class BlonkPhysics : MonoBehaviour {
                     // zero out velocity on collided axis
                     if (nearestAxis == 0) {
                         mover.vel.x = 0;
+                        Debug.Log("hit x " + remainingDelta);
                     } else if (nearestAxis == 1) {
                         mover.vel.y = 0;
+                        Debug.Log("hit y " + remainingDelta);
                     } else if (nearestAxis == 2) {
                         mover.vel.z = 0;
+                        Debug.Log("hit z " + remainingDelta);
                     }
 
                 }
@@ -158,7 +164,7 @@ public class BlonkPhysics : MonoBehaviour {
 
         // make sure origin never exactly lines up to block boundary
         // this is kinda filth but seems to work more reliably
-        const float ff = 0.00001f;
+        const float ff = 0.001f;
         if (origin.x % Chunk.BLOCK_SIZE == 0) {
             origin.x += ff;
         }
@@ -302,6 +308,21 @@ public class BlonkPhysics : MonoBehaviour {
             }
 
             Gizmos.DrawWireCube(posAlong[i].ToVector3() / 2.0f + Vector3.one * 0.25f, Vector3.one * 0.5f);
+        }
+
+        // draw boxes being considered to collide against
+        for(int i = 0; i < boxes.Count; ++i) {
+            Gizmos.color = Color.cyan;
+            AABB b = boxes[i];
+            Vector3 s;
+            s.x = b.maxX - b.minX;
+            s.y = b.maxY - b.minY;
+            s.z = b.maxZ - b.minZ;
+            Vector3 c;
+            c.x = b.minX + s.x / 2.0f;
+            c.y = b.minY + s.y / 2.0f;
+            c.z = b.minZ + s.z / 2.0f;
+            Gizmos.DrawWireCube(c, s);
         }
     }
 #endif
