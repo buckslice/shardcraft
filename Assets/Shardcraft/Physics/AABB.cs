@@ -216,8 +216,8 @@ public struct AABB {
     //https://github.com/minetest/minetest/blob/master/src/collision.cpp
     // returns -1 if no collision, 0 if against x axis, 1 on y, 2 on z
     // also returns time of collision based on amount of velocity
+    public const float d = 0.01f; // some sort of rounding bs constant
     public static int SweepTest(AABB dynamicBox, AABB staticBox, Vector3 vel, out float time) {
-        const float d = 0.01f; // some sort of rounding bs constant
         const float COL_ZERO = 0; // also
 
         float sizeX = staticBox.maxX - staticBox.minX;
@@ -232,7 +232,7 @@ public struct AABB {
         rel.maxY = dynamicBox.maxY - staticBox.minY;
         rel.maxZ = dynamicBox.maxZ - staticBox.minZ;
 
-        time = 1.0f;
+        time = 0.0f;
 
         // checking y first because prob happens most often due to gravity
         if (vel.y > 0) {
@@ -243,9 +243,9 @@ public struct AABB {
                     (rel.minZ + vel.z * time < sizeZ) &&
                     (rel.maxZ + vel.z * time > COL_ZERO)) {
                     return 1;
-                } else if (rel.minY > sizeY) {
-                    return -1;
                 }
+            } else if (rel.minY > sizeY) {
+                return -1;
             }
         } else if (vel.y < 0) {
             if (rel.maxY >= sizeY - d) {
@@ -255,9 +255,9 @@ public struct AABB {
                     (rel.minZ + vel.z * time < sizeZ) &&
                     (rel.maxZ + vel.z * time > COL_ZERO)) {
                     return 1;
-                } else if (rel.maxY < 0) {
-                    return -1;
                 }
+            } else if (rel.maxY < 0) {
+                return -1;
             }
         }
 
@@ -295,8 +295,8 @@ public struct AABB {
                     (rel.minY + vel.y * time < sizeY) &&
                     (rel.maxY + vel.y * time > COL_ZERO)) {
                     return 2;
-                }// dont need another else because were gona return -1 anyways
-            }
+                }
+            }// dont need another else because were gona return -1 anyways
         } else if (vel.z < 0) {
             if (rel.maxZ >= sizeZ - d) {
                 time = (sizeZ - rel.minZ) / vel.z;
@@ -305,8 +305,8 @@ public struct AABB {
                     (rel.minY + vel.y * time < sizeY) &&
                     (rel.maxY + vel.y * time > COL_ZERO)) {
                     return 2;
-                }// dont need another else because were gona return -1 anyways
-            }
+                }
+            }// dont need another else because were gona return -1 anyways
         }
 
         return -1;

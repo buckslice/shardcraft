@@ -34,6 +34,9 @@ public class BlonkPhysics : MonoBehaviour {
 
         for (int moverIndex = 0; moverIndex < movers.Count; ++moverIndex) {
             PhysicsMover mover = movers[moverIndex];
+            if (!mover.simulate) {
+                continue;
+            }
             mover.pos = mover.transform.position;
             if (mover.obeysGravity) {
                 mover.vel += gravity * Time.deltaTime;
@@ -70,10 +73,10 @@ public class BlonkPhysics : MonoBehaviour {
             // keep going until remainingDelta is very small
             int loopCount = 0;
             const int maxLoops = 10;
-            float remainingDelta = Time.deltaTime;
+            float remainingDelta = Time.deltaTime; // other game is hardcoded 0.5 because 20 ticks per second i think
             while (remainingDelta > 1e-10f && ++loopCount < maxLoops) {
                 // find nearest collision out of all nearby blocks
-                float nearestTime = 1.0f;
+                float nearestTime = 1.0f; // works worse if set to remainingDelta like minetest...
                 //int nearestIndex = -1; // will prob need this later for stuff
                 int nearestAxis = -1;
                 for (int i = 0; i < boxes.Count; ++i) {
@@ -85,7 +88,7 @@ public class BlonkPhysics : MonoBehaviour {
                     if (axis == -1 || t >= nearestTime) {
                         continue;
                     }
-                    Assert.IsTrue(t <= 1.0f && t >= 0.0f);
+                    //Assert.IsTrue(t <= 1.0f && t >= 0.0f);
                     nearestTime = t;
                     //nearestIndex = i;
                     nearestAxis = axis;
@@ -112,29 +115,13 @@ public class BlonkPhysics : MonoBehaviour {
                     }
 
                     // zero out velocity on collided axis
-                    const float gg = 0.001f;
                     if (nearestAxis == 0) {
-                        //if (mover.vel.x > 0) {
-                        //    mover.pos.x -= gg;
-                        //} else {
-                        //    mover.pos.x += gg;
-                        //}
                         mover.vel.x = 0;
                         //Debug.Log("hit x " + remainingDelta);
                     } else if (nearestAxis == 1) {
-                        //if (mover.vel.y > 0) {
-                        //    mover.pos.y -= gg;
-                        //} else {
-                        //    mover.pos.y += gg;
-                        //}
                         mover.vel.y = 0;
                         //Debug.Log("hit y " + remainingDelta);
                     } else if (nearestAxis == 2) {
-                        //if (mover.vel.z > 0) {
-                        //    mover.pos.z -= gg;
-                        //} else {
-                        //    mover.pos.z += gg;
-                        //}
                         mover.vel.z = 0;
                         //Debug.Log("hit z " + remainingDelta);
                     }
@@ -143,10 +130,24 @@ public class BlonkPhysics : MonoBehaviour {
 
             }
 
+            // lastly, now check if mover is grounded
+            AABB moverBox = mover.GetWorldAABB();
+            mover.grounded = false;
+            for (int i = 0; i < boxes.Count; ++i) {
+                AABB box = boxes[i];
+
+                if (box.maxX - AABB.d > moverBox.minX && box.minX + AABB.d < moverBox.maxX &&
+                    box.maxZ - AABB.d > moverBox.minZ && box.minZ + AABB.d < moverBox.maxZ) {
+                    if (Mathf.Abs(box.maxY - moverBox.minY) < 0.1f) {
+                        mover.grounded = true;
+                    }
+                }
+
+            }
+
             if (loopCount >= maxLoops) {
                 Debug.LogWarning("physics loop count exceeded!");
             }
-
 
             mover.transform.position = mover.pos; // update transform
 

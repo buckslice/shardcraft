@@ -22,6 +22,8 @@ public class CamModify : MonoBehaviour {
     Color startColor;
     bool isDebugDay = false;
 
+    FlyCam flyCam;
+
     void Start() {
         // weird indexing to skip air
         blocks = new Block[Blocks.count - 1];
@@ -30,6 +32,7 @@ public class CamModify : MonoBehaviour {
         }
 
         cam = GetComponent<Camera>();
+        flyCam = GetComponent<FlyCam>();
         startColor = cam.backgroundColor;
         ToggleDebugDay();
 
@@ -108,15 +111,18 @@ public class CamModify : MonoBehaviour {
         }
 
         if (Input.GetKeyDown(KeyCode.F1)) {
-            drawChunkBorders = !drawChunkBorders;
+            flyCam.ToggleFlyMode();
         }
         if (Input.GetKeyDown(KeyCode.F2)) {
-            ToggleDebugDay();
+            drawChunkBorders = !drawChunkBorders;
         }
         if (Input.GetKeyDown(KeyCode.F3)) {
-            LoadChunks.drawDebug = !LoadChunks.drawDebug;
+            ToggleDebugDay();
         }
         if (Input.GetKeyDown(KeyCode.F4)) {
+            LoadChunks.drawDebug = !LoadChunks.drawDebug;
+        }
+        if (Input.GetKeyDown(KeyCode.F5)) {
             LoadChunks.updateChunks = !LoadChunks.updateChunks;
         }
         if (drawChunkBorders) {

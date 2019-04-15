@@ -10,6 +10,8 @@ public class PhysicsMover {
     public Vector3 pos = Vector3.zero;
     public Vector3 vel = Vector3.zero;
     public bool obeysGravity = true;
+    public bool simulate = true;
+    public bool grounded = false;
 
     public AABB GetWorldAABB() {
         AABB b;

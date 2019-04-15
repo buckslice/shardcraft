@@ -99,15 +99,15 @@ public class LoadChunks : MonoBehaviour {
             timer = 0;
         }
 
-        if (Input.GetKeyDown(KeyCode.F)) {
-            WorldUtils.FillChunk(world, editChunk, Blocks.STONE);
-        }
-        if (Input.GetKeyDown(KeyCode.G)) {
-            WorldUtils.FillChunk(world, editChunk, Blocks.AIR);
-        }
-        if (Input.GetKeyDown(KeyCode.C)) {
-            WorldUtils.CheckerboardChunk(world, editChunk, Blocks.STONE);
-        }
+        //if (Input.GetKeyDown(KeyCode.F)) {
+        //    WorldUtils.FillChunk(world, editChunk, Blocks.STONE);
+        //}
+        //if (Input.GetKeyDown(KeyCode.G)) {
+        //    WorldUtils.FillChunk(world, editChunk, Blocks.AIR);
+        //}
+        //if (Input.GetKeyDown(KeyCode.C)) {
+        //    WorldUtils.CheckerboardChunk(world, editChunk, Blocks.STONE);
+        //}
 
         //if (Input.GetKeyDown(KeyCode.P)) {
         //    Debug.Log(world.IsAnyChunksLocked());
