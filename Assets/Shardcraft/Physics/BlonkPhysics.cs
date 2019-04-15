@@ -65,72 +65,88 @@ public class BlonkPhysics : MonoBehaviour {
                 }
             }
 
-            // draw boxes you are colliding with... see if they are in right positions?
-
-            //Debug.Log(boxes.Count);
-
             // do a sweeptest against each one and find closest time of collision if any
             // collide against that and zero out velocity on that axis (or bounce)
             // keep going until remainingDelta is very small
-
-            float remainingDelta = Time.deltaTime;
             int loopCount = 0;
-            while (remainingDelta > 0.0001f) {
-                if (++loopCount > 100) {
-                    Debug.LogWarning("physics loop count exceeded!");
-                    break;
-                }
-
-                float nearestTime = remainingDelta;
-                int nearestIndex = -1;
+            const int maxLoops = 10;
+            float remainingDelta = Time.deltaTime;
+            while (remainingDelta > 1e-10f && ++loopCount < maxLoops) {
+                // find nearest collision out of all nearby blocks
+                float nearestTime = 1.0f;
+                //int nearestIndex = -1; // will prob need this later for stuff
                 int nearestAxis = -1;
                 for (int i = 0; i < boxes.Count; ++i) {
                     AABB box = boxes[i];
 
-                    int axis = AABB.SweepTest2(mover.GetWorldAABB(), box, mover.vel * remainingDelta, out float t);
+                    //int axis = AABB.SweepTest2(mover.GetWorldAABB(), box, mover.vel * remainingDelta, out float t);
+                    int axis = AABB.SweepTest(mover.GetWorldAABB(), box, mover.vel * remainingDelta, out float t);
 
                     if (axis == -1 || t >= nearestTime) {
                         continue;
                     }
-                    Assert.IsTrue(t <= remainingDelta && t >= 0.0f);
+                    Assert.IsTrue(t <= 1.0f && t >= 0.0f);
                     nearestTime = t;
-                    nearestIndex = i;
+                    //nearestIndex = i;
                     nearestAxis = axis;
                 }
 
                 if (nearestAxis == -1) { // no collision
                     mover.pos += mover.vel * remainingDelta;
                     remainingDelta = 0;
+                    break;
                 } else { // collision!
-                    // move to the point of collision and reduce time remaining
+
                     if (nearestTime < 0) { // handle negative nearest caused by d allowance
                         if (nearestAxis == 0) {
-                            mover.pos.x += mover.vel.x * nearestTime;
+                            mover.pos.x += mover.vel.x * nearestTime * remainingDelta;
                         } else if (nearestAxis == 1) {
-                            mover.pos.y += mover.vel.y * nearestTime;
+                            mover.pos.y += mover.vel.y * nearestTime * remainingDelta;
                         } else if (nearestAxis == 2) {
-                            mover.pos.z += mover.vel.z * nearestTime;
+                            mover.pos.z += mover.vel.z * nearestTime * remainingDelta;
                         }
                     } else {
-                        mover.pos += mover.vel * nearestTime;
-                        remainingDelta -= nearestTime;
+                        // move to the point of collision and reduce time remaining
+                        mover.pos += mover.vel * nearestTime * remainingDelta;
+                        remainingDelta -= nearestTime * remainingDelta;
                     }
 
                     // zero out velocity on collided axis
+                    const float gg = 0.001f;
                     if (nearestAxis == 0) {
+                        //if (mover.vel.x > 0) {
+                        //    mover.pos.x -= gg;
+                        //} else {
+                        //    mover.pos.x += gg;
+                        //}
                         mover.vel.x = 0;
-                        Debug.Log("hit x " + remainingDelta);
+                        //Debug.Log("hit x " + remainingDelta);
                     } else if (nearestAxis == 1) {
+                        //if (mover.vel.y > 0) {
+                        //    mover.pos.y -= gg;
+                        //} else {
+                        //    mover.pos.y += gg;
+                        //}
                         mover.vel.y = 0;
-                        Debug.Log("hit y " + remainingDelta);
+                        //Debug.Log("hit y " + remainingDelta);
                     } else if (nearestAxis == 2) {
+                        //if (mover.vel.z > 0) {
+                        //    mover.pos.z -= gg;
+                        //} else {
+                        //    mover.pos.z += gg;
+                        //}
                         mover.vel.z = 0;
-                        Debug.Log("hit z " + remainingDelta);
+                        //Debug.Log("hit z " + remainingDelta);
                     }
 
                 }
 
             }
+
+            if (loopCount >= maxLoops) {
+                Debug.LogWarning("physics loop count exceeded!");
+            }
+
 
             mover.transform.position = mover.pos; // update transform
 
@@ -311,7 +327,7 @@ public class BlonkPhysics : MonoBehaviour {
         }
 
         // draw boxes being considered to collide against
-        for(int i = 0; i < boxes.Count; ++i) {
+        for (int i = 0; i < boxes.Count; ++i) {
             Gizmos.color = Color.cyan;
             AABB b = boxes[i];
             Vector3 s;
