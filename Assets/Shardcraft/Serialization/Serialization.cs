@@ -527,7 +527,7 @@ public static class Serialization {
 
         // clear light array
         for (i = 0; i < lights.Length; ++i) {
-            lights[i] = new Light { torch = 0 };
+            lights[i] = new Light { torch = 0, sun = 0 };
         }
 
 #if ENABLE_UNITY_COLLECTIONS_CHECKS
