@@ -77,10 +77,8 @@ public static class WorldGenerator {
             }
         }
 
-        // clear light array
-        for (int i = 0; i < lights.Length; ++i) {
-            lights[i] = new Light { torch = 0, sun = 0 };
-        }
+        LightCalculator.InitializeLights(lights, chunkWorldPos);
+
     }
 
 

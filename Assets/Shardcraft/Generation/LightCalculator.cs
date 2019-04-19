@@ -15,7 +15,7 @@ using UnityEngine.Assertions;
 
 public struct LightOp {
     public int index;
-    public ushort val; //should change this to Light type once sunlight is added
+    public ushort val;
 }
 
 // need 5 bits for rgb each since max dist is 32
@@ -76,11 +76,25 @@ public static class LightCalculator {
         return (ushort)((r << 10) | (g << 5) | b);
     }
 
+    // max light level for torches and sunlight
     public const byte MAX_LIGHT = 31;
     const int S = Chunk.SIZE;
     const int W = S + S + S; // because processing 3x3x3 block of 32x32x32 chunks
 
-    public static void ProcessLightOps(ref NativeArray3x3<Light> light, ref NativeArray3x3<Block> blocks, NativeArray<BlockData> blockData, NativeQueue<LightOp> ops, NativeQueue<int> lbfs, NativeQueue<LightRemovalNode> lrbfs) {
+    public static void InitializeLights(NativeArray<Light> lights, Vector3 chunkBlockPos) {
+        // actually doing this differently i think because this will gunk up arrays and they will need to be cleared a lot
+        //byte predictedSunValue = 0;
+        //if (chunkBlockPos.y >= 0) {
+        //    predictedSunValue = MAX_LIGHT;
+        //}
+
+        // init light array
+        for (int i = 0; i < lights.Length; ++i) {
+            lights[i] = new Light { torch = 0, sun = 0 };
+        }
+    }
+
+    public static void ProcessTorchLightOps(ref NativeArray3x3<Light> light, ref NativeArray3x3<Block> blocks, NativeArray<BlockData> blockData, NativeQueue<LightOp> ops, NativeQueue<int> lbfs, NativeQueue<LightRemovalNode> lrbfs) {
 
         light.flags = 0;
 
@@ -324,6 +338,33 @@ public static class LightCalculator {
 
     }
 
+    // similar to torch light except the light level does not decrease when propagating down
+    public static void ProcessSunLightOps(ref NativeArray3x3<Light> light, ref NativeArray3x3<Block> blocks, NativeArray<BlockData> blockData, NativeQueue<LightOp> ops, NativeQueue<int> lbfs, NativeQueue<LightRemovalNode> lrbfs) {
+
+        //operation for first time chunks sunlight is propagated
+
+        //if top neighbor has been sunlight processed (have some flag tracking this, may be same as rendered?)
+        //	check bottom xz slice of top and add a node to the sunlightBFS queue for each nonzero sunlight
+        //	if sunlight at max then add a max node, else sunlight-1 or - light reduction of block whatever
+        //else if not processed before
+        //	guess if top neighbor is above ground or not
+
+        //	if guess underground ur done because it will have no light to give u
+        //	else if guess above ground
+        //		for each nonopaque block in top xz of your chunk add a max sunlight node
+        //		to the bfs queue
+
+        //then have a propagate and removal function thats basically the same as torch but with simple downward propagation changes
+
+        //trigger light updates on all touched neighbors except down neighbor trigger a sunlight update if you reach the bottom
+        //of his blocks with sunlight propagating downward. somehow add the nodes to his queue. not sure exactly
+
+        //actually this is the SAME! as the initial propagation function so just run that again? oooo checking the bottom slice
+        //is all contiguous in memory too actually prob pretty fast. dont need to worry about saving and sending nodes. MYESSS
+
+    }
+
+
     // queue up initial light updates for any light emitting block in loaded chunk
     // could prob work this into generation and load routines more efficiently but whatever for now
     public static void CalcInitialLightOps(NativeArray<Block> blocks, NativeArray<BlockData> blockData, NativeQueue<LightOp> lightOps) {
@@ -406,6 +447,10 @@ public static class LightCalculator {
             int y = pos / (Chunk.SIZE * Chunk.SIZE);
             int z = (pos % (Chunk.SIZE * Chunk.SIZE)) / Chunk.SIZE;
 
+            //Light curLight = lights.Get(x, y, z);
+            //if (GetIsLight(curLight.torch)) {
+            //    colors.Add(GetColorFromLight(curLight));
+            //} else {
             switch (faces[i].dir) {
                 case Dir.west:
                     colors.Add(GetColorFromLight(lights.Get(x - 1, y, z)));
@@ -430,6 +475,7 @@ public static class LightCalculator {
                     continue;
 
             }
+            //}
 
         }
     }

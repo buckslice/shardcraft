@@ -29,8 +29,8 @@ public class Chunk {
 
     public World world;
     public GameObject gameObject;
-    public Vector3i bp { get; private set; } // world block space position (not pure world position!)
-    public Vector3i cp { get; private set; } // chunk space
+    public Vector3i bp { get; private set; } // world block space position (not pure world position due to BPU!)
+    public Vector3i cp { get; private set; } // chunk space position
 
     public bool loaded { get; private set; }    // indicates block array is set correctly (either loaded from save or freshly gend)
     public bool update { get; set; }            // means need to update mesh for some reason

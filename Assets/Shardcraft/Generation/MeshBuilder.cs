@@ -217,10 +217,10 @@ public static class MeshBuilder {
 
     static void AddWestFace(int x, int y, int z, ref NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeArray<BlockData> blockData, bool isLight) {
         Color c = LightCalculator.GetColorFromLight(lights.Get(x - 1, y, z));
-
         float a0, a1, a2, a3;
-        if (isLight) { // dont add ao on the faces of lights, looks weird
-            a0 = a1 = a2 = a3 = 1.0f;
+        if (isLight) {
+            //c = LightCalculator.GetColorFromLight(lights.Get(x, y, z));
+            a0 = a1 = a2 = a3 = 1.0f; // dont add ao on the faces of lights, looks weird
         } else {
             int up = GetOpacity(ref blocks, blockData, x - 1, y + 1, z);
             int down = GetOpacity(ref blocks, blockData, x - 1, y - 1, z);
@@ -253,9 +253,9 @@ public static class MeshBuilder {
 
     static void AddDownFace(int x, int y, int z, ref NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeArray<BlockData> blockData, bool isLight) {
         Color c = LightCalculator.GetColorFromLight(lights.Get(x, y - 1, z));
-
         float a0, a1, a2, a3;
         if (isLight) {
+            //c = LightCalculator.GetColorFromLight(lights.Get(x, y, z));
             a0 = a1 = a2 = a3 = 1.0f;
         } else {
             int north = GetOpacity(ref blocks, blockData, x, y - 1, z + 1);
@@ -289,9 +289,9 @@ public static class MeshBuilder {
 
     static void AddSouthFace(int x, int y, int z, ref NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeArray<BlockData> blockData, bool isLight) {
         Color c = LightCalculator.GetColorFromLight(lights.Get(x, y, z - 1));
-
         float a0, a1, a2, a3;
         if (isLight) {
+            //c = LightCalculator.GetColorFromLight(lights.Get(x, y, z));
             a0 = a1 = a2 = a3 = 1.0f;
         } else {
             int up = GetOpacity(ref blocks, blockData, x, y + 1, z - 1);
@@ -325,9 +325,9 @@ public static class MeshBuilder {
 
     static void AddEastFace(int x, int y, int z, ref NativeMeshData data, ref NativeArray3x3<Block> blocks, ref NativeArray3x3<Light> lights, NativeArray<BlockData> blockData, bool isLight) {
         Color c = LightCalculator.GetColorFromLight(lights.Get(x + 1, y, z));
-
         float a0, a1, a2, a3;
         if (isLight) {
+            //c = LightCalculator.GetColorFromLight(lights.Get(x, y, z));
             a0 = a1 = a2 = a3 = 1.0f;
         } else {
             int up = GetOpacity(ref blocks, blockData, x + 1, y + 1, z);
@@ -363,6 +363,7 @@ public static class MeshBuilder {
         Color c = LightCalculator.GetColorFromLight(lights.Get(x, y + 1, z));
         float a0, a1, a2, a3;
         if (isLight) {
+            //c = LightCalculator.GetColorFromLight(lights.Get(x, y, z));
             a0 = a1 = a2 = a3 = 1.0f;
         } else {
             int north = GetOpacity(ref blocks, blockData, x, y + 1, z + 1);
@@ -398,6 +399,7 @@ public static class MeshBuilder {
         Color c = LightCalculator.GetColorFromLight(lights.Get(x, y, z + 1));
         float a0, a1, a2, a3;
         if (isLight) {
+            //c = LightCalculator.GetColorFromLight(lights.Get(x, y, z));
             a0 = a1 = a2 = a3 = 1.0f;
         } else {
             int up = GetOpacity(ref blocks, blockData, x, y + 1, z + 1);
