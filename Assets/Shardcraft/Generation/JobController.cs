@@ -126,16 +126,15 @@ public struct MeshJob : IJob {
     public NativeList<Face> faces; // save face data for easier light updates
 
     public bool calcInitialLight;
-    public NativeQueue<LightOp> lightOps;     // a list of placement and deletion operations to make within this chunk?
+    public bool upRendered;
+    public Vector3 chunkWorldPos;
+    public NativeQueue<LightOp> lightOps;     // a list of light placement and deletion operations to make within this chunk
+    public NativeQueue<LightOp> sunLightOps;
     public NativeQueue<int> lightBFS;
     public NativeQueue<LightRemovalNode> lightRBFS;
     // also record list of who needs to update after this (if u edit their light)
 
     public void Execute() {
-        // lighting is only reason we need to lock all other chunks rather than just ourselves... but i dunno
-        // its pretty convenient to have it in the same job because were rebuilding the mesh anyways
-        // also since were passing in all these references if we split these 3 up into their own jobs
-        // would have to do that 3 times instead #puke
 
 #if _DEBUG
         long initLightTime = 0;
@@ -147,6 +146,14 @@ public struct MeshJob : IJob {
         UnityEngine.Profiling.Profiler.BeginSample("Lighting");
 #endif
 
+        // basically copy the block placement positions for sunlight ops and have value be zero
+        int lightOpCount = lightOps.Count;
+        while (lightOpCount-- > 0) {
+            LightOp lo = lightOps.Dequeue();
+            sunLightOps.Enqueue(new LightOp { index = lo.index, val = 0 });
+            lightOps.Enqueue(lo);
+        }
+
         // if chunk hasnt been rendered before then check each block to see if it has any lights
         if (calcInitialLight) {
             LightCalculator.CalcInitialLightOps(blocks.c, blockData, lightOps);
@@ -157,7 +164,14 @@ public struct MeshJob : IJob {
         }
         LightCalculator.ProcessTorchLightOps(ref lights, ref blocks, blockData, lightOps, lightBFS, lightRBFS);
         Assert.IsTrue(lightBFS.Count == 0 && lightRBFS.Count == 0);
-        lightBFS.Enqueue(lights.flags); // kinda stupid way to do this, but so job handle can check which chunks had their lights set
+        int torchLightFlags = lights.flags;
+        lights.flags = 0;
+        lightBFS.Enqueue(torchLightFlags); // kinda stupid way to do this, but so job handle can check which chunks had their lights set
+
+        if (calcInitialLight) {
+            LightCalculator.CalcInitialSunLight(blocks.c, blockData, lights.u, sunLightOps, upRendered, chunkWorldPos);
+        }
+        LightCalculator.ProcessSunLightOps(ref lights, ref blocks, blockData, sunLightOps, lightBFS, lightRBFS);
 
 #if _DEBUG
         UnityEngine.Profiling.Profiler.EndSample();
@@ -219,6 +233,7 @@ public class MeshJobInfo {
     NativeList<Face> faces;
 
     NativeQueue<LightOp> lightOps;
+    NativeQueue<LightOp> sunLightOps;
     NativeQueue<int> lightBFS;
     NativeQueue<LightRemovalNode> lightRBFS;
 
@@ -264,6 +279,7 @@ public class MeshJobInfo {
         job.faces = chunk.faces;
 
         lightOps = Pools.loQN.Get();
+        sunLightOps = Pools.loQN.Get();
         lightBFS = Pools.intQN.Get();
         lightRBFS = Pools.lrnQN.Get();
 
@@ -272,11 +288,14 @@ public class MeshJobInfo {
         }
 
         job.lightOps = lightOps;
+        job.sunLightOps = sunLightOps;
         job.lightBFS = lightBFS;
         job.lightRBFS = lightRBFS;
 
         // if chunk hasnt been rendered then it needs to check for existing lights
         job.calcInitialLight = !chunk.rendered;
+        job.upRendered = chunk.neighbors[Dirs.UP].rendered;
+        job.chunkWorldPos = chunk.GetWorldPos();
 
         handle = job.Schedule();
 
@@ -327,6 +346,7 @@ public class MeshJobInfo {
 #endif
 
         Pools.loQN.Return(lightOps);
+        Pools.loQN.Return(sunLightOps);
         Pools.intQN.Return(lightBFS);
         Pools.lrnQN.Return(lightRBFS);
 
@@ -455,7 +475,7 @@ public class JobController : MonoBehaviour {
     public static int meshJobFinished = 0;
     public static int lightJobScheduled = 0;
     public static int lightJobFinished = 0;
-    
+
     // Update is called once per frame
     void Update() {
 
