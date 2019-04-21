@@ -166,12 +166,16 @@ public struct MeshJob : IJob {
         Assert.IsTrue(lightBFS.Count == 0 && lightRBFS.Count == 0);
         int torchLightFlags = lights.flags;
         lights.flags = 0;
-        lightBFS.Enqueue(torchLightFlags); // kinda stupid way to do this, but so job handle can check which chunks had their lights set
 
-        if (calcInitialLight) {
-            LightCalculator.CalcInitialSunLight(blocks.c, blockData, lights.u, sunLightOps, upRendered, chunkWorldPos);
-        }
-        LightCalculator.ProcessSunLightOps(ref lights, ref blocks, blockData, sunLightOps, lightBFS, lightRBFS);
+        //if (calcInitialLight) {
+        //    LightCalculator.CalcInitialSunLight(blocks.c, blockData, lights.u, sunLightOps, upRendered, chunkWorldPos);
+        //}
+        //LightCalculator.ProcessSunLightOps(ref lights, ref blocks, blockData, sunLightOps, lightBFS, lightRBFS);
+
+        // add this so job controller can see after jobs done
+        lightBFS.Enqueue(torchLightFlags);
+
+        // also here maybe add nodes that weren't finished due to hitting bottom of chunks
 
 #if _DEBUG
         UnityEngine.Profiling.Profiler.EndSample();
@@ -324,6 +328,9 @@ public class MeshJobInfo {
 #endif
 
         int lightFlags = lightBFS.Dequeue();
+
+        // here 
+
 
 #if _DEBUG
         if (lightBFS.Count > 0) {
