@@ -14,6 +14,7 @@ public static class UnsafeCopy {
     public static unsafe void CopyVectors(NativeList<Vector3> src, List<Vector3> dst) {
         if (dst.Capacity < src.Length)
             dst.Capacity = src.Length;
+
         var array = NoAllocHelpers.ExtractArrayFromListT(dst);
 
         fixed (Vector3* arrayPtr = array) {
@@ -22,23 +23,6 @@ public static class UnsafeCopy {
             NativeSliceUnsafeUtility.SetAtomicSafetyHandle(ref dstSlice, AtomicSafetyHandle.GetTempUnsafePtrSliceHandle());
 #endif
             dstSlice.CopyFrom((NativeArray<Vector3>)src);
-        }
-
-        NoAllocHelpers.ResizeList(dst, src.Length);
-    }
-
-    public static unsafe void CopyIntegers(NativeList<int> src, List<int> dst) {
-        if (dst.Capacity < src.Length)
-            dst.Capacity = src.Length;
-
-        var array = NoAllocHelpers.ExtractArrayFromListT(dst);
-
-        fixed (int* arrayPtr = array) {
-            var dstSlice = NativeSliceUnsafeUtility.ConvertExistingDataToNativeSlice<int>(arrayPtr, sizeof(int), src.Length);
-#if ENABLE_UNITY_COLLECTIONS_CHECKS
-            NativeSliceUnsafeUtility.SetAtomicSafetyHandle(ref dstSlice, AtomicSafetyHandle.GetTempUnsafePtrSliceHandle());
-#endif
-            dstSlice.CopyFrom((NativeArray<int>)src);
         }
 
         NoAllocHelpers.ResizeList(dst, src.Length);
@@ -56,6 +40,23 @@ public static class UnsafeCopy {
             NativeSliceUnsafeUtility.SetAtomicSafetyHandle(ref dstSlice, AtomicSafetyHandle.GetTempUnsafePtrSliceHandle());
 #endif
             dstSlice.CopyFrom((NativeArray<Color32>)src);
+        }
+
+        NoAllocHelpers.ResizeList(dst, src.Length);
+    }
+
+    public static unsafe void CopyIntegers(NativeList<int> src, List<int> dst) {
+        if (dst.Capacity < src.Length)
+            dst.Capacity = src.Length;
+
+        var array = NoAllocHelpers.ExtractArrayFromListT(dst);
+
+        fixed (int* arrayPtr = array) {
+            var dstSlice = NativeSliceUnsafeUtility.ConvertExistingDataToNativeSlice<int>(arrayPtr, sizeof(int), src.Length);
+#if ENABLE_UNITY_COLLECTIONS_CHECKS
+            NativeSliceUnsafeUtility.SetAtomicSafetyHandle(ref dstSlice, AtomicSafetyHandle.GetTempUnsafePtrSliceHandle());
+#endif
+            dstSlice.CopyFrom((NativeArray<int>)src);
         }
 
         NoAllocHelpers.ResizeList(dst, src.Length);

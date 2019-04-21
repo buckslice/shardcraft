@@ -176,24 +176,10 @@ public class Chunk {
     }
 
     public void UpdateMeshLight(NativeList<Color32> colors) {
-
         var c32L = Pools.c32.Get();
-        filter.mesh.GetColors(c32L);
-
-        Assert.IsTrue(c32L.Count / 4 == colors.Length);
-
-        for (int i = 0; i < colors.Length; ++i) {
-            Color32 c = colors[i];
-            c32L[i * 4] = new Color32(c.r, c.g, c.b, c32L[i * 4].a);
-            c32L[i * 4 + 1] = new Color32(c.r, c.g, c.b, c32L[i * 4 + 1].a);
-            c32L[i * 4 + 2] = new Color32(c.r, c.g, c.b, c32L[i * 4 + 2].a);
-            c32L[i * 4 + 3] = new Color32(c.r, c.g, c.b, c32L[i * 4 + 3].a);
-        }
-
+        UnsafeCopy.CopyColors(colors, c32L);
         filter.mesh.SetColors(c32L);
-
         Pools.c32.Return(c32L);
-
     }
 
     public void UpdateColliderNative(NativeList<Vector3> vertices, NativeList<int> triangles) {

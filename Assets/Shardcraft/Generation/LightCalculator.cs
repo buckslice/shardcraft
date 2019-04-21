@@ -686,28 +686,34 @@ public static class LightCalculator {
             switch (faces[i].dir) {
                 case Dir.west:
                     colors.Add(GetColorFromLight(lights.Get(x - 1, y, z)));
-                    continue;
+                    break;
                 case Dir.down:
                     colors.Add(GetColorFromLight(lights.Get(x, y - 1, z)));
-                    continue;
+                    break;
                 case Dir.south:
                     colors.Add(GetColorFromLight(lights.Get(x, y, z - 1)));
-                    continue;
+                    break;
                 case Dir.east:
                     colors.Add(GetColorFromLight(lights.Get(x + 1, y, z)));
-                    continue;
+                    break;
                 case Dir.up:
                     colors.Add(GetColorFromLight(lights.Get(x, y + 1, z)));
-                    continue;
+                    break;
                 case Dir.north:
                     colors.Add(GetColorFromLight(lights.Get(x, y, z + 1)));
-                    continue;
+                    break;
                 default:
                     colors.Add(GetColorFromLight(lights.Get(x, y, z)));
-                    continue;
+                    break;
 
             }
             //}
+
+            // add the last color 3 more times (4 colors per face)
+            Color32 lastColor = colors[colors.Length - 1];
+            colors.Add(lastColor);
+            colors.Add(lastColor);
+            colors.Add(lastColor);
 
         }
     }
