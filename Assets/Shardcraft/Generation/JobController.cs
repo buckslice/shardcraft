@@ -102,11 +102,8 @@ public class StructureJobInfo {
 [BurstCompile]
 public struct MeshJob : IJob {
 
-    [ReadOnly]
-    public NativeArray<BlockData> blockData;
-
-    [ReadOnly]
-    public NativeArray3x3<Block> blocks;
+    [ReadOnly] public NativeArray<BlockData> blockData;
+    [ReadOnly] public NativeArray3x3<Block> blocks;
 
     public NativeArray3x3<Light> lights;
 
@@ -128,9 +125,9 @@ public struct MeshJob : IJob {
     public bool calcInitialLight;
     public bool upRendered;
     public Vector3 chunkWorldPos;
-    public NativeQueue<LightOp> lightOps;     // a list of light placement and deletion operations to make within this chunk
-    public NativeQueue<LightOp> sunLightOps;
+    public NativeQueue<TorchLightOp> lightOps;     // a list of light placement and deletion operations to make within this chunk
     public NativeQueue<int> lightBFS;
+    public NativeQueue<int> uflightBFS; // nodes for down neighbor chunk
     public NativeQueue<LightRemovalNode> lightRBFS;
     // also record list of who needs to update after this (if u edit their light)
 
@@ -147,12 +144,12 @@ public struct MeshJob : IJob {
 #endif
 
         // basically copy the block placement positions for sunlight ops and have value be zero
-        int lightOpCount = lightOps.Count;
-        while (lightOpCount-- > 0) {
-            LightOp lo = lightOps.Dequeue();
-            sunLightOps.Enqueue(new LightOp { index = lo.index, val = 0 });
-            lightOps.Enqueue(lo);
-        }
+        //int lightOpCount = lightOps.Count;
+        //while (lightOpCount-- > 0) {
+        //    TorchLightOp lo = lightOps.Dequeue();
+        //    sunLightOps.Enqueue(new SunLightOp { index = lo.index, val = 0 });
+        //    lightOps.Enqueue(lo);
+        //}
 
         // if chunk hasnt been rendered before then check each block to see if it has any lights
         if (calcInitialLight) {
@@ -161,15 +158,15 @@ public struct MeshJob : IJob {
             initLightTime = watch.ElapsedMilliseconds;
             watch.Restart();
 #endif
+            LightCalculator.CalcInitialSunLight(blocks.c, blockData, lights.c, lights.u, lightBFS, upRendered, chunkWorldPos);
         }
+        // always call this incase lightBFS comes with some data in it already
+        LightCalculator.PropagateSunlight(ref lights, ref blocks, blockData, lightBFS, uflightBFS);
+
         LightCalculator.ProcessTorchLightOps(ref lights, ref blocks, blockData, lightOps, lightBFS, lightRBFS);
         Assert.IsTrue(lightBFS.Count == 0 && lightRBFS.Count == 0);
         int torchLightFlags = lights.flags;
-        lights.flags = 0;
 
-        //if (calcInitialLight) {
-        //    LightCalculator.CalcInitialSunLight(blocks.c, blockData, lights.u, sunLightOps, upRendered, chunkWorldPos);
-        //}
         //LightCalculator.ProcessSunLightOps(ref lights, ref blocks, blockData, sunLightOps, lightBFS, lightRBFS);
 
         // add this so job controller can see after jobs done
@@ -236,9 +233,9 @@ public class MeshJobInfo {
 
     NativeList<Face> faces;
 
-    NativeQueue<LightOp> lightOps;
-    NativeQueue<LightOp> sunLightOps;
+    NativeQueue<TorchLightOp> lightOps;
     NativeQueue<int> lightBFS;
+    NativeQueue<int> uflightBFS;
     NativeQueue<LightRemovalNode> lightRBFS;
 
     NativeArray3x3<Light> lights;
@@ -282,18 +279,22 @@ public class MeshJobInfo {
         chunk.faces.Clear();
         job.faces = chunk.faces;
 
-        lightOps = Pools.loQN.Get();
-        sunLightOps = Pools.loQN.Get();
+        lightOps = Pools.tloQN.Get();
         lightBFS = Pools.intQN.Get();
+        uflightBFS = Pools.intQN.Get();
         lightRBFS = Pools.lrnQN.Get();
 
         while (chunk.lightOps.Count > 0) {
             lightOps.Enqueue(chunk.lightOps.Dequeue());
         }
 
+        while (chunk.sunlightNodes.Count > 0) {
+            lightBFS.Enqueue(chunk.sunlightNodes.Dequeue());
+        }
+
         job.lightOps = lightOps;
-        job.sunLightOps = sunLightOps;
         job.lightBFS = lightBFS;
+        job.uflightBFS = uflightBFS;
         job.lightRBFS = lightRBFS;
 
         // if chunk hasnt been rendered then it needs to check for existing lights
@@ -329,7 +330,15 @@ public class MeshJobInfo {
 
         int lightFlags = lightBFS.Dequeue();
 
-        // here 
+        // add unfinished sunlight nodes to downdown neighbor
+        // then in update they check if any nodes in that queue and trigger a new type of light job update if so 
+        // can skip down neighbor because that was already fully propagated from this job so start with his down neighbor instead
+        Chunk downdown = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.DOWN];
+        if (downdown != null) {
+            while (uflightBFS.Count > 0) {
+                downdown.sunlightNodes.Enqueue(uflightBFS.Dequeue());
+            }
+        }
 
 
 #if _DEBUG
@@ -352,9 +361,9 @@ public class MeshJobInfo {
         }
 #endif
 
-        Pools.loQN.Return(lightOps);
-        Pools.loQN.Return(sunLightOps);
+        Pools.tloQN.Return(lightOps);
         Pools.intQN.Return(lightBFS);
+        Pools.intQN.Return(uflightBFS);
         Pools.lrnQN.Return(lightRBFS);
 
         // notify neighbors whom should update based on set light flags
@@ -416,6 +425,85 @@ public class LightJobInfo {
 
 }
 
+// propagates sunlight and also has a light update job (maybe should keep them separate??) need to rethink all of this probably its filth lol
+[BurstCompile]
+public struct SunlightJob : IJob {
+
+    public NativeArray3x3<Light> lights;
+    [ReadOnly] public NativeList<Face> faces;
+    [ReadOnly] public NativeArray<BlockData> blockData;
+    [ReadOnly] public NativeArray3x3<Block> blocks;
+
+    public NativeQueue<int> lightBFS;
+    public NativeQueue<int> uflightBFS;
+
+    public NativeList<Color32> colors;
+
+    public void Execute() {
+
+        lights.flags = 0;
+        LightCalculator.PropagateSunlight(ref lights, ref blocks, blockData, lightBFS, uflightBFS);
+
+        LightCalculator.LightUpdate(ref lights, faces, colors);
+
+        lightBFS.Enqueue(lights.flags);
+
+    }
+
+}
+
+public class SunlightJobInfo {
+    public JobHandle handle;
+    Chunk chunk;
+
+    NativeQueue<int> lightBFS;
+    NativeQueue<int> uflightBFS;
+    NativeList<Color32> colors;
+
+    public SunlightJobInfo(Chunk chunk) {
+        this.chunk = chunk;
+
+        chunk.LockLocalGroupForMeshing(); // needs same permissions as mesh jobs
+
+        SunlightJob job;
+        job.blockData = JobController.instance.blockData;
+        job.blocks = chunk.GetLocalBlocks();
+        job.lights = chunk.GetLocalLights();
+        job.faces = chunk.faces;
+
+        colors = Pools.c32N.Get();
+        lightBFS = Pools.intQN.Get();
+        uflightBFS = Pools.intQN.Get();
+
+        while (chunk.sunlightNodes.Count > 0) {
+            lightBFS.Enqueue(chunk.sunlightNodes.Dequeue());
+        }
+
+        job.colors = colors;
+        job.lightBFS = lightBFS;
+        job.uflightBFS = uflightBFS;
+
+        handle = job.Schedule();
+    }
+
+    public void Finish() {
+
+        chunk.UnlockLocalGroupForMeshing();
+
+        chunk.UpdateMeshLight(colors);
+
+        int lightFlags = lightBFS.Dequeue();
+
+        Pools.c32N.Return(colors);
+        Pools.intQN.Return(lightBFS);
+        Pools.intQN.Return(uflightBFS);
+
+        // notify neighbors whom should update based on set light flags
+        LightCalculator.CheckNeighborLightUpdate(chunk, lightFlags);
+
+    }
+}
+
 // make the jobinfo handling into a class u moron
 public class JobController : MonoBehaviour {
 
@@ -424,6 +512,8 @@ public class JobController : MonoBehaviour {
     static List<MeshJobInfo> meshJobInfos = new List<MeshJobInfo>();
 
     static List<LightJobInfo> lightJobInfos = new List<LightJobInfo>();
+
+    static List<SunlightJobInfo> sunJobInfos = new List<SunlightJobInfo>();
 
     static List<StructureJobInfo> structureJobInfos = new List<StructureJobInfo>();
 
@@ -464,6 +554,11 @@ public class JobController : MonoBehaviour {
         for (int i = 0; i < lightJobInfos.Count; ++i) {
             lightJobInfos[i].handle.Complete();
             lightJobInfos[i].Finish();
+        }
+
+        for (int i = 0; i < sunJobInfos.Count; ++i) {
+            sunJobInfos[i].handle.Complete();
+            sunJobInfos[i].Finish();
         }
 
         for (int i = 0; i < structureJobInfos.Count; ++i) {
@@ -549,6 +644,17 @@ public class JobController : MonoBehaviour {
             }
         }
 
+        for(int i = 0; i < sunJobInfos.Count; ++i) {
+            if (sunJobInfos[i].handle.IsCompleted) {
+                sunJobInfos[i].handle.Complete();
+
+                sunJobInfos[i].Finish();
+
+                sunJobInfos.SwapAndPop(i);
+                --i;
+            }
+        }
+
     }
 
     public static void StartGenerationJob(Chunk chunk) {
@@ -589,6 +695,12 @@ public class JobController : MonoBehaviour {
         lightJobInfos.Add(info);
 
         lightJobScheduled++;
+    }
+
+    public static void StartSunlightJob(Chunk chunk) {
+        SunlightJobInfo info = new SunlightJobInfo(chunk);
+
+        sunJobInfos.Add(info);
     }
 
     public static int GetGenJobCount() {

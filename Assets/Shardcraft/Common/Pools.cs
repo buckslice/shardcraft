@@ -42,7 +42,7 @@ public static class Pools {
 
     public static Pool<NativeList<int>> intN = new Pool<NativeList<int>>(NLBuilder<int>, NLClearer, NLDisposer);
 
-    public static Pool<NativeQueue<LightOp>> loQN = new Pool<NativeQueue<LightOp>>(NQBuilder<LightOp>, NQClearer, NQDisposer);
+    public static Pool<NativeQueue<TorchLightOp>> tloQN = new Pool<NativeQueue<TorchLightOp>>(NQBuilder<TorchLightOp>, NQClearer, NQDisposer);
     public static Pool<NativeQueue<LightRemovalNode>> lrnQN = new Pool<NativeQueue<LightRemovalNode>>(NQBuilder<LightRemovalNode>, NQClearer, NQDisposer);
     public static Pool<NativeQueue<int>> intQN = new Pool<NativeQueue<int>>(NQBuilder<int>, NQClearer, NQDisposer);
 
@@ -55,7 +55,7 @@ public static class Pools {
         c32N.Dispose();
         intN.Dispose();
 
-        loQN.Dispose();
+        tloQN.Dispose();
         intQN.Dispose();
         lrnQN.Dispose();
 

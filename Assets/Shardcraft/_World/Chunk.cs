@@ -23,9 +23,11 @@ public class Chunk {
 
     public NativeList<Face> faces;
 
+    public NativeQueue<int> sunlightNodes;
+
     public Queue<BlockEdit> pendingEdits = new Queue<BlockEdit>();
 
-    public Queue<LightOp> lightOps = new Queue<LightOp>();
+    public Queue<TorchLightOp> lightOps = new Queue<TorchLightOp>();
 
     public World world;
     public GameObject gameObject;
@@ -64,6 +66,7 @@ public class Chunk {
         blocks = new NativeArray<Block>(SIZE * SIZE * SIZE, Allocator.Persistent);// NativeArrayOptions.UninitializedMemory);
         lights = new NativeArray<Light>(SIZE * SIZE * SIZE, Allocator.Persistent);// NativeArrayOptions.UninitializedMemory);
         faces = new NativeList<Face>(Allocator.Persistent);
+        sunlightNodes = new NativeQueue<int>(Allocator.Persistent);
 
         mr = gameObject.GetComponent<MeshRenderer>();
         filter = gameObject.GetComponent<MeshFilter>();
@@ -93,6 +96,7 @@ public class Chunk {
         faces.Clear();
         // just to make sure list doesnt get too large
         faces.Capacity = 32;
+        sunlightNodes.Clear();
 
         gameObject.transform.position = bp.ToVector3() / BPU;
         gameObject.name = string.Format("Chunk {0}.{1}.{2}", cp.x, cp.y, cp.z);
@@ -145,6 +149,9 @@ public class Chunk {
 
         if (!builtStructures && IsLocalGroupFreeForStructuring()) { // build structures like trees and such if you havent yet
             JobController.StartStructureJob(this);
+        } else if (sunlightNodes.Count > 0 && IsLocalGroupFreeForMeshing()) {
+            lightUpdate = false;
+            JobController.StartSunlightJob(this);
         } else if (lightUpdate && !update && JobController.CanStartLightJob() && IsLocalGroupFreeToUpdateLights()) {
             lightUpdate = false;
             JobController.StartLightUpdateJob(this);
@@ -230,7 +237,7 @@ public class Chunk {
                 needToUpdateSave = true; // block was modified so need to update save
                 needNewCollider = true; // block was changed so collider prob needs to be updated
                 CheckNeedToUpdateNeighbors(x, y, z);
-                lightOps.Enqueue(new LightOp { index = x + z * SIZE + y * SIZE * SIZE, val = block.BlockData().light });
+                lightOps.Enqueue(new TorchLightOp { index = x + z * SIZE + y * SIZE * SIZE, val = block.BlockData().light });
             }
         } else {
             world.SetBlock(bp.x + x, bp.y + y, bp.z + z, block);
