@@ -277,6 +277,10 @@ public static class LightCalculator {
                     // get light level at this node
                     int mChan = GetChannel(lights.Get(x, y, z).torch, cIndex);
 
+                    //if(mChan == 0) { // can happen frequently when batching together light removals
+                    //    continue;
+                    //}
+
                     // check each neighbor blocks light reduction value
                     // if neighbor light level is 2 or more levels less than this node, set them to this light-1 and add to queue
                     // also add additional light reduction value

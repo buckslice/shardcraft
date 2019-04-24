@@ -16,6 +16,7 @@ public class CamModify : MonoBehaviour {
 
     Block[] blocks;
     int blockIndex = 0;
+    int placementSize = 1;
 
     MeshFilter blockMeshFilter;
 
@@ -92,15 +93,23 @@ public class CamModify : MonoBehaviour {
         bool success = BlonkPhysics.RaycastVoxel(world, transform.position, transform.forward, out vhit);
         if (success) {
             // move cube towards camera direction a little so it looks better when intersecting with other blocks
-            Vector3 center = (vhit.bpos.ToVector3() + Vector3.one * 0.5f) / Chunk.BPU;
-            drawer.AddBounds(new Bounds(center - transform.forward * 0.01f, Vector3.one / Chunk.BPU), Color.white);
+            Vector3 center = (vhit.bpos.ToVector3() + Vector3.one * placementSize * 0.5f) / Chunk.BPU;
+            drawer.AddBounds(new Bounds(center - transform.forward * 0.01f, Vector3.one * placementSize / Chunk.BPU), Color.white);
         }
 
         // left click delete
         if (Input.GetMouseButtonDown(0) && success) {
             lastPos = transform.position;
             lastHit = vhit;
-            world.SetBlock(vhit.bpos, Blocks.AIR);
+
+            //todo: add some better directional intuitions on where to place edit shape
+            for (int y = 0; y < placementSize; ++y) {
+                for (int z = 0; z < placementSize; ++z) {
+                    for (int x = 0; x < placementSize; ++x) {
+                        world.SetBlock(vhit.bpos + new Vector3i(x, y, z), Blocks.AIR);
+                    }
+                }
+            }
         }
 
         // right click place
@@ -108,6 +117,16 @@ public class CamModify : MonoBehaviour {
             lastPos = transform.position;
             lastHit = vhit;
             world.SetBlock(vhit.bpos + Dirs.GetNormal(vhit.dir), blocks[blockIndex]);
+        }
+
+        if (Input.GetKeyDown(KeyCode.UpArrow)) {
+            placementSize++;
+        }
+        if (Input.GetKeyDown(KeyCode.DownArrow)) {
+            placementSize--;
+        }
+        if (placementSize < 1) {
+            placementSize = 1;
         }
 
         if (Input.GetKeyDown(KeyCode.F1)) {

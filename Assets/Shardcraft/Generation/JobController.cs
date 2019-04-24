@@ -98,8 +98,9 @@ public class StructureJobInfo {
 
 }
 
-
+#if !_DEBUG
 [BurstCompile]
+#endif
 public struct MeshJob : IJob {
 
     [ReadOnly] public NativeArray<BlockData> blockData;
@@ -158,10 +159,10 @@ public struct MeshJob : IJob {
             initLightTime = watch.ElapsedMilliseconds;
             watch.Restart();
 #endif
-            LightCalculator.CalcInitialSunLight(blocks.c, blockData, lights.c, lights.u, lightBFS, upRendered, chunkWorldPos);
+            //LightCalculator.CalcInitialSunLight(blocks.c, blockData, lights.c, lights.u, lightBFS, upRendered, chunkWorldPos);
         }
         // always call this incase lightBFS comes with some data in it already
-        LightCalculator.PropagateSunlight(ref lights, ref blocks, blockData, lightBFS, uflightBFS);
+        //LightCalculator.PropagateSunlight(ref lights, ref blocks, blockData, lightBFS, uflightBFS);
 
         LightCalculator.ProcessTorchLightOps(ref lights, ref blocks, blockData, lightOps, lightBFS, lightRBFS);
         Assert.IsTrue(lightBFS.Count == 0 && lightRBFS.Count == 0);
@@ -493,6 +494,13 @@ public class SunlightJobInfo {
         chunk.UpdateMeshLight(colors);
 
         int lightFlags = lightBFS.Dequeue();
+
+        Chunk downdown = chunk.neighbors[Dirs.DOWN].neighbors[Dirs.DOWN];
+        if (downdown != null) {
+            while (uflightBFS.Count > 0) {
+                downdown.sunlightNodes.Enqueue(uflightBFS.Dequeue());
+            }
+        }
 
         Pools.c32N.Return(colors);
         Pools.intQN.Return(lightBFS);
