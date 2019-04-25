@@ -36,7 +36,8 @@ public class World : MonoBehaviour {
             chunk.blocks.Dispose();
             chunk.lights.Dispose();
             chunk.faces.Dispose();
-            chunk.sunlightNodes.Dispose();
+            chunk.sunBFS.Dispose();
+            chunk.sunRBFS.Dispose();
         }
         chunkPool = new Pool<Chunk>(InstantiateChunk, null, ChunkDispose);
 

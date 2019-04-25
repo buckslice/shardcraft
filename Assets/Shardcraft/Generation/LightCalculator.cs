@@ -18,7 +18,7 @@ public struct TorchLightOp {
     public ushort val; // torch light value of block placed
 }
 
-public struct SunLightOp {
+public struct SunLightOp { // this is the same struct as light removal node but... whatever lol
     public int index;
     public byte val; // sunlight value
 }
@@ -99,37 +99,59 @@ public static class LightCalculator {
         }
     }
 
-    public static void ProcessTorchLightOps(ref NativeArray3x3<Light> lights, ref NativeArray3x3<Block> blocks, NativeArray<BlockData> blockData, NativeQueue<TorchLightOp> ops, NativeQueue<int> lbfs, NativeQueue<LightRemovalNode> lrbfs) {
-
+    public static void ProcessTorchLightOpsOptimal(ref NativeArray3x3<Light> lights, ref NativeArray3x3<Block> blocks, NativeArray<BlockData> blockData, NativeList<TorchLightOp> ops, NativeQueue<int> lbfs, NativeQueue<LightRemovalNode> lrbfs) {
         lights.flags = 0;
 
-        while (ops.Count > 0) {
-            TorchLightOp op = ops.Dequeue();
-
-            // linearized starting index of this operation
-            // ranging from -32 -> -1 , 0 -> 31 , 32 -> 63 , so add 32 to build index from 0-95
+        // set blocks at torchlightops to have correct is light flag set
+        for (int opIndex = 0; opIndex < ops.Length; ++opIndex) {
+            TorchLightOp op = ops[opIndex];
             int opx = op.index % S;
             int opy = op.index / (S * S);
             int opz = (op.index % (S * S)) / S;
-
-            int startIndex = (opx + S) + (opz + S) * W + (opy + S) * W * W;
-
-            // set the target light at block to have correct 'IsLight' flag
-            // lights are repropagated after removals, this allows support for lesser lights to be mixed in with the rest
             Light opLight = lights.Get(opx, opy, opz);
             opLight.torch = SetIsLight(opLight.torch, op.val > 0);
             lights.Set(opx, opy, opz, opLight);
+        }
 
-            // loop over each channel of light maps
-            for (int cIndex = 0; cIndex < 3; cIndex++) {
+        // loop over each color channel of torch light
+        for (int cIndex = 0; cIndex < 3; cIndex++) {
+            for (int oi = 0; oi < ops.Length;) {
+                // check to see what type of operation first op is
+                bool isProp = GetChannel(ops[oi].val, cIndex) != 0;
+                // queue up each matching operation type until you hit end or mismatch
+                while (oi < ops.Length) {
+                    TorchLightOp op = ops[oi];
+                    int opChannel = GetChannel(op.val, cIndex);
+                    if ((opChannel != 0) != isProp) {
+                        break; // this ops type is different from first in run
+                    }
+                    int opx = op.index % S;
+                    int opy = op.index / (S * S);
+                    int opz = (op.index % (S * S)) / S;
+                    int startIndex = (opx + S) + (opz + S) * W + (opy + S) * W * W;
 
-                if (GetChannel(op.val, cIndex) == 0) { // remove light from this channel
-                    // add current light to removal queue then set to zero
                     Light curLight = lights.Get(opx, opy, opz);
-                    lrbfs.Enqueue(new LightRemovalNode { index = startIndex, light = (byte)GetChannel(curLight.torch, cIndex) });
-                    curLight.torch = SetChannel(curLight.torch, cIndex, 0);
-                    lights.Set(opx, opy, opz, curLight);
+                    int curChannel = GetChannel(curLight.torch, cIndex);
+                    if (isProp) {
+                        // set the new light value here
+                        Light newLight = curLight;
+                        newLight.torch = SetChannel(newLight.torch, cIndex, opChannel);
+                        lights.Set(opx, opy, opz, newLight);
 
+                        // if the new ops channel value is same as current light channel then add to propagate
+                        if (opChannel > curChannel) {
+                            lbfs.Enqueue(startIndex);
+                        }
+                    } else {
+                        lrbfs.Enqueue(new LightRemovalNode { index = startIndex, light = (byte)curChannel });
+                        curLight.torch = SetChannel(curLight.torch, cIndex, 0);
+                        lights.Set(opx, opy, opz, curLight);
+                    }
+
+                    oi++;
+                }
+
+                if (!isProp) {
                     while (lrbfs.Count > 0) {
                         LightRemovalNode node = lrbfs.Dequeue();
 
@@ -245,27 +267,9 @@ public static class LightCalculator {
 
 
                     }
-
-                } else { // propagate light from this channel
-
-                    Light curLight = lights.Get(opx, opy, opz);
-
-                    // set the new light value here
-                    Light newLight = curLight;
-                    int opChannel = GetChannel(op.val, cIndex);
-                    newLight.torch = SetChannel(newLight.torch, cIndex, opChannel);
-                    lights.Set(opx, opy, opz, newLight);
-
-                    // if the new ops channel value is same or less than current channel, dont need to progagate
-                    if (opChannel <= GetChannel(curLight.torch, cIndex)) {
-                        continue;
-                    }
-
-                    lbfs.Enqueue(startIndex);
-
                 }
 
-                // propagate (either way)
+                // propagate either way
                 while (lbfs.Count > 0) {
                     int index = lbfs.Dequeue();
 
@@ -341,155 +345,154 @@ public static class LightCalculator {
 
 
                 }
+
             }
-
         }
-
     }
 
-    // similar to torch light except the light level does not decrease when propagating down
-    public static void ProcessSunLightOps(ref NativeArray3x3<Light> lights, ref NativeArray3x3<Block> blocks, NativeArray<BlockData> blockData, NativeQueue<SunLightOp> ops, NativeQueue<int> lbfs, NativeQueue<LightRemovalNode> lrbfs) {
-        //then have a propagate and removal function thats basically the same as torch but with simple downward propagation changes
+    public static void AddSunlightRemovals(ref NativeArray3x3<Light> lights, NativeList<TorchLightOp> lightOps, NativeQueue<LightRemovalNode> lrbfs) {
 
-        //trigger light updates on all touched neighbors except down neighbor trigger a sunlight update if you reach the bottom
-        //of his blocks with sunlight propagating downward
-        // in this case need to add all infinished nodes in bfs to bottom chunk and tell him to do this function
-        // add them as light sunlightOps i guess?
+        for (int loi = 0; loi < lightOps.Length; ++loi) {
+            TorchLightOp op = lightOps[loi];
 
-        //actually this is the SAME! as the initial propagation function so just run that again? oooo checking the bottom slice
-        //is all contiguous in memory too actually prob pretty fast. dont need to worry about saving and sending nodes. MYESSS
-        //wait you do need nodes tho because how do you do removal then??
-
-        lights.flags = 0;
-
-        while (ops.Count > 0) {
-            SunLightOp op = ops.Dequeue();
-
-            // linearized starting index of this operation
-            // ranging from -32 -> -1 , 0 -> 31 , 32 -> 63 , so add 32 to build index from 0-95
             int opx = op.index % S;
             int opy = op.index / (S * S);
             int opz = (op.index % (S * S)) / S;
-
             int startIndex = (opx + S) + (opz + S) * W + (opy + S) * W * W;
 
-            if (op.val == 0) { // remove sunlight
-                // add current light to removal queue then set to zero
-                Light curLight = lights.Get(opx, opy, opz);
-                lrbfs.Enqueue(new LightRemovalNode { index = startIndex, light = curLight.sun });
-                curLight.sun = 0;
-                lights.Set(opx, opy, opz, curLight);
-
-                while (lrbfs.Count > 0) {
-                    LightRemovalNode node = lrbfs.Dequeue();
-
-                    // extract coords from index
-                    int x = node.index % W - S;
-                    int y = node.index / (W * W) - S;
-                    int z = (node.index % (W * W)) / W - S;
-
-                    byte oneLess = (byte)(node.light - 1); // each time reduce light by one
-
-                    Light light = lights.Get(x - 1, y, z);
-                    if (light.sun != 0) { // WEST
-                        int index = x - 1 + S + (z + S) * W + (y + S) * W * W;
-                        if (light.sun < node.light) {
-                            light.sun = 0;
-                            lights.Set(x - 1, y, z, light);
-                            lrbfs.Enqueue(new LightRemovalNode { index = index, light = oneLess });
-                        } else { // add to propagate queue so can fill gaps left behind by removal
-                            lbfs.Enqueue(index);
-                        }
-                    }
-
-                    light = lights.Get(x, y - 1, z);
-                    if (light.sun != 0) { // DOWN
-                        int index = x + S + (z + S) * W + (y - 1 + S) * W * W;
-                        if (light.sun < node.light || node.light == MAX_LIGHT) {
-                            light.sun = 0;
-                            lights.Set(x, y - 1, z, light);
-                            byte lv = node.light == MAX_LIGHT ? MAX_LIGHT : oneLess;
-                            lrbfs.Enqueue(new LightRemovalNode { index = index, light = lv });
-                        } else { // add to propagate queue so can fill gaps left behind by removal
-                            lbfs.Enqueue(index);
-                        }
-                    }
-
-                    light = lights.Get(x, y, z - 1);
-                    if (light.sun != 0) { // SOUTH
-                        int index = x + S + (z - 1 + S) * W + (y + S) * W * W;
-                        if (light.sun < node.light) {
-                            light.sun = 0;
-                            lights.Set(x, y, z - 1, light);
-                            lrbfs.Enqueue(new LightRemovalNode { index = index, light = oneLess });
-                        } else { // add to propagate queue so can fill gaps left behind by removal
-                            lbfs.Enqueue(index);
-                        }
-                    }
-
-                    light = lights.Get(x + 1, y, z);
-                    if (light.sun != 0) { // EAST
-                        int index = x + 1 + S + (z + S) * W + (y + S) * W * W;
-                        if (light.sun < node.light) {
-                            light.sun = 0;
-                            lights.Set(x + 1, y, z, light);
-                            lrbfs.Enqueue(new LightRemovalNode { index = index, light = oneLess });
-                        } else { // add to propagate queue so can fill gaps left behind by removal
-                            lbfs.Enqueue(index);
-                        }
-                    }
-
-                    light = lights.Get(x, y + 1, z);
-                    if (light.sun != 0) { // UP
-                        int index = x + S + (z + S) * W + (y + 1 + S) * W * W;
-                        if (light.sun < node.light) {
-                            light.sun = 0;
-                            lights.Set(x, y + 1, z, light);
-                            lrbfs.Enqueue(new LightRemovalNode { index = index, light = oneLess });
-                        } else { // add to propagate queue so can fill gaps left behind by removal
-                            lbfs.Enqueue(index);
-                        }
-                    }
-
-                    light = lights.Get(x, y, z + 1);
-                    if (light.sun != 0) { // NORTH
-                        int index = x + S + (z + 1 + S) * W + (y + S) * W * W;
-                        if (light.sun < node.light) {
-                            light.sun = 0;
-                            lights.Set(x, y, z + 1, light);
-                            lrbfs.Enqueue(new LightRemovalNode { index = index, light = oneLess });
-                        } else { // add to propagate queue so can fill gaps left behind by removal
-                            lbfs.Enqueue(index);
-                        }
-                    }
-
-
-                }
-
-            } else { // propagate light from this channel
-
-                Light curLight = lights.Get(opx, opy, opz);
-
-                // set the new light value here
-                Light newLight = curLight;
-                newLight.sun = (byte)op.val;
-
-                lights.Set(opx, opy, opz, newLight);
-
-                // if the new sun value is same or less than current dont need to progagate
-                // this might not happen with sunlight but left check anyways
-                if (op.val <= curLight.sun) {
-                    continue;
-                }
-
-                lbfs.Enqueue(startIndex);
-
-            }
+            Light curLight = lights.Get(opx, opy, opz);
+            lrbfs.Enqueue(new LightRemovalNode { index = startIndex, light = curLight.sun });
+            curLight.sun = 0;
+            lights.Set(opx, opy, opz, curLight);
 
         }
+
     }
 
-    public static void PropagateSunlight(ref NativeArray3x3<Light> lights, ref NativeArray3x3<Block> blocks, NativeArray<BlockData> blockData, NativeQueue<int> lbfs, NativeQueue<int> uflbfs) {
+    public static void ProcessSunlight(ref NativeArray3x3<Light> lights, ref NativeArray3x3<Block> blocks, NativeArray<BlockData> blockData,
+        NativeQueue<int> lbfs, NativeQueue<int> lbfs_U, NativeQueue<LightRemovalNode> lrbfs, NativeQueue<LightRemovalNode> lrbfs_U) {
+
+        // not sure if going to have sunlightops... the ordering might get boned up on quick place delete operations, but way more efficient this way
+        //for (int oi = 0; oi < ops.Length;) {
+        //    // check to see what type of operation first op is
+        //    bool isProp = ops[oi].val != 0;
+        //    // queue up each matching operation type until you hit end or mismatch
+        //    while (oi < ops.Length) {
+        //        SunLightOp op = ops[oi];
+        //        if ((op.val != 0) != isProp) {
+        //            break; // this ops type is different from first in run
+        //        }
+        //        int opx = op.index % S;
+        //        int opy = op.index / (S * S);
+        //        int opz = (op.index % (S * S)) / S;
+        //        int startIndex = (opx + S) + (opz + S) * W + (opy + S) * W * W;
+
+        //        Light curLight = lights.Get(opx, opy, opz);
+        //        if (isProp) {
+        //            // set the new light value here
+        //            Light newLight = curLight;
+        //            newLight.sun = op.val;
+        //            lights.Set(opx, opy, opz, newLight);
+
+        //            // if the new sun value is same or less than current dont need to progagate
+        //            // this might not happen with sunlight but left check anyways
+        //            if (op.val <= curLight.sun) {
+        //                continue;
+        //            }
+        //        } else {
+        //            lrbfs.Enqueue(new LightRemovalNode { index = startIndex, light = curLight.sun });
+        //            curLight.sun = 0;
+        //            lights.Set(opx, opy, opz, curLight);
+        //        }
+
+        //        oi++;
+        //    }
+
+        //if (!isProp) {
+        while (lrbfs.Count > 0) {
+            LightRemovalNode node = lrbfs.Dequeue();
+
+            // extract coords from index
+            int x = node.index % W - S;
+            int y = node.index / (W * W) - S;
+            int z = (node.index % (W * W)) / W - S;
+
+            byte oneLess = (byte)(node.light - 1); // each time reduce light by one
+
+            Light light = lights.Get(x - 1, y, z);
+            if (light.sun != 0) { // WEST
+                int index = x - 1 + S + (z + S) * W + (y + S) * W * W;
+                if (light.sun < node.light) {
+                    light.sun = 0;
+                    lights.Set(x - 1, y, z, light);
+                    lrbfs.Enqueue(new LightRemovalNode { index = index, light = oneLess });
+                } else { // add to propagate queue so can fill gaps left behind by removal
+                    lbfs.Enqueue(index);
+                }
+            }
+
+            light = lights.Get(x, y - 1, z);
+            if (light.sun != 0) { // DOWN
+                int index = x + S + (z + S) * W + (y - 1 + S) * W * W;
+                if (light.sun < node.light || node.light == MAX_LIGHT) {
+                    light.sun = 0;
+                    lights.Set(x, y - 1, z, light);
+                    byte lv = node.light == MAX_LIGHT ? MAX_LIGHT : oneLess;
+                    lrbfs.Enqueue(new LightRemovalNode { index = index, light = lv });
+                } else { // add to propagate queue so can fill gaps left behind by removal
+                    lbfs.Enqueue(index);
+                }
+            }
+
+            light = lights.Get(x, y, z - 1);
+            if (light.sun != 0) { // SOUTH
+                int index = x + S + (z - 1 + S) * W + (y + S) * W * W;
+                if (light.sun < node.light) {
+                    light.sun = 0;
+                    lights.Set(x, y, z - 1, light);
+                    lrbfs.Enqueue(new LightRemovalNode { index = index, light = oneLess });
+                } else { // add to propagate queue so can fill gaps left behind by removal
+                    lbfs.Enqueue(index);
+                }
+            }
+
+            light = lights.Get(x + 1, y, z);
+            if (light.sun != 0) { // EAST
+                int index = x + 1 + S + (z + S) * W + (y + S) * W * W;
+                if (light.sun < node.light) {
+                    light.sun = 0;
+                    lights.Set(x + 1, y, z, light);
+                    lrbfs.Enqueue(new LightRemovalNode { index = index, light = oneLess });
+                } else { // add to propagate queue so can fill gaps left behind by removal
+                    lbfs.Enqueue(index);
+                }
+            }
+
+            light = lights.Get(x, y + 1, z);
+            if (light.sun != 0) { // UP
+                int index = x + S + (z + S) * W + (y + 1 + S) * W * W;
+                if (light.sun < node.light) {
+                    light.sun = 0;
+                    lights.Set(x, y + 1, z, light);
+                    lrbfs.Enqueue(new LightRemovalNode { index = index, light = oneLess });
+                } else { // add to propagate queue so can fill gaps left behind by removal
+                    lbfs.Enqueue(index);
+                }
+            }
+
+            light = lights.Get(x, y, z + 1);
+            if (light.sun != 0) { // NORTH
+                int index = x + S + (z + 1 + S) * W + (y + S) * W * W;
+                if (light.sun < node.light) {
+                    light.sun = 0;
+                    lights.Set(x, y, z + 1, light);
+                    lrbfs.Enqueue(new LightRemovalNode { index = index, light = oneLess });
+                } else { // add to propagate queue so can fill gaps left behind by removal
+                    lbfs.Enqueue(index);
+                }
+            }
+        }
+
         // propagate (either way)
         while (lbfs.Count > 0) {
             int index = lbfs.Dequeue();
@@ -525,7 +528,7 @@ public static class LightCalculator {
                     }
                     lights.Set(x, y - 1, z, light);
                     if (y <= -31) {
-                        uflbfs.Enqueue(x + S + (z + S) * W + (S + 32) * W * W); // add to unfinished queue and shift index to be proper for downdown chunk
+                        lbfs_U.Enqueue(x + S + (z + S) * W + (S + 32) * W * W); // add to unfinished queue and shift index to be proper for downdown chunk
                     } else {
                         lbfs.Enqueue(x + S + (z + S) * W + (y - 1 + S) * W * W);
                     }
@@ -567,10 +570,9 @@ public static class LightCalculator {
                     lbfs.Enqueue(x + S + (z + 1 + S) * W + (y + S) * W * W);
                 }
             }
+
         }
     }
-
-
 
     public static void CalcInitialSunLight(NativeArray<Block> blocks, NativeArray<BlockData> blockData, NativeArray<Light> clight, NativeArray<Light> topLight, NativeQueue<int> lbfs, bool upRendered, Vector3 chunkWorldPos) {
         if (upRendered) { // if up neighbor has been sunlight processed before
@@ -619,11 +621,11 @@ public static class LightCalculator {
 
     // queue up initial light updates for any light emitting block in loaded chunk
     // could prob work this into generation and load routines more efficiently but whatever for now
-    public static void CalcInitialLightOps(NativeArray<Block> blocks, NativeArray<BlockData> blockData, NativeQueue<TorchLightOp> lightOps) {
+    public static void CalcInitialLightOps(NativeArray<Block> blocks, NativeArray<BlockData> blockData, NativeList<TorchLightOp> lightOps) {
         for (int i = 0; i < blocks.Length; ++i) {
             ushort light = blockData[blocks[i].type].light;
             if (light > 0) { // new light update
-                lightOps.Enqueue(new TorchLightOp { index = i, val = light });
+                lightOps.Add(new TorchLightOp { index = i, val = light });
             }
         }
 

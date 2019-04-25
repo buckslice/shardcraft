@@ -116,7 +116,14 @@ public class CamModify : MonoBehaviour {
         if (Input.GetMouseButtonDown(1) && success) {
             lastPos = transform.position;
             lastHit = vhit;
-            world.SetBlock(vhit.bpos + Dirs.GetNormal(vhit.dir), blocks[blockIndex]);
+
+            for (int y = 0; y < placementSize; ++y) {
+                for (int z = 0; z < placementSize; ++z) {
+                    for (int x = 0; x < placementSize; ++x) {
+                        world.SetBlock(vhit.bpos + Dirs.GetNormal(vhit.dir) + new Vector3i(x, y, z), blocks[blockIndex]);
+                    }
+                }
+            }
         }
 
         if (Input.GetKeyDown(KeyCode.UpArrow)) {
