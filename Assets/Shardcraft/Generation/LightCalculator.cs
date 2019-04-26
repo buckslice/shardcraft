@@ -528,7 +528,7 @@ public static class LightCalculator {
                     }
                     lights.Set(x, y - 1, z, light);
                     if (y <= -31) {
-                        lbfs_U.Enqueue(x + S + (z + S) * W + (S + 32) * W * W); // add to unfinished queue and shift index to be proper for downdown chunk
+                        lbfs_U.Enqueue(x + S + (z + S) * W + (32 + S) * W * W); // add to unfinished queue and shift index to be proper for downdown chunk
                     } else {
                         lbfs.Enqueue(x + S + (z + S) * W + (y - 1 + S) * W * W);
                     }

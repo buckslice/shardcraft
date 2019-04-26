@@ -149,17 +149,19 @@ public class LoadChunks : MonoBehaviour {
                 "Structr: {8}/{9}\n" +
                 "Meshing: {10}/{11}\n" +
                 "Light  : {12}/{13}\n" +
-                "Free/C : {14}/{15}\n" +
-                "Chunks:  {16}\n" +
-                "Loaded:  {17}\n" +
-                "Greedy:  {18}\n" +
-                "v3Pool:  {19}/{20}\n" +
-                "intPool: {21}/{22}\n",
+                "SLight : {14}/{15}\n" +
+                "Free/C : {16}/{17}\n" +
+                "Chunks:  {18}\n" +
+                "Loaded:  {19}\n" +
+                "Greedy:  {20}\n" +
+                "v3Pool:  {21}/{22}\n" +
+                "intPool: {23}/{24}\n",
                 pbp.x, pbp.y, pbp.z, pcp.x, pcp.y, pcp.z,
                 JobController.genJobFinished, JobController.genJobScheduled,
                 JobController.structureJobFinished, JobController.structureJobScheduled,
                 JobController.meshJobFinished, JobController.meshJobScheduled,
                 JobController.lightJobFinished, JobController.lightJobScheduled,
+                JobController.sunlightJobFinished, JobController.sunlightJobScheduled,
                 world.chunkPool.CountFree(), world.chunkPool.Count(),
                 world.chunks.Count, chunksLoaded, Chunk.beGreedy,
                 Pools.v3N.CountFree(), Pools.v3N.Count(),

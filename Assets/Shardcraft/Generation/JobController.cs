@@ -145,7 +145,7 @@ public struct MeshJob : IJob {
         UnityEngine.Profiling.Profiler.BeginSample("Lighting");
 #endif
 
-        LightCalculator.AddSunlightRemovals(ref lights, lightOps, lightRBFS);
+        //LightCalculator.AddSunlightRemovals(ref lights, lightOps, lightRBFS);
 
         // if chunk hasnt been rendered before then check each block to see if it has any lights
         if (calcInitialLight) {
@@ -158,7 +158,7 @@ public struct MeshJob : IJob {
         }
         // always call this incase lightBFS comes with some data in it already
         LightCalculator.ProcessSunlight(ref lights, ref blocks, blockData, lightBFS, lightBFS_U, lightRBFS, lightRBFS_U);
-
+        Assert.IsTrue(lightBFS.Count == 0 && lightRBFS.Count == 0);
         LightCalculator.ProcessTorchLightOpsOptimal(ref lights, ref blocks, blockData, lightOps, lightBFS, lightRBFS);
         Assert.IsTrue(lightBFS.Count == 0 && lightRBFS.Count == 0);
         int torchLightFlags = lights.flags;
@@ -612,6 +612,8 @@ public class JobController : MonoBehaviour {
     public static int meshJobFinished = 0;
     public static int lightJobScheduled = 0;
     public static int lightJobFinished = 0;
+    public static int sunlightJobScheduled = 0;
+    public static int sunlightJobFinished = 0;
 
     // Update is called once per frame
     void Update() {
@@ -684,7 +686,7 @@ public class JobController : MonoBehaviour {
                 sunJobInfos[i].handle.Complete();
 
                 sunJobInfos[i].Finish();
-
+                sunlightJobFinished++;
                 sunJobInfos.SwapAndPop(i);
                 --i;
             }
@@ -736,6 +738,8 @@ public class JobController : MonoBehaviour {
         SunlightJobInfo info = new SunlightJobInfo(chunk);
 
         sunJobInfos.Add(info);
+
+        sunlightJobScheduled++;
     }
 
     public static int GetGenJobCount() {
